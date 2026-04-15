@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BuildBot – Admin Panel</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --bg:#0f1117;--surface:#1a1d27;--border:#2a2d3e;
+      --primary:#7c6af7;--text:#e0e0e0;--muted:#888;
+      --success:#2ecc71;--danger:#e74c3c;--warning:#f39c12;
+    }
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+    /* LOGIN */
+    .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+    .login-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;
+      padding:40px;width:100%;max-width:380px;}
+    .login-box h2{font-size:22px;color:#fff;margin-bottom:6px;}
+    .login-box p{font-size:13px;color:var(--muted);margin-bottom:28px;}
+
+    /* NAV */
+    nav{background:var(--surface);border-bottom:1px solid var(--border);
+      padding:16px 32px;display:flex;align-items:center;justify-content:space-between;}
+    .nav-logo{font-size:18px;font-weight:700;color:var(--primary);}
+    .nav-badge{background:var(--danger);color:#fff;font-size:10px;font-weight:700;
+      padding:3px 8px;border-radius:20px;margin-left:8px;}
+    .nav-right{font-size:13px;color:var(--muted);}
+    .nav-right a{color:var(--primary);cursor:pointer;}
+
+    /* LAYOUT */
+    .layout{display:flex;min-height:calc(100vh - 57px);}
+    .sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);
+      padding:20px 12px;flex-shrink:0;}
+    .sb-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;
+      cursor:pointer;font-size:13px;color:var(--muted);transition:all .2s;margin-bottom:4px;}
+    .sb-item:hover{background:#2a2d3e;color:var(--text);}
+    .sb-item.active{background:var(--primary);color:#fff;}
+    .sb-item .ic{font-size:16px;width:20px;text-align:center;}
+    .main{flex:1;padding:32px;overflow-y:auto;}
+
+    /* CARDS */
+    .card{background:var(--surface);border:1px solid var(--border);
+      border-radius:14px;padding:24px;margin-bottom:20px;}
+    .card h2{font-size:16px;color:#fff;margin-bottom:16px;
+      display:flex;align-items:center;justify-content:space-between;}
+
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+    .stat{background:var(--surface);border:1px solid var(--border);
+      border-radius:12px;padding:20px;}
+    .stat-val{font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;}
+    .stat-lbl{font-size:12px;color:var(--muted);}
+    .stat-ic{font-size:22px;margin-bottom:8px;}
+
+    /* TABLE */
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{background:#0f1117;padding:10px 14px;text-align:left;
+      color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);}
+    td{padding:10px 14px;border-bottom:1px solid #1e2130;color:#ccc;}
+    tr:hover td{background:#1e2130;}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-success{background:#1a3a2a;color:var(--success);}
+    .badge-warning{background:#3a2a1a;color:var(--warning);}
+    .badge-danger{background:#3a1a1a;color:var(--danger);}
+    .badge-primary{background:#1a1a3a;color:var(--primary);}
+    .badge-muted{background:#2a2d3e;color:var(--muted);}
+
+    /* FORMS */
+    .form-group{margin-bottom:16px;}
+    .form-label{font-size:12px;color:var(--muted);font-weight:600;
+      text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block;}
+    input[type=text],input[type=email],input[type=password],select{
+      width:100%;padding:11px 14px;background:#0f1117;border:1px solid var(--border);
+      border-radius:8px;color:#fff;font-size:13px;outline:none;transition:border .2s;}
+    input:focus,select:focus{border-color:var(--primary);}
+
+    /* BUTTONS */
+    .btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;
+      cursor:pointer;border:none;transition:all .2s;}
+    .btn-primary{background:var(--primary);color:#fff;}
+    .btn-primary:hover{background:#5b4fe0;}
+    .btn-success{background:#1a4a2a;color:var(--success);border:1px solid var(--success);}
+    .btn-success:hover{background:var(--success);color:#fff;}
+    .btn-danger{background:#3a1a1a;color:var(--danger);border:1px solid var(--danger);}
+    .btn-danger:hover{background:var(--danger);color:#fff;}
+    .btn-sm{padding:5px 12px;font-size:11px;}
+    .btn-full{width:100%;padding:12px;}
+
+    /* ALERTS */
+    .alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-top:12px;display:none;}
+    .alert.show{display:block;}
+    .alert-success{background:#1a3a2a;border:1px solid var(--success);color:var(--success);}
+    .alert-error{background:#3a1a1a;border:1px solid var(--danger);color:var(--danger);}
+
+    /* SECTION */
+    .section-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;}
+    .section-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;
+      display:none;align-items:center;justify-content:center;}
+    .modal-bg.open{display:flex;}
+    .modal{background:var(--surface);border:1px solid var(--border);
+      border-radius:16px;padding:32px;width:100%;max-width:440px;}
+    .modal h3{font-size:18px;color:#fff;margin-bottom:16px;}
+    .modal-btns{display:flex;gap:10px;margin-top:20px;}
+
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    .pending-dot{width:8px;height:8px;background:var(--warning);
+      border-radius:50%;display:inline-block;margin-right:6px;animation:blink 1.2s infinite;}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+  </style>
+  <script src="config.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="admin-login">
+  <div class="login-wrap">
+    <div class="login-box">
+      <h2>⚡ BuildBot Admin</h2>
+      <p>Login to manage your platform.</p>
+      <div class="form-group">
+        <label class="form-label">Admin Email</label>
+        <input type="email" id="adm-email" placeholder="admin@buildbot.pk"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="adm-password" placeholder="Your admin password"/>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="adminLogin()">Login to Admin Panel</button>
+      <div class="alert" id="adm-login-alert"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="admin-app" style="display:none;">
+
+  <nav>
+    <div style="display:flex;align-items:center;">
+      <div class="nav-logo">⚡ BuildBot Admin</div>
+      <span class="nav-badge" id="pending-badge" style="display:none;">0 pending</span>
+    </div>
+    <div class="nav-right">
+      Logged in as Admin &nbsp;|&nbsp;
+      <a onclick="adminLogout()">Logout</a>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sb-item active" onclick="showTab('overview')" id="atab-overview">
+        <span class="ic">📊</span> Overview
+      </div>
+      <div class="sb-item" onclick="showTab('stores')" id="atab-stores">
+        <span class="ic">🏪</span> All Stores
+      </div>
+      <div class="sb-item" onclick="showTab('payments')" id="atab-payments">
+        <span class="ic">💳</span> Payments
+      </div>
+      <div class="sb-item" onclick="showTab('analytics')" id="atab-analytics">
+        <span class="ic">📈</span> Platform Stats
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- OVERVIEW -->
+      <div id="tab-overview">
+        <div class="section-title">Platform Overview</div>
+        <div class="section-sub">Everything happening across BuildBot right now.</div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-ic">🏪</div>
+            <div class="stat-val" id="ov-stores">0</div>
+            <div class="stat-lbl">Total Stores</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">🤖</div>
+            <div class="stat-val" id="ov-recs">0</div>
+            <div class="stat-lbl">Total Recommendations</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">💰</div>
+            <div class="stat-val" id="ov-revenue">0</div>
+            <div class="stat-lbl">Total Revenue (PKR)</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">⏳</div>
+            <div class="stat-val" id="ov-pending">0</div>
+            <div class="stat-lbl">Pending Payments</div>
+          </div>
+        </div>
+
+        <!-- Pending payments alert -->
+        <div class="card" id="pending-alert-card" style="display:none;border-color:var(--warning);">
+          <h2>
+            <span><span class="pending-dot"></span>Payments Awaiting Approval</span>
+            <button class="btn btn-sm" onclick="showTab('payments')"
+              style="background:var(--warning);color:#000;">Review Now</button>
+          </h2>
+          <table>
+            <thead><tr><th>Store</th><th>Plan</th><th>Amount</th><th>Method</th><th>Ref</th><th>Action</th></tr></thead>
+            <tbody id="ov-pending-table"></tbody>
+          </table>
+        </div>
+
+        <!-- Recent stores -->
+        <div class="card">
+          <h2>Recently Joined Stores</h2>
+          <table>
+            <thead><tr><th>Store</th><th>Email</th><th>Plan</th><th>Joined</th><th>Action</th></tr></thead>
+            <tbody id="ov-stores-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STORES -->
+      <div id="tab-stores" style="display:none;">
+        <div class="section-title">All Stores</div>
+        <div class="section-sub">Manage every store registered on BuildBot.</div>
+        <div class="card">
+          <h2>
+            Stores
+            <input type="text" id="store-search" placeholder="Search by name or email..."
+              style="width:220px;padding:7px 12px;font-size:12px;" oninput="filterStores()"/>
+          </h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Store Name</th><th>Store ID</th><th>Email</th>
+                <th>Plan</th><th>Status</th><th>Products</th><th>Recs</th><th>Joined</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stores-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div id="tab-payments" style="display:none;">
+        <div class="section-title">Payment Management</div>
+        <div class="section-sub">Approve or reject payment submissions from store owners.</div>
+
+        <div class="card" id="pending-payments-card">
+          <h2><span class="pending-dot"></span>Pending Payments</h2>
+          <table>
+            <thead>
+              <tr><th>Store</th><th>Email</th><th>Plan</th><th>Amount</th>
+                <th>Method</th><th>Ref ID</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="pending-table"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>All Payment History</h2>
+          <table>
+            <thead>
+              <tr><th>Store</th><th>Plan</th><th>Amount</th><th>Method</th>
+                <th>Ref</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody id="all-payments-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div id="tab-analytics" style="display:none;">
+        <div class="section-title">Platform Analytics</div>
+        <div class="section-sub">Overall performance across all stores.</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-ic">🏪</div>
+            <div class="stat-val" id="an-stores">0</div>
+            <div class="stat-lbl">Active Stores</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">🎯</div>
+            <div class="stat-val" id="an-trial">0</div>
+            <div class="stat-lbl">On Trial</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">💳</div>
+            <div class="stat-val" id="an-paid">0</div>
+            <div class="stat-lbl">Paid Stores</div>
+          </div>
+          <div class="stat">
+            <div class="stat-ic">💰</div>
+            <div class="stat-val" id="an-rev">0</div>
+            <div class="stat-lbl">Total Revenue</div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <h2>Top Stores by Recommendations</h2>
+            <table>
+              <thead><tr><th>Store</th><th>Recommendations</th><th>Plan</th></tr></thead>
+              <tbody id="top-stores-table"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h2>Plan Distribution</h2>
+            <div id="plan-dist" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- APPROVE MODAL -->
+<div class="modal-bg" id="approve-modal">
+  <div class="modal">
+    <h3>✅ Approve Payment</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Approving this payment will immediately activate the store's plan.
+    </p>
+    <div id="approve-details" style="background:#0f1117;border-radius:8px;padding:16px;font-size:13px;line-height:2;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="confirmApprove()">✅ Approve & Activate</button>
+      <button class="btn" onclick="closeModal()" style="background:#2a2d3e;color:#fff;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DISABLE MODAL -->
+<div class="modal-bg" id="disable-modal">
+  <div class="modal">
+    <h3>⛔ Disable Store</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      This will disable the store's widget. Their customers will see an error. You can re-enable anytime.
+    </p>
+    <div id="disable-details" style="background:#0f1117;border-radius:8px;padding:16px;font-size:13px;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="confirmDisable()">⛔ Disable Store</button>
+      <button class="btn" onclick="closeModal()" style="background:#2a2d3e;color:#fff;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.BB_API || 'http://localhost:3001/api';
+let adminToken = localStorage.getItem('bb_admin_token');
+let allStoresData = [];
+let pendingAction = null;
+
+// ─── INIT ─────────────────────────────────────────────
+window.onload = () => {
+  if (adminToken) enterAdmin();
+};
+
+// ─── LOGIN ────────────────────────────────────────────
+async function adminLogin() {
+  const email    = document.getElementById('adm-email').value.trim();
+  const password = document.getElementById('adm-password').value;
+
+  try {
+    const res  = await fetch(`${API}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      adminToken = data.token;
+      localStorage.setItem('bb_admin_token', adminToken);
+      enterAdmin();
+    } else {
+      showAlert('adm-login-alert', data.error, 'error');
+    }
+  } catch {
+    showAlert('adm-login-alert', 'Cannot connect to server.', 'error');
+  }
+}
+
+function adminLogout() {
+  adminToken = null;
+  localStorage.removeItem('bb_admin_token');
+  document.getElementById('admin-app').style.display   = 'none';
+  document.getElementById('admin-login').style.display = 'block';
+}
+
+function enterAdmin() {
+  document.getElementById('admin-login').style.display = 'none';
+  document.getElementById('admin-app').style.display   = 'block';
+  loadOverview();
+}
+
+// ─── TABS ─────────────────────────────────────────────
+function showTab(name) {
+  ['overview','stores','payments','analytics'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display   = 'none';
+    document.getElementById(`atab-${t}`).classList.remove('active');
+  });
+  document.getElementById(`tab-${name}`).style.display = 'block';
+  document.getElementById(`atab-${name}`).classList.add('active');
+
+  if (name === 'overview')  loadOverview();
+  if (name === 'stores')    loadStores();
+  if (name === 'payments')  loadPayments();
+  if (name === 'analytics') loadPlatformAnalytics();
+}
+
+// ─── OVERVIEW ─────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const res  = await fetch(`${API}/admin/overview`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const { stores, totalRecs, revenue, pending } = data;
+
+    document.getElementById('ov-stores').textContent  = stores.length;
+    document.getElementById('ov-recs').textContent    = totalRecs;
+    document.getElementById('ov-revenue').textContent =
+      'Rs ' + Number(revenue).toLocaleString();
+    document.getElementById('ov-pending').textContent = pending.length;
+
+    // Pending badge
+    if (pending.length > 0) {
+      const badge = document.getElementById('pending-badge');
+      badge.textContent    = pending.length + ' pending';
+      badge.style.display  = 'inline';
+      document.getElementById('pending-alert-card').style.display = 'block';
+      document.getElementById('ov-pending-table').innerHTML =
+        pending.map(p => `
+          <tr>
+            <td>${p.name}</td>
+            <td><span class="badge badge-primary">${p.plan}</span></td>
+            <td>Rs ${Number(p.amount).toLocaleString()}</td>
+            <td>${p.method}</td>
+            <td style="font-family:monospace;">${p.transaction_ref}</td>
+            <td>
+              <button class="btn btn-success btn-sm"
+                onclick="openApprove(${p.id},'${p.store_id}','${p.plan}','${p.name}',${p.amount})">
+                ✅ Approve
+              </button>
+            </td>
+          </tr>`).join('');
+    }
+
+    // Recent stores
+    document.getElementById('ov-stores-table').innerHTML =
+      stores.slice(0, 8).map(s => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.email}</td>
+          <td>${planBadge(s.plan)}</td>
+          <td>${new Date(s.created_at).toLocaleDateString()}</td>
+          <td>
+            <button class="btn btn-sm" style="background:#2a2d3e;color:#fff;"
+              onclick="openDisable('${s.store_id}','${s.name}')">
+              ⛔ Disable
+            </button>
+          </td>
+        </tr>`).join('');
+
+  } catch(e) { console.error(e); }
+}
+
+// ─── STORES ───────────────────────────────────────────
+async function loadStores() {
+  try {
+    const res  = await fetch(`${API}/admin/stores`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+    allStoresData = data.stores;
+    renderStores(allStoresData);
+  } catch(e) {}
+}
+
+function renderStores(stores) {
+  document.getElementById('stores-table').innerHTML =
+    stores.map(s => `
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td style="font-family:monospace;font-size:11px;color:var(--muted);">${s.store_id}</td>
+        <td>${s.email}</td>
+        <td>${planBadge(s.plan)}</td>
+        <td><span class="badge ${s.plan_status==='active'?'badge-success':'badge-danger'}">
+          ${s.plan_status}</span></td>
+        <td>${s.product_count || 0}</td>
+        <td>${s.rec_count || 0}</td>
+        <td>${new Date(s.created_at).toLocaleDateString()}</td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn btn-success btn-sm"
+            onclick="activateStore('${s.store_id}','${s.plan}')">✅ Activate</button>
+          <button class="btn btn-danger btn-sm"
+            onclick="openDisable('${s.store_id}','${s.name}')">⛔ Disable</button>
+        </td>
+      </tr>`).join('');
+}
+
+function filterStores() {
+  const q = document.getElementById('store-search').value.toLowerCase();
+  renderStores(allStoresData.filter(s =>
+    s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)
+  ));
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────
+async function loadPayments() {
+  try {
+    const res  = await fetch(`${API}/admin/payments`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const pending = data.payments.filter(p => p.status === 'pending');
+    const all     = data.payments;
+
+    document.getElementById('pending-table').innerHTML =
+      pending.length
+        ? pending.map(p => `
+            <tr>
+              <td><strong>${p.name}</strong></td>
+              <td>${p.email}</td>
+              <td>${planBadge(p.plan)}</td>
+              <td>Rs ${Number(p.amount).toLocaleString()}</td>
+              <td>${p.method}</td>
+              <td style="font-family:monospace;font-size:11px;">${p.transaction_ref}</td>
+              <td>${new Date(p.created_at).toLocaleDateString()}</td>
+              <td style="display:flex;gap:6px;">
+                <button class="btn btn-success btn-sm"
+                  onclick="openApprove(${p.id},'${p.store_id}','${p.plan}','${p.name}',${p.amount})">
+                  ✅ Approve
+                </button>
+                <button class="btn btn-danger btn-sm"
+                  onclick="rejectPayment(${p.id})">
+                  ❌ Reject
+                </button>
+              </td>
+            </tr>`).join('')
+        : `<tr><td colspan="8" style="color:var(--muted);text-align:center;">
+            No pending payments 🎉</td></tr>`;
+
+    document.getElementById('all-payments-table').innerHTML =
+      all.map(p => `
+        <tr>
+          <td>${p.name}</td>
+          <td>${planBadge(p.plan)}</td>
+          <td>Rs ${Number(p.amount).toLocaleString()}</td>
+          <td>${p.method}</td>
+          <td style="font-family:monospace;font-size:11px;">${p.transaction_ref}</td>
+          <td><span class="badge ${
+            p.status==='approved'?'badge-success':
+            p.status==='pending'?'badge-warning':'badge-danger'}">
+            ${p.status}</span></td>
+          <td>${new Date(p.created_at).toLocaleDateString()}</td>
+        </tr>`).join('');
+
+  } catch(e) { console.error(e); }
+}
+
+// ─── PLATFORM ANALYTICS ───────────────────────────────
+async function loadPlatformAnalytics() {
+  try {
+    const res  = await fetch(`${API}/admin/overview`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const { stores, totalRecs, revenue } = data;
+
+    const trial = stores.filter(s => s.plan === 'trial').length;
+    const paid  = stores.filter(s => s.plan !== 'trial').length;
+
+    document.getElementById('an-stores').textContent = stores.length;
+    document.getElementById('an-trial').textContent  = trial;
+    document.getElementById('an-paid').textContent   = paid;
+    document.getElementById('an-rev').textContent    = 'Rs ' + Number(revenue).toLocaleString();
+
+    // Top stores
+    const sorted = [...stores].sort((a,b) => (b.rec_count||0) - (a.rec_count||0));
+    document.getElementById('top-stores-table').innerHTML =
+      sorted.slice(0, 8).map(s => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.rec_count || 0}</td>
+          <td>${planBadge(s.plan)}</td>
+        </tr>`).join('');
+
+    // Plan distribution
+    const planCounts = {};
+    stores.forEach(s => { planCounts[s.plan] = (planCounts[s.plan]||0) + 1; });
+    const maxPlan = Math.max(...Object.values(planCounts));
+    document.getElementById('plan-dist').innerHTML =
+      Object.entries(planCounts).map(([plan, count]) => `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="width:80px;font-size:12px;color:var(--muted);text-transform:capitalize;">
+            ${plan}</div>
+          <div style="flex:1;background:#0f1117;border-radius:4px;height:20px;overflow:hidden;">
+            <div style="height:100%;background:var(--primary);border-radius:4px;
+              width:${(count/maxPlan*100)}%;transition:width .6s;"></div>
+          </div>
+          <div style="font-size:12px;color:var(--muted);width:20px;">${count}</div>
+        </div>`).join('');
+
+  } catch(e) { console.error(e); }
+}
+
+// ─── APPROVE MODAL ────────────────────────────────────
+function openApprove(id, storeId, plan, name, amount) {
+  pendingAction = { id, storeId, plan };
+  document.getElementById('approve-details').innerHTML = `
+    <div>🏪 Store: <strong>${name}</strong></div>
+    <div>📋 Plan: <strong>${plan}</strong></div>
+    <div>💰 Amount: <strong>Rs ${Number(amount).toLocaleString()}</strong></div>
+  `;
+  document.getElementById('approve-modal').classList.add('open');
+}
+
+async function confirmApprove() {
+  if (!pendingAction) return;
+  try {
+    const res  = await fetch(`${API}/admin/approve-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify(pendingAction)
+    });
+    const data = await res.json();
+    closeModal();
+    if (data.success) {
+      loadOverview();
+      loadPayments();
+    }
+  } catch(e) {}
+}
+
+// ─── DISABLE MODAL ────────────────────────────────────
+function openDisable(storeId, name) {
+  pendingAction = { storeId };
+  document.getElementById('disable-details').innerHTML =
+    `🏪 Store: <strong>${name}</strong> (${storeId})`;
+  document.getElementById('disable-modal').classList.add('open');
+}
+
+async function confirmDisable() {
+  if (!pendingAction) return;
+  try {
+    await fetch(`${API}/admin/disable-store`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ storeId: pendingAction.storeId })
+    });
+    closeModal();
+    loadStores();
+    loadOverview();
+  } catch(e) {}
+}
+
+async function activateStore(storeId, plan) {
+  await fetch(`${API}/admin/activate-store`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ storeId, plan })
+  });
+  loadStores();
+}
+
+async function rejectPayment(id) {
+  await fetch(`${API}/admin/reject-payment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ id })
+  });
+  loadPayments();
+}
+
+function closeModal() {
+  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
+  pendingAction = null;
+}
+
+// ─── HELPERS ──────────────────────────────────────────
+function planBadge(plan) {
+  const map = {
+    trial:   'badge-muted',
+    starter: 'badge-primary',
+    growth:  'badge-success',
+    pro:     'badge-warning'
+  };
+  return `<span class="badge ${map[plan]||'badge-muted'}">${plan}</span>`;
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `alert alert-${type} show`;
+  setTimeout(() => el.className = 'alert', 4000);
+}
+</script>
+</body>
+</html>

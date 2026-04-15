@@ -1,0 +1,132 @@
+name,category,price,description
+Intel Core i5-13400F,CPU,21500,Great mid-range processor for gaming and productivity
+Intel Core i7-13700K,CPU,38500,High-performance CPU with unlocked multiplier for overclocking
+Intel Core i9-13900K,CPU,54000,Top-tier consumer desktop processor for extreme performance
+AMD Ryzen 5 7600X,CPU,24000,Fast 6-core processor based on the Zen 4 architecture
+AMD Ryzen 7 7800X3D,CPU,39900,Best gaming CPU with massive 3D V-Cache
+AMD Ryzen 9 7950X,CPU,55000,16-core powerhouse for heavy workstations and rendering
+AMD Ryzen 5 5600,CPU,12500,Budget-friendly AM4 processor with great value
+Intel Core i3-12100F,CPU,10500,Entry-level dual-core gaming CPU
+AMD Ryzen 9 5900X,CPU,29500,12-core AM4 processor for multitasking
+ASUS Prime B660M-K,Motherboard,18000,LGA1700 compatible motherboard with mATX form factor
+MSI MAG B660M Mortar WiFi,Motherboard,22000,Feature-rich mATX board with WiFi 6
+ASUS TUF Gaming Z790-Plus WiFi,Motherboard,32000,Robust ATX board for Intel 13th/14th Gen
+Gigabyte B650 AORUS Elite AX,Motherboard,24500,AM5 ATX motherboard with DDR5 support
+ASRock B550 Phantom Gaming-4,Motherboard,13500,Budget AM4 motherboard with PCIe 4.0
+MSI MEG X670E ACE,Motherboard,65000,High-end AM5 motherboard with extreme connectivity
+ASUS ROG Strix Z790-E Gaming WiFi,Motherboard,48000,Premium overclocking motherboard
+Gigabyte A620M S2H,Motherboard,10500,Entry-level AM5 motherboard
+MSI Pro Z790-A WiFi,Motherboard,29500,Business-oriented stable motherboard
+ASUS ROG Strix B550-F Gaming WiFi,Motherboard,19500,Performance AM4 motherboard
+Corsair Vengeance 16GB DDR4,RAM,8500,Reliable 16GB DDR4 3200MHz RAM kit
+G.Skill Trident Z5 RGB 32GB DDR5,RAM,13500,High-performance DDR5 6000MHz RGB RAM
+Kingston Fury Beast 32GB DDR5,RAM,11000,Affordable DDR5 5200MHz memory kit
+Corsair Vengeance LPX 32GB DDR4,RAM,10500,Low-profile 32GB DDR4 3200MHz kit
+Crucial RAM 8GB DDR4,RAM,4500,Basic 8GB stick for office builds
+TeamGroup T-Force Vulcan Z 16GB DDR4,RAM,7000,Budget gaming RAM with heatsink
+G.Skill Ripjaws V 64GB DDR4,RAM,19500,64GB kit for content creation
+ADATA XPG Lancer 32GB DDR5,RAM,12000,DDR5 RGB memory with sleek design
+Silicon Power 16GB DDR4,RAM,5500,Standard reliability memory module
+Patriot Viper 4 32GB DDR4,RAM,9000,Performance memory with aggressive styling
+WD Blue 1TB SSD,Storage,14000,Fast and reliable SATA SSD for boot drives
+Samsung 980 PRO 1TB NVMe,Storage,10500,Top-tier PCIe 4.0 NVMe with high speeds
+Crucial P3 2TB NVMe,Storage,11500,Budget-friendly PCIe 3.0 NVMe storage
+Seagate Barracuda 2TB HDD,Storage,5500,High-capacity mechanical hard drive for storage
+Kingston NV2 500GB NVMe,Storage,4500,Entry-level NVMe for faster boot times
+WD Black SN850X 2TB NVMe,Storage,18500,High-performance gaming SSD with heatsink
+Sabrent Rocket 4 1TB NVMe,Storage,9500,Gen4 SSD for PS5 and PC upgrades
+Toshiba 4TB HDD,Storage,9500,Mass storage for media servers
+SK hynix Gold P31 1TB NVMe,Storage,8500,Power-efficient M.2 SSD for laptops and PCs
+Addlink S70 1TB NVMe,Storage,8000,Budget PCIe 4.0 performance SSD
+MSI GeForce RTX 3060,GPU,65000,Great for gaming and video editing at 1080p
+ASUS TUF RTX 4070 Ti Super,GPU,95000,High-end 1440p and 4K gaming card
+AMD Radeon RX 7600,GPU,45000,Budget-friendly 1080p gaming champion
+Gigabyte RTX 4090 Gaming OC,GPU,220000,Flagship GPU for 8K gaming and AI work
+AMD Radeon RX 7900 XTX,GPU,140000,Top-tier AMD GPU for high refresh rate 4K
+ZOTAC GAMING RTX 4060 Ti,GPU,52000,Compact and efficient mid-range GPU
+Sapphire Pulse RX 6700 XT,GPU,58000,Solid 1440p performance card
+Palit RTX 3060 Ti,GPU,62000,Strong 1080p/1440p value card
+ASUS ROG Strix RTX 4080 Super,GPU,150000,Premium cooling and performance
+XFX Speedster RX 7800 XT,GPU,89000,Excellent rasterization performance for the price
+Intel Arc A750,GPU,35000,Budget option with good encoding capabilities
+MSI GeForce RTX 3050,GPU,38000,Entry-level 1080p card
+Corsair CV550 550W PSU,PSU,8500,Reliable 80+ Bronze certified power supply
+Seasonic Focus GX-850 850W PSU,PSU,13500,80+ Gold Fully Modular power supply
+EVGA SuperNOVA 1000 G7 PSU,PSU,19000,High wattage 80+ Gold PSU for top builds
+Cooler Master MWE 750 V2 PSU,PSU,9500,Reliable 750W Bronze power supply
+be quiet! Dark Power 13 1000W PSU,PSU,32000,Low noise high-end power supply
+Corsair RM750e PSU,PSU,13500,ATX 3.0 compatible 750W PSU
+Thermaltake Smart 700W PSU,PSU,8000,Budget 700W power supply
+ASUS ROG Thor 1200W PSU,PSU,45000,Premium PSU with OLED display
+MSI MPG A850G PCIE5 PSU,PSU,17000,Ready for next-gen GPUs
+Deepcool PK550D PSU,PSU,6500,Affordable 550W unit
+NZXT C850 PSU,PSU,16000,Modular PSU with clean cables
+Cooler Master Hyper 212 RGB,Cooling,4500,Legendary air cooler with RGB fan
+Noctua NH-D15 Chromax Black,Cooling,11500,Dual tower air cooler for maximum cooling
+NZXT Kraken X63 RGB Liquid Cooler,Cooling,16500,280mm AIO liquid cooler
+Corsair iCUE H150i Elite,Cooling,21500,360mm AIO for extreme cooling performance
+be quiet! Dark Rock Pro 4,Cooling,10000,Silent high-performance air cooler
+Deepcool AK620 Digital,Cooling,8500,Dual tower air cooler with LCD screen
+Thermalright Peerless Assassin 120,Cooling,4000,Budget king air cooler
+Arctic Liquid Freezer III 280,Cooling,14500,High performance AIO with VRM fan
+Lian Li Galahad 360,Cooling,19000,Stylish 360mm RGB AIO
+SilverStone SST-HE01,Cooling,13000,Massive passive/active cooling heatsink
+Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case with mesh front
+NZXT H5 Flow Case,Case,14500,Excellent airflow mid-tower with panoramic view
+Corsair 4000D Airflow Case,Case,16000,High airflow ATX case for modern builds
+Lian Li Lancool III Case,Case,28000,Dual-chamber case with massive airflow
+Fractal Design North XL Case,Case,28500,Wooden aesthetic case with great cooling
+Phanteks P600A Case,Case,19000,High airflow case with mesh front panel
+Cooler Master Qube 500 Case,Case,13500,Future-proof modular case
+be quiet! Pure Base 500DX Case,Case,18500,Silent case with tempered glass
+Hyte Y60 Case,Case,29000,Triple-chamber panoramic case
+Thermaltake Versa H18 Case,Case,5500,Compact micro-ATX budget case
+Corsair 2500D Airflow Case,Case,18500,Dual-chamber airflow case
+Samsung Odyssey G5 27" Monitor,Monitor,48000,144Hz 1ms curved gaming monitor
+LG UltraGear 27GP850 27" Monitor,Monitor,55000,165Hz Nano IPS gaming monitor
+ASUS TUF VG249Q 24" Monitor,Monitor,38000,1080p 144Hz IPS esports monitor
+BenQ Mobiuz EX2710Q 27" Monitor,Monitor,72000,1440p 165Hz HDRi monitor
+Dell S2721DGF 27" Monitor,Monitor,58000,1440p 165Hz gaming monitor
+AOC 24G2SP 24" Monitor,Monitor,25000,Budget 1080p 165Hz monitor
+LG UltraGear 34GN850-B 34" Monitor,Monitor,125000,Ultrawide 144Hz Nano IPS monitor
+Samsung Odyssey G7 32" Monitor,Monitor,110000,1000R Curved 240Hz monitor
+ASUS ProArt PA278QV 27" Monitor,Monitor,44000,Professional grade color accurate monitor
+ViewSonic VX2418 24" Monitor,Monitor,21000,Entry level 75Hz gaming monitor
+Logitech G Pro X Mechanical Keyboard,Peripherals,19000,Wireless mechanical gaming keyboard
+Keychron K2 V2 Keyboard,Peripherals,8500,Wireless 75% mechanical keyboard for Mac/Windows
+Razer BlackWidow V3 Keyboard,Peripherals,16000,Clicky mechanical RGB keyboard
+Cooler Master MM720 Mouse,Peripherals,5500,Lightweight gaming mouse
+Logitech G502 HERO Mouse,Peripherals,6500,Popular wired gaming mouse with adjustable weights
+Razer DeathAdder V3 Pro Mouse,Peripherals,22000,High-end wireless ergonomic mouse
+SteelSeries Rival 600 Mouse,Peripherals,7000,Dual sensor gaming mouse
+HyperX Cloud II Headset,Peripherals,11500,Comfortable 7.1 Surround gaming headset
+Logitech G533 Headset,Peripherals,14500,Wireless DTS Headphone:X headset
+ASUS TUF H3 Headset,Peripherals,5500,Budget gaming headset
+Audio-Technica ATH-M50x Headphones,Peripherals,21000,Studio monitor headphones
+Logitech C920 Webcam,Peripherals,10500,HD 1080p webcam for streaming
+Razer Kiyo Pro Webcam,Peripherals,12500,1080p 60FPS streaming webcam
+Elgato Cam Link 4K,Peripherals,16000,HDMI capture card for DSLR cameras
+Creative GigaWorks T40 Series II,Peripherals,12500,High fidelity 2.0 speaker system
+Logitech Z623 Speaker System,Peripherals,19000,400W THX Certified 2.1 speakers
+ASUS WiFi 6 AX3000 V2,Networking,9500,PCIe WiFi 6 adapter with Bluetooth 5.3
+TP-Link Archer TX3000E,Networking,7500,Ax3000 WiFi 6 PCIe Adapter
+TP-Link Archer AX50 Router,Networking,10500,WiFi 6 Router for high speed internet
+ASUS ROG Rapture GT-AX11000 Router,Networking,55000,Tri-band WiFi 6 gaming router
+Netgear Nighthawk AX8 Router,Networking,32000,High performance 8-stream WiFi 6 router
+Ubiquiti UniFi AP AC LR,Networking,18000,Long range access point
+TP-Link TL-SG105 Switch,Networking,2500,5-Port Gigabit Desktop Switch
+StarTech.com 10G Network Card,Networking,25000,10 Gigabit Ethernet PCIe Network Card
+Intel Ethernet I225-V,Networking,5000,2.5GbE LAN Controller
+Cable Matters Cat6 Snagless,Networking,1500,High speed Ethernet cable (10ft)
+Ugreen HDMI Cable 2.0,Networking,1200,High speed HDMI 4K@60Hz cable
+NZXT Internal USB Hub,Accessories,3500,Expands internal USB headers
+Patriot Memory Viper PV3 SSD Heatsink,Accessories,2500,M.2 Heatsink for Gen4 SSDs
+CableMod WideBeam Mesh Cables,Accessories,6500,Custom sleeved PSU cables
+ARCTIC P12 PWM PST Fan,Accessories,1500,High static pressure case fan
+Noctua NF-A12x25 Fan,Accessories,4500,Premium quiet cooling fan
+Lian Li Strimer Plus 24V,Accessories,11000,RGB cable extender kit
+Thermalright TF9 Thermal Paste,Accessories,1000,High performance CPU thermal paste
+IC Graphite Thermal Pad,Accessories,2500,Alternative to thermal paste for GPUs
+3M Command Strips,Accessories,1000,Universal mounting strips
+Screwdriver Kit Precision,Accessories,2500,Magnetic screwdriver set for PC building
+Anti-Static Wrist Strap,Accessories,800,Safety strap for building PCs

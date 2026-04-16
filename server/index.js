@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+const { initDB } = require('./database');
 const uploadRoute = require('./routes/upload');
 const recommendRoute = require('./routes/recommend');
 const { router: authRoute } = require('./routes/auth');
@@ -16,10 +17,6 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
-
-// Make sure data folder exists
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
 // Routes
 app.use('/api', authRoute);
@@ -40,6 +37,12 @@ app.get('/', (req, res) => {
   res.json({ status: 'BuildBot server is running!', version: '2.0' });
 });
 
-app.listen(PORT, () => {
-  console.log(`BuildBot server running on http://localhost:${PORT}`);
+// Start server only after DB is ready
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`BuildBot server running on http://localhost:${PORT}`);
+  });
+}).catch(err => {
+  console.error('Database connection failed:', err);
+  process.exit(1);
 });

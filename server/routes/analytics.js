@@ -4,10 +4,9 @@ const { authMiddleware } = require('./auth');
 
 const router = express.Router();
 
-router.get('/analytics', authMiddleware, (req, res) => {
-  const storeId = req.store.storeId;
-  const stats = analyticsDB.getStats(storeId);
-  const productCount = productDB.getCount(storeId);
+router.get('/analytics', authMiddleware, async (req, res) => {
+  const stats        = await analyticsDB.getStats(req.store.storeId);
+  const productCount = await productDB.getCount(req.store.storeId);
   res.json({ success: true, stats, productCount });
 });
 

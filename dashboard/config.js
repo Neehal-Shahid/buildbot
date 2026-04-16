@@ -1,7 +1,5 @@
-// This file is auto-used by dashboard and admin
-// Change this one line when you deploy
 const BUILDBOT_API = window.location.hostname === 'localhost'
   ? 'http://localhost:3001/api'
-  : 'https://buildbot-server.onrender.com/api'; // we'll update this after deploy
+  : 'https://buildbot-production.up.railway.app/api';
 
 window.BB_API = BUILDBOT_API;

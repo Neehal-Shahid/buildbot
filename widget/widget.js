@@ -1,7 +1,7 @@
 (function () {
   const script    = document.currentScript;
   const STORE_ID  = script.getAttribute('data-store-id');
-  const API       = 'http://localhost:3001/api';
+  const API = 'https://buildbot-production.up.railway.app/api';
 
   // ─── FETCH STORE BRANDING ─────────────────────────────
   let BRAND_COLOR = '#7c6af7';

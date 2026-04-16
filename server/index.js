@@ -32,7 +32,7 @@ app.use('/api', adminRoute);
 // Serve widget
 app.get('/widget.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
-  res.sendFile(path.join(__dirname, '../widget/widget.js'));
+  res.sendFile(path.join(__dirname, 'widget.js'));
 });
 
 // Health check

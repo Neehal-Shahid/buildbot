@@ -1,14 +1,23 @@
 {
-    "rewrites": [
-      { "source": "/admin", "destination": "/admin.html" },
-      { "source": "/admin.html", "destination": "/admin.html" }
-    ],
-    "headers": [
+    "version": 2,
+    "builds": [
       {
-        "source": "/(.*)",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
-        ]
+        "src": "*.html",
+        "use": "@vercel/static"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/admin",
+        "dest": "/admin.html"
+      },
+      {
+        "src": "/admin.html",
+        "dest": "/admin.html"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "/$1"
       }
     ]
   }

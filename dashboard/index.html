@@ -888,25 +888,34 @@ async function doUpload() {
   const file = document.getElementById('csv-upload').files[0];
   if (!file) return;
 
+  const uploadBtn = document.getElementById('upload-btn');
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = 'Uploading...';
+
   const formData = new FormData();
   formData.append('catalog', file);
 
   try {
     const res  = await fetch(`${API}/upload`, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Authorization': `Bearer ${token}` },
-      body: formData
+      body:    formData
     });
+
     const data = await res.json();
+
     if (data.success) {
       showAlert('upload-alert', '✅ ' + data.message, 'success');
       loadProducts();
       loadAnalytics();
     } else {
-      showAlert('upload-alert', '❌ ' + data.error, 'error');
+      showAlert('upload-alert', '❌ ' + (data.error || 'Upload failed'), 'error');
     }
-  } catch {
+  } catch (err) {
     showAlert('upload-alert', '❌ Cannot connect to server.', 'error');
+  } finally {
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = 'Upload Catalog';
   }
 }
 

@@ -1,44 +1,44 @@
 const express = require('express');
 const multer = require('multer');
 const csv = require('csv-parser');
-const fs = require('fs');
-const path = require('path');
+const { Readable } = require('stream');
 const { productDB } = require('../database');
 const { authMiddleware } = require('./auth');
 
 const router = express.Router();
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../data')),
-  filename:    (req, file, cb) => cb(null, `temp_${Date.now()}.csv`)
-});
-const upload = multer({ storage });
 
-router.post('/upload', authMiddleware, upload.single('catalog'), (req, res) => {
+// Use memory storage instead of disk — works on Railway
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.post('/upload', authMiddleware, upload.single('catalog'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const storeId  = req.store.storeId;
-  const filePath = req.file.path;
   const products = [];
 
-  fs.createReadStream(filePath)
-    .pipe(csv())
-    .on('data', row => products.push(row))
-    .on('end', async () => {
-      try {
-        fs.unlinkSync(filePath);
-        if (!products.length)
-          return res.status(400).json({ error: 'CSV is empty or invalid' });
-        const count = await productDB.bulkInsert(storeId, products);
-        res.json({
-          success: true,
-          message: `${count} products uploaded successfully!`,
-          preview: products.slice(0, 3)
-        });
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    })
-    .on('error', err => res.status(500).json({ error: err.message }));
+  try {
+    // Parse CSV from memory buffer instead of disk file
+    await new Promise((resolve, reject) => {
+      const stream = Readable.from(req.file.buffer.toString());
+      stream
+        .pipe(csv())
+        .on('data', row => products.push(row))
+        .on('end', resolve)
+        .on('error', reject);
+    });
+
+    if (!products.length)
+      return res.status(400).json({ error: 'CSV is empty or invalid' });
+
+    const count = await productDB.bulkInsert(storeId, products);
+    res.json({
+      success: true,
+      message: `${count} products uploaded successfully!`,
+      preview: products.slice(0, 3)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get('/products/:storeId', async (req, res) => {

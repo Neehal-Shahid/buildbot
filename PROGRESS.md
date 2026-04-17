@@ -19,46 +19,25 @@ a complete, compatible PC build using only the products that store actually sell
 
 ### Target Market
 - PC parts stores in Pakistan (e.g. StarTech, TPlink resellers, local computer shops)
-- Any store selling PC components — on WordPress/WooCommerce or custom websites
+- Any store selling PC components on WordPress/WooCommerce or custom websites
 - Store owners pay a monthly subscription to use BuildBot on their website
 
 ### Business Model
 - Store owners sign up on BuildBot dashboard
 - Get a 14-day free trial (no card needed)
-- Pay monthly via **JazzCash or EasyPaisa** (Pakistan local payments)
+- Pay monthly via JazzCash or EasyPaisa (Pakistan local payments)
 - Three plans: Starter (Rs 2,999), Growth (Rs 6,999), Pro (Rs 14,999)
-- Payments are manually verified by the BuildBot admin (Neehal) within 24 hours
+- Payments manually verified by BuildBot admin (Neehal) within 24 hours
 
 ---
 
-## 2. HOW THE PRODUCT WORKS (Full Flow)
+## 2. LIVE URLS
 
 ```
-STORE OWNER FLOW:
-1. Goes to BuildBot dashboard (dashboard/index.html)
-2. Signs up with store name, email, password
-3. Gets a unique Store ID (e.g. "techzone-lahore")
-4. Uploads their product catalog as a CSV file
-5. Gets an embed code (one script tag)
-6. Pastes embed code on their website before </body>
-7. Widget appears on their website instantly
-
-CUSTOMER FLOW (on the store's website):
-1. Sees purple ⚡ floating button (bottom-right)
-2. Clicks it → BuildBot widget opens
-3. Enters budget, purpose, extras (step by step with progress bar)
-4. Clicks "Build My PC"
-5. AI reads the store's catalog + customer needs
-6. Returns a complete build recommendation with parts, prices, reasons
-7. Customer sees total cost, each part, and tips
-
-ADMIN FLOW (Neehal's panel):
-1. Goes to dashboard/admin.html
-2. Logs in with admin credentials
-3. Sees all registered stores, platform stats
-4. Reviews pending payments (JazzCash/EasyPaisa submissions)
-5. Approves payments → store plan activates instantly
-6. Can disable/enable any store
+Dashboard:   https://buildbot-nine.vercel.app/
+Admin Panel: https://buildbot-nine.vercel.app/admin.html  ← 404 bug still pending
+Server API:  https://buildbot-production.up.railway.app/
+Widget JS:   https://buildbot-production.up.railway.app/widget.js ✅ WORKING
 ```
 
 ---
@@ -68,51 +47,78 @@ ADMIN FLOW (Neehal's panel):
 ```
 buildbot/                          ← Root folder (on Desktop)
 │
-├── server/                        ← Node.js backend (THE BRAIN)
+├── server/                        ← Node.js backend (deployed on Railway)
 │   ├── index.js                   ← Main server entry point
-│   ├── package.json               ← Dependencies
+│   ├── widget.js                  ← Widget file lives HERE (copied from widget/)
+│   ├── package.json               ← Dependencies (multer: ^1.4.5-lts.1)
 │   ├── .env                       ← Secret keys (NOT on GitHub)
 │   ├── data/                      ← SQLite database lives here
-│   │   └── buildbot.db            ← Real database (auto-created)
+│   │   └── buildbot.db            ← Auto-created on server start
 │   └── routes/
-│       ├── auth.js                ← Signup, Login, JWT tokens, store-config endpoint
+│       ├── auth.js                ← Signup, Login, JWT, store-config endpoint
 │       ├── upload.js              ← CSV upload → saves to database
-│       ├── recommend.js           ← AI recommendation engine (calls Claude API)
+│       ├── recommend.js           ← AI recommendation engine (Claude API)
 │       ├── analytics.js           ← Usage stats for store owners
 │       ├── payment.js             ← Payment submission & history
 │       └── admin.js               ← Admin-only routes
 │
-├── dashboard/                     ← Frontend (store owner interface)
-│   ├── index.html                 ← Landing page + Signup + Login + Full Dashboard
+├── dashboard/                     ← Frontend (deployed on Vercel)
+│   ├── index.html                 ← Landing page + Signup + Login + Dashboard
 │   ├── admin.html                 ← Admin panel (for Neehal only)
-│   └── config.js                  ← API URL config (localhost vs production)
+│   ├── config.js                  ← API URL switcher (localhost vs production)
+│   ├── vercel.json                ← Vercel routing config
+│   └── test.html                  ← Widget test page
 │
-└── widget/                        ← The embeddable widget
-    ├── widget.js                  ← The actual widget code (served by server)
-    └── test.html                  ← Test page to preview widget locally
+└── widget/                        ← Source widget folder
+    ├── widget.js                  ← Source file (must also copy to server/widget.js)
+    └── test.html                  ← Test page for widget
 ```
 
 ---
 
-## 4. TECHNOLOGY STACK
+## 4. IMPORTANT: WIDGET.JS WORKFLOW
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Backend | Node.js + Express | Runs the server |
-| Database | SQLite (better-sqlite3) | Free, no setup, file-based |
-| AI Engine | Anthropic Claude API (claude-opus-4-5) | Powers recommendations |
-| Auth | JWT (jsonwebtoken) + bcryptjs | Secure login sessions |
-| File Upload | Multer + csv-parser | Handle CSV uploads |
-| Frontend | Vanilla HTML/CSS/JS | No framework needed, fast |
-| Widget | Vanilla JS (IIFE) | Embeds on any website |
-| Hosting (planned) | Render (backend) + Vercel (frontend) | Free tier |
-| Payments | JazzCash + EasyPaisa | Pakistan local payments |
+**CRITICAL NOTE:** `widget.js` must exist in TWO places:
+- `widget/widget.js` — source file you edit
+- `server/widget.js` — the copy Railway serves
+
+**Every time you edit widget.js, you must:**
+1. Edit `widget/widget.js`
+2. Copy the same content to `server/widget.js`
+3. Push both to GitHub
 
 ---
 
-## 5. DATABASE SCHEMA
+## 5. TECHNOLOGY STACK
 
-Four tables in `server/data/buildbot.db`:
+| Layer | Technology |
+|-------|-----------|
+| Backend | Node.js + Express |
+| Database | SQLite (better-sqlite3) — WARNING: resets on Railway redeploy |
+| AI Engine | Anthropic Claude API (claude-opus-4-5) |
+| Auth | JWT + bcryptjs |
+| File Upload | Multer (1.4.5-lts.1) + csv-parser |
+| Frontend | Vanilla HTML/CSS/JS |
+| Widget | Vanilla JS (IIFE) |
+| Backend Hosting | Railway.app (free tier) |
+| Frontend Hosting | Vercel.com (free tier) |
+| Payments | JazzCash + EasyPaisa (manual) |
+
+---
+
+## 6. ENVIRONMENT VARIABLES (set on Railway dashboard)
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+JWT_SECRET=buildbot-super-secret-jwt-key-2024
+PORT=3001
+ADMIN_EMAIL=your@email.com
+ADMIN_PASSWORD=your-admin-password
+```
+
+---
+
+## 7. DATABASE SCHEMA
 
 ```sql
 stores          → store_id, name, email, password(hashed), plan, plan_status,
@@ -127,212 +133,134 @@ payments        → id, store_id, amount, method, transaction_ref, plan, status,
 
 ---
 
-## 6. KEY API ENDPOINTS
+## 8. KEY API ENDPOINTS
 
 ```
-PUBLIC (no auth needed):
-POST /api/signup              → Create store owner account
-POST /api/login               → Login, returns JWT token
-GET  /api/store-config/:id    → Widget fetches store branding
-GET  /api/products/:storeId   → Get store's product list
-POST /api/recommend           → AI build recommendation (checks if store is active)
-GET  /api/plans               → Get pricing plans info
-GET  /widget.js               → Serves the embeddable widget file
+PUBLIC:
+POST /api/signup
+POST /api/login
+GET  /api/store-config/:id
+GET  /api/products/:storeId
+POST /api/recommend
+GET  /widget.js
 
-STORE OWNER (requires JWT token in Authorization header):
-POST /api/upload              → Upload CSV catalog
-GET  /api/analytics           → Get store's usage stats
-POST /api/payment/submit      → Submit payment proof
-GET  /api/payment/history     → Get payment history
-GET  /api/me                  → Get current store info
+STORE OWNER (JWT required):
+POST /api/upload
+GET  /api/analytics
+POST /api/payment/history
+GET  /api/me
 
-ADMIN ONLY (requires admin JWT):
-POST /api/admin/login         → Admin login
-GET  /api/admin/overview      → Platform stats + pending payments
-GET  /api/admin/stores        → All stores with stats
-GET  /api/admin/payments      → All payments
-POST /api/admin/approve-payment → Approve payment + activate plan
-POST /api/admin/reject-payment  → Reject payment
-POST /api/admin/disable-store   → Disable a store
-POST /api/admin/activate-store  → Re-enable a store
+ADMIN (admin JWT required):
+POST /api/admin/login
+GET  /api/admin/overview
+GET  /api/admin/stores
+GET  /api/admin/payments
+POST /api/admin/approve-payment
+POST /api/admin/reject-payment
+POST /api/admin/disable-store
+POST /api/admin/activate-store
 ```
 
 ---
 
-## 7. ENVIRONMENT VARIABLES (.env)
+## 9. WHAT IS COMPLETE ✅
 
-```
-ANTHROPIC_API_KEY=sk-ant-...        ← Claude AI key
-JWT_SECRET=buildbot-super-secret-jwt-key-2024
-PORT=3001
-ADMIN_EMAIL=your@email.com          ← Your email for admin login
-ADMIN_PASSWORD=your-admin-password  ← Your admin password
-```
-
----
-
-## 8. PRICING PLANS
-
-```javascript
-const PLANS = {
-  starter: { price: 2999,  label: 'Starter', recommendations: 500 },
-  growth:  { price: 6999,  label: 'Growth',  recommendations: 2000 },
-  pro:     { price: 14999, label: 'Pro',      recommendations: 999999 }
-}
-```
-
-Trial: 14 days free, no card needed.
-
----
-
-## 9. CSV FORMAT FOR STORE OWNERS
-
-Store owners upload their catalog as CSV with these columns:
-
-```csv
-name,category,price,description
-Intel Core i5-13400F,CPU,45000,Great mid range processor
-ASUS Prime B660M-K,Motherboard,18000,LGA1700 compatible motherboard
-Corsair Vengeance 16GB DDR4,RAM,8500,Reliable 16GB RAM kit
-WD Blue 1TB SSD,Storage,14000,Fast and reliable SSD
-MSI GeForce RTX 3060,GPU,65000,Great for gaming and editing
-Corsair CV550 550W PSU,PSU,8500,Reliable power supply
-Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case
-```
-
-Valid categories: CPU, Motherboard, RAM, Storage, GPU, PSU, Case, Monitor, Accessory
-
----
-
-## 10. WHAT IS COMPLETE ✅
-
-- [x] Node.js backend server with all routes
-- [x] SQLite database with all 4 tables
+- [x] Node.js backend with all routes
+- [x] SQLite database with 4 tables
 - [x] Store owner signup & login (JWT auth)
 - [x] CSV upload → saves to database
 - [x] AI recommendation engine (Claude API)
-- [x] Analytics tracking (every recommendation logged)
-- [x] Payment submission system (JazzCash/EasyPaisa)
-- [x] Store owner dashboard (landing + signup + login + 5 tabs)
-- [x] Dashboard tabs: Home, Products, Analytics, Billing, Settings
-- [x] Embeddable widget (floating button, 4-step form, progress bar)
+- [x] Analytics tracking
+- [x] Payment submission (JazzCash/EasyPaisa)
+- [x] Store owner dashboard (5 tabs: Home, Products, Analytics, Billing, Settings)
+- [x] Embeddable widget (floating button, 4-step form, progress bar, back buttons)
 - [x] Widget fetches store branding (custom color, currency)
-- [x] Admin panel (overview, all stores, payments, platform analytics)
-- [x] Admin can approve/reject payments, disable/enable stores
-- [x] Code pushed to GitHub (private repository)
-- [x] PROGRESS.md created
+- [x] Admin panel (overview, stores, payments, platform analytics)
+- [x] Backend live on Railway ✅
+- [x] Frontend live on Vercel ✅
+- [x] Widget.js serving correctly from Railway ✅
+- [x] Widget appearing and AI recommendations working end-to-end ✅
+- [x] Code on GitHub (private repo) ✅
 
 ---
 
-## 11. WHAT NEEDS TO BE DONE NEXT 🔧
+## 10. CURRENT BUGS 🔧
 
-### IMMEDIATE — Deployment (In Progress)
-- [ ] Deploy backend to **Render.com** (free Node.js hosting)
-  - Problem: Render asked for card. Alternative: **Railway** or **Cyclic.sh**
-  - Best free alternative without card: **Railway** (sign up with GitHub, no card for trial)
-- [ ] Deploy frontend to **Vercel.com** (free static hosting, sign up with GitHub)
-- [ ] Connect subdomain **buildbot.workwithneehal.com** → Vercel (CNAME on Hostinger)
-- [ ] Update `dashboard/config.js` with real Render/Railway URL
-- [ ] Update `widget/widget.js` API URL for production
-- [ ] Test full flow on live URLs
+### BUG 1: Database resets on every Railway redeploy — CRITICAL
+- SQLite database file lives inside Railway container
+- Every redeploy wipes the database → all stores/products deleted
+- Solution: Migrate to Turso (free cloud SQLite, no card needed)
+- Sign up at turso.tech with GitHub
 
-### NEAR FUTURE — Feature Upgrades
-- [ ] Email notifications (welcome email on signup, payment approved, trial ending soon)
-- [ ] Settings page actually saves brand color to database (PUT /api/settings endpoint needed)
-- [ ] Widget currency respects store setting dynamically
+### BUG 2: admin.html returns 404 on Vercel
+- vercel.json exists but routing not working
+- admin.html confirmed in dashboard/ folder
+- Workaround: access locally via npx serve
+
+### BUG 3: Embed code shows localhost URL
+- Dashboard generates: http://localhost:3001/widget.js
+- Should generate: https://buildbot-production.up.railway.app/widget.js
+- Fix: One line change in dashboard/index.html enterApp() function
+
+---
+
+## 11. NEXT PRIORITIES
+
+### Must fix soon:
+- [ ] Fix database persistence (migrate to Turso)
+- [ ] Fix embed code URL (localhost → Railway URL)
+- [ ] Fix admin.html 404 on Vercel
+
+### Near future features:
+- [ ] Email notifications (welcome, payment approved, trial ending)
+- [ ] Settings page saves brand color to database
 - [ ] Store owner can delete/update individual products
-- [ ] "Add all to cart" button in widget (links to store's product pages)
+- [ ] Add all to cart button in widget
 - [ ] WooCommerce plugin for auto product sync
-- [ ] Recommendation limit enforcement (Starter: 500/mo, Growth: 2000/mo)
-
-### GROWTH FEATURES
-- [ ] Urdu language support in widget
+- [ ] Recommendation limit enforcement per plan
+- [ ] Urdu language support
 - [ ] WhatsApp notification to admin on new payment
-- [ ] Multiple widget styles (popup, sidebar, inline embed)
-- [ ] Customer can save/share their build (unique link)
-- [ ] Comparison mode (compare two builds side by side)
-- [ ] Auto price scraping to keep catalog fresh
-- [ ] Affiliate/referral system for resellers
-
-### BUSINESS FEATURES
-- [ ] White-label option (stores brand it as their own tool)
-- [ ] API access for developers (Pro plan)
-- [ ] Sub-admin accounts (for resellers)
-- [ ] Automated payment verification via JazzCash API
 
 ---
 
-## 12. KNOWN ISSUES / BUGS
-
-- Settings page (brand color + currency) sends to wrong endpoint — needs a
-  `PUT /api/settings` route in auth.js that updates the stores table
-- Widget API URL is still hardcoded as localhost in widget.js —
-  needs to be updated to production URL before going live
-- Render.com requires card for deployment — need to use Railway instead
-- No email system connected yet (nodemailer installed but not configured)
-
----
-
-## 13. HOW TO RUN LOCALLY
+## 12. HOW TO RUN LOCALLY
 
 ```bash
-# Start the server
+# Terminal 1 - Start server
 cd Desktop/buildbot/server
 node index.js
-# Server runs at http://localhost:3001
 
-# Open dashboard
-# Double-click: Desktop/buildbot/dashboard/index.html
+# Terminal 2 - Serve frontend
+cd Desktop/buildbot/dashboard
+npx serve .
 
-# Open admin panel
-# Double-click: Desktop/buildbot/dashboard/admin.html
+# Open in browser:
+# Dashboard:    http://localhost:3000
+# Admin:        http://localhost:3000/admin.html
+# Widget test:  http://localhost:3000/test.html
 
-# Test widget
-# Double-click: Desktop/buildbot/widget/test.html
+# OR serve widget folder:
+cd Desktop/buildbot/widget
+npx serve .
+# Widget test:  http://localhost:3000/test.html
 ```
 
 ---
 
-## 14. DEPLOYMENT PLAN (Next Session)
+## 13. BUSINESS CONTEXT
 
-```
-Backend:   Railway.app (free, Node.js, GitHub connect, no card needed for trial)
-Frontend:  Vercel.com  (free, static hosting, GitHub connect)
-Domain:    buildbot.workwithneehal.com → Vercel (CNAME on Hostinger DNS)
-
-Steps:
-1. Sign up Railway with GitHub
-2. Deploy server/ folder to Railway
-3. Add all .env variables on Railway dashboard
-4. Get Railway URL (e.g. buildbot-server.up.railway.app)
-5. Update config.js and widget.js with Railway URL
-6. Push to GitHub
-7. Deploy dashboard/ folder to Vercel
-8. Add custom domain on Vercel
-9. Add CNAME on Hostinger DNS panel
-10. Test everything end to end
-```
+- **Founder:** Neehal (non-developer, building with Claude AI)
+- **Target:** Pakistan PC stores (initial launch)
+- **Payment:** JazzCash / EasyPaisa (manual verification)
+- **Hosting:** Free tiers only (no card available)
+- **Domain:** buildbot.workwithneehal.com (not connected yet)
+- **GitHub:** Private repo (buildbot)
 
 ---
 
-## 15. BUSINESS CONTEXT
-
-- **Founder:** Neehal (non-developer, building with Claude AI assistance)
-- **Target country:** Pakistan (initial launch)
-- **Payment:** JazzCash / EasyPaisa (manual verification by admin)
-- **Hosting budget:** $0 (using free tiers)
-- **Domain:** buildbot.workwithneehal.com (subdomain on existing Hostinger plan)
-- **GitHub repo:** Private repository (buildbot)
-- **No card available** for paid services — must use free tiers only
-
----
-
-## 16. HOW TO CONTINUE IN A NEW CHAT
+## 14. HOW TO CONTINUE IN A NEW CHAT
 
 Paste this entire file into a new Claude chat and say:
 
-> "I am building BuildBot. Here is my complete project context in PROGRESS.md.
+> "I am building BuildBot. Here is my PROGRESS.md with full context.
 > I want to continue from where I left off. Today I want to work on: [WHAT YOU WANT]"
-
-Claude will read this file and immediately understand the full project
-without you needing to explain anything again.

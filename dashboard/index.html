@@ -690,6 +690,7 @@ async function doSignup() {
     if (data.success) {
       token = data.token;
       currentStore = data.store;
+      localStorage.clear();
       localStorage.setItem('bb_token', token);
       localStorage.setItem('bb_store', JSON.stringify(currentStore));
       enterApp();
@@ -718,6 +719,7 @@ async function doLogin() {
     if (data.success) {
       token = data.token;
       currentStore = data.store;
+      localStorage.clear();
       localStorage.setItem('bb_token', token);
       localStorage.setItem('bb_store', JSON.stringify(currentStore));
       enterApp();
@@ -740,43 +742,58 @@ function doLogout() {
 
 // ─── ENTER APP ────────────────────────────────────────────
 function enterApp() {
-  showPage('app');
-  document.getElementById('nav-links').style.display = 'none';
-  document.getElementById('nav-user').innerHTML =
-    `👤 ${currentStore.name} &nbsp;|&nbsp; <a onclick="doLogout()" style="color:var(--primary);cursor:pointer;">Logout</a>`;
-  document.getElementById('nav-user').style.display = 'block';
+  // Fetch fresh store data from server first
+  fetch(`${API}/me`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      currentStore = {
+        storeId: data.store.store_id,
+        name: data.store.name,
+        email: data.store.email,
+        plan: data.store.plan,
+        planStatus: data.store.plan_status,
+        trialEnds: data.store.trial_ends,
+        brandColor: data.store.brand_color,
+        currency: data.store.currency
+      };
+      localStorage.setItem('bb_store', JSON.stringify(currentStore));
+    }
+  }).catch(() => {}).finally(() => {
+    showPage('app');
+    document.getElementById('nav-links').style.display = 'none';
+    document.getElementById('nav-user').innerHTML =
+      `👤 ${currentStore.name} &nbsp;|&nbsp; <a onclick="doLogout()" style="color:var(--primary);cursor:pointer;">Logout</a>`;
+    document.getElementById('nav-user').style.display = 'block';
 
-  document.getElementById('welcome-msg').textContent =
-    `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;
+    document.getElementById('welcome-msg').textContent =
+      `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;
 
-  // Trial banner
-  if (currentStore.plan === 'trial') {
-    document.getElementById('trial-banner').style.display = 'flex';
-    document.getElementById('trial-end-date').textContent =
-      new Date(currentStore.trialEnds).toLocaleDateString('en-PK', { day:'numeric', month:'long', year:'numeric' });
-  } else {
-    document.getElementById('trial-banner').style.display = 'none';
-  }
+    if (currentStore.plan === 'trial') {
+      document.getElementById('trial-banner').style.display = 'flex';
+      document.getElementById('trial-end-date').textContent =
+        new Date(currentStore.trialEnds).toLocaleDateString('en-PK', { day:'numeric', month:'long', year:'numeric' });
+    } else {
+      document.getElementById('trial-banner').style.display = 'none';
+    }
 
-  // Embed code
-  document.getElementById('embed-code-display').textContent =
-    `<script src="https://buildbot-production.up.railway.app/widget.js" data-store-id="${currentStore.storeId}"><\/script>`;
+    document.getElementById('embed-code-display').textContent =
+      `<script src="https://buildbot-production.up.railway.app/widget.js" data-store-id="${currentStore.storeId}"><\/script>`;
 
-  // Billing plan
-  document.getElementById('current-plan-name').textContent =
-    currentStore.plan.charAt(0).toUpperCase() + currentStore.plan.slice(1);
-  document.getElementById('current-plan-status').innerHTML =
-    `<span class="badge badge-success">Active</span>`;
+    document.getElementById('current-plan-name').textContent =
+      currentStore.plan.charAt(0).toUpperCase() + currentStore.plan.slice(1);
+    document.getElementById('current-plan-status').innerHTML =
+      `<span class="badge badge-success">Active</span>`;
 
-  // Settings defaults
-  document.getElementById('brand-color').value = currentStore.brandColor || '#7c6af7';
-  document.getElementById('brand-color-hex').value = currentStore.brandColor || '#7c6af7';
-  document.getElementById('widget-preview-btn').style.background = currentStore.brandColor || '#7c6af7';
-  if (currentStore.currency)
-    document.getElementById('currency-select').value = currentStore.currency;
+    document.getElementById('brand-color').value = currentStore.brandColor || '#7c6af7';
+    document.getElementById('brand-color-hex').value = currentStore.brandColor || '#7c6af7';
+    document.getElementById('widget-preview-btn').style.background = currentStore.brandColor || '#7c6af7';
+    if (currentStore.currency)
+      document.getElementById('currency-select').value = currentStore.currency;
 
-  loadAnalytics();
-  showTab('home');
+    loadAnalytics();
+    showTab('home');
+  });
 }
 
 // ─── TABS ─────────────────────────────────────────────────

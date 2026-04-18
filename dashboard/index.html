@@ -713,12 +713,31 @@ async function doForgot() {
   }
 }
 // ─── INIT ─────────────────────────────────────────────────
-window.onload = () => {
+window.onload = async () => {
   if (token && currentStore) {
-    enterApp();
+    // Verify token is still valid on server
+    try {
+      const res  = await fetch(`${API}/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        enterApp();
+      } else {
+        // Token invalid or account deleted — force logout
+        localStorage.clear();
+        token        = null;
+        currentStore = null;
+        showPage('landing');
+      }
+    } catch {
+      // Server unreachable — show landing
+      showPage('landing');
+    }
   } else {
     showPage('landing');
   }
+
 
   // Color picker sync
   document.getElementById('brand-color').addEventListener('input', (e) => {

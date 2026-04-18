@@ -1,30 +1,34 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config();
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000
-});
-
+const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.APP_URL || 'https://buildbot-nine.vercel.app';
+const FROM     = 'BuildBot <onboarding@resend.dev>';
 
-// ─── EMAIL TEMPLATES ──────────────────────────────────────
+// ─── SEND FUNCTION ────────────────────────────────────────
+async function sendEmail({ to, subject, html }) {
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      html
+    });
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error(error.message);
+    }
+    console.log('Email sent to:', to);
+    return true;
+  } catch (err) {
+    console.error('Email failed:', err.message);
+    throw err;
+  }
+}
 
+// ─── TEMPLATES ────────────────────────────────────────────
 function welcomeEmail(storeName, email) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '⚡ Welcome to BuildBot — Your trial has started!',
     html: `
@@ -44,14 +48,12 @@ function welcomeEmail(storeName, email) {
           <a href="${APP_URL}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin:8px 0;">Go to Dashboard →</a>
           <p style="color:#666;font-size:12px;margin-top:24px;">Trial ends in 14 days. Need help? Reply to this email.</p>
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
 function emailVerificationEmail(storeName, email, token) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '⚡ Verify your BuildBot email address',
     html: `
@@ -65,14 +67,12 @@ function emailVerificationEmail(storeName, email, token) {
           <a href="${APP_URL}/verify.html?token=${token}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">✅ Verify Email Address</a>
           <p style="color:#666;font-size:12px;margin-top:24px;">This link expires in 24 hours. If you didn't sign up, ignore this email.</p>
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
 function paymentApprovedEmail(storeName, email, plan) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '✅ Payment approved — Your BuildBot plan is now active!',
     html: `
@@ -88,14 +88,12 @@ function paymentApprovedEmail(storeName, email, plan) {
           </div>
           <a href="${APP_URL}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Go to Dashboard →</a>
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
 function paymentRejectedEmail(storeName, email, plan) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '❌ Payment could not be verified — BuildBot',
     html: `
@@ -111,14 +109,12 @@ function paymentRejectedEmail(storeName, email, plan) {
           </div>
           <a href="${APP_URL}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Try Again →</a>
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
 function trialEndingEmail(storeName, email, daysLeft) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: `⏰ Your BuildBot trial ends in ${daysLeft} days`,
     html: `
@@ -136,14 +132,12 @@ function trialEndingEmail(storeName, email, daysLeft) {
           <p style="color:#888;font-size:13px;">Pay via JazzCash or EasyPaisa — verified within 24 hours.</p>
           <a href="${APP_URL}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Upgrade Now →</a>
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
 function passwordResetEmail(storeName, email, token) {
   return {
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '🔑 Reset your BuildBot password',
     html: `
@@ -157,21 +151,8 @@ function passwordResetEmail(storeName, email, token) {
           <a href="${APP_URL}/reset-password.html?token=${token}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">🔑 Reset Password</a>
           <p style="color:#666;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email. Your password won't change.</p>
         </div>
-      </div>
-    `
+      </div>`
   };
-}
-
-// ─── SEND FUNCTION ────────────────────────────────────────
-async function sendEmail(mailOptions) {
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('Email sent to:', mailOptions.to);
-    return true;
-  } catch (err) {
-    console.error('Email error full:', err);
-    throw err; // throw so caller can see real error
-  }
 }
 
 module.exports = {

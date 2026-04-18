@@ -1,11 +1,23 @@
 {
-  "version": 2,
-  "routes": [
-    { "src": "/admin", "dest": "/admin.html" },
-    { "src": "/admin.html", "dest": "/admin.html" },
-    { "src": "/config.js", "dest": "/config.js" },
-    { "src": "/index.html", "dest": "/index.html" },
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/$1" }
-  ]
-}
+    "version": 2,
+    "builds": [
+      {
+        "src": "*.html",
+        "use": "@vercel/static"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/admin",
+        "dest": "/admin.html"
+      },
+      {
+        "src": "/admin.html",
+        "dest": "/admin.html"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "/$1"
+      }
+    ]
+  }

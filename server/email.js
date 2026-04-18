@@ -165,8 +165,8 @@ async function sendEmail(mailOptions) {
     console.log('Email sent to:', mailOptions.to);
     return true;
   } catch (err) {
-    console.error('Email error:', err.message);
-    return false;
+    console.error('Email error full:', err);
+    throw err; // throw so caller can see real error
   }
 }
 

@@ -880,8 +880,18 @@ async function loadAnalytics() {
 // ─── PRODUCTS ─────────────────────────────────────────────
 async function loadProducts() {
   try {
-    const res  = await fetch(`${API}/products/${currentStore.storeId}`);
+    // Get fresh store info first to make sure we use correct storeId
+    const meRes  = await fetch(`${API}/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const meData = await meRes.json();
+    if (!meData.success) return;
+
+    const storeId = meData.store.store_id;
+
+    const res  = await fetch(`${API}/products/${storeId}`);
     const data = await res.json();
+
     if (data.products && data.products.length) {
       document.getElementById('product-count-badge').textContent = `(${data.products.length})`;
       document.getElementById('products-table').innerHTML = data.products.map(p => `
@@ -890,8 +900,14 @@ async function loadProducts() {
           <td><span class="badge badge-primary">${p.category}</span></td>
           <td>PKR ${Number(p.price).toLocaleString()}</td>
         </tr>`).join('');
+    } else {
+      document.getElementById('product-count-badge').textContent = '(0)';
+      document.getElementById('products-table').innerHTML =
+        `<tr><td colspan="3" style="color:var(--muted);text-align:center;">
+          No products yet. Upload a CSV to get started.
+        </td></tr>`;
     }
-  } catch(e) {}
+  } catch(e) { console.error(e); }
 }
 
 function csvSelected(input) {

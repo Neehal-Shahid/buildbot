@@ -223,16 +223,22 @@ router.get('/store-config/:storeId', async (req, res) => {
 
 // TEMP: Email test route — remove after confirming emails work
 router.get('/test-email', async (req, res) => {
-  const result = await sendEmail({
-    from: `"BuildBot" <${process.env.GMAIL_USER}>`,
-    to: process.env.GMAIL_USER,
-    subject: '✅ BuildBot Email Test',
-    html: '<h2>Email is working!</h2><p>Your BuildBot email system is configured correctly.</p>'
-  });
-  res.json({
-    success: result,
-    gmail_user: process.env.GMAIL_USER || 'NOT SET',
-    gmail_pass: process.env.GMAIL_PASS ? 'SET ✅' : 'NOT SET ❌'
-  });
+  try {
+    await transporter.sendMail({
+      from: `"BuildBot" <${process.env.GMAIL_USER}>`,
+      to: process.env.GMAIL_USER,
+      subject: '✅ BuildBot Email Test',
+      html: '<h2>Email is working!</h2>'
+    });
+    res.json({ success: true, gmail_user: process.env.GMAIL_USER });
+  } catch (err) {
+    res.json({
+      success: false,
+      gmail_user: process.env.GMAIL_USER || 'NOT SET',
+      gmail_pass: process.env.GMAIL_PASS ? 'SET ✅' : 'NOT SET ❌',
+      error: err.message,
+      code: err.code
+    });
+  }
 });
 module.exports = { router, authMiddleware };

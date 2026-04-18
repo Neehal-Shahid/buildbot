@@ -129,8 +129,14 @@ const storeDB = {
       sql:  "UPDATE stores SET plan_status = 'active' WHERE store_id = ?",
       args: [storeId]
     });
-  }
-
+  },
+  
+  updatePassword: async (email, hashedPassword) => {
+    return await client.execute({
+      sql:  'UPDATE stores SET password = ? WHERE email = ?',
+      args: [hashedPassword, email]
+    });
+  },
 };
 
 // ─── PRODUCT FUNCTIONS ────────────────────────────────────
@@ -300,5 +306,94 @@ const paymentDB = {
   }
 
 };
+// ─── EMAIL VERIFICATION & PASSWORD RESET TOKENS ──────────
+const tokenDB = {
 
-module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB };
+  save: async (email, token, type) => {
+    // Create tokens table if not exists
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS tokens (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        email      TEXT NOT NULL,
+        token      TEXT NOT NULL,
+        type       TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used       INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    // Delete old tokens of same type for this email
+    await client.execute({
+      sql:  'DELETE FROM tokens WHERE email = ? AND type = ?',
+      args: [email, type]
+    });
+    // Save new token (expires in 1 hour for reset, 24 hours for verify)
+    const hours = type === 'reset' ? 1 : 24;
+    await client.execute({
+      sql:  `INSERT INTO tokens (email, token, type, expires_at)
+             VALUES (?, ?, ?, datetime('now', '+${hours} hours'))`,
+      args: [email, token, type]
+    });
+  },
+
+  verify: async (token, type) => {
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS tokens (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        email      TEXT NOT NULL,
+        token      TEXT NOT NULL,
+        type       TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used       INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    const res = await client.execute({
+      sql:  `SELECT * FROM tokens
+             WHERE token = ? AND type = ? AND used = 0
+             AND expires_at > datetime('now')`,
+      args: [token, type]
+    });
+    return res.rows[0] || null;
+  },
+
+  markUsed: async (token) => {
+    await client.execute({
+      sql:  'UPDATE tokens SET used = 1 WHERE token = ?',
+      args: [token]
+    });
+  }
+
+};
+
+// ─── VERIFICATION STATUS ──────────────────────────────────
+const verifyDB = {
+
+  setVerified: async (email) => {
+    // Add email_verified column if not exists
+    try {
+      await client.execute(
+        'ALTER TABLE stores ADD COLUMN email_verified INTEGER DEFAULT 0'
+      );
+    } catch(e) {} // column already exists, ignore
+    await client.execute({
+      sql:  'UPDATE stores SET email_verified = 1 WHERE email = ?',
+      args: [email]
+    });
+  },
+
+  isVerified: async (email) => {
+    try {
+      const res = await client.execute({
+        sql:  'SELECT email_verified FROM stores WHERE email = ?',
+        args: [email]
+      });
+      return res.rows[0]?.email_verified === 1;
+    } catch(e) {
+      return true; // if column doesn't exist yet, allow login
+    }
+  }
+
+};
+
+module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB };

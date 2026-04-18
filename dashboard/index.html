@@ -312,7 +312,14 @@
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" id="signup-password" placeholder="Min 6 characters"/>
+        <input type="password" id="signup-password" placeholder="Min 8 chars e.g. MyStore@123"
+  oninput="checkSignupStrength(this.value)"/>
+<div style="height:4px;border-radius:2px;background:#2a2d3e;margin-bottom:8px;overflow:hidden;">
+  <div id="signup-strength-bar" style="height:100%;border-radius:2px;transition:all .3s;width:0;"></div>
+</div>
+<div style="font-size:11px;color:#666;margin-bottom:12px;line-height:1.5;">
+  Must contain uppercase, lowercase, number and special character. Example: MyStore@123
+</div>
       </div>
       <button class="btn btn-primary btn-full" onclick="doSignup()">Create Account & Start Trial</button>
       <div class="alert" id="signup-alert"></div>
@@ -338,12 +345,35 @@
         <input type="password" id="login-password" placeholder="Your password"/>
       </div>
       <button class="btn btn-primary btn-full" onclick="doLogin()">Login to Dashboard</button>
+<div style="text-align:right;margin-top:10px;">
+  <a onclick="showPage('forgot')"
+    style="font-size:12px;color:var(--primary);cursor:pointer;">
+    Forgot password?
+  </a>
+</div>
       <div class="alert" id="login-alert"></div>
       <div class="auth-switch">Don't have an account? <a onclick="showPage('signup')">Start free trial</a></div>
     </div>
   </div>
 </div>
-
+<!-- FORGOT PASSWORD PAGE -->
+<div class="page" id="page-forgot">
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <h2>Forgot Password 🔑</h2>
+      <p>Enter your email and we'll send you a reset link.</p>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="forgot-email" placeholder="you@yourstore.com"/>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="doForgot()">Send Reset Link</button>
+      <div class="alert" id="forgot-alert"></div>
+      <div class="auth-switch">
+        <a onclick="showPage('login')" style="color:var(--primary);cursor:pointer;">← Back to Login</a>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ═══════════════════════════════════════════════
      APP (after login)
 ═══════════════════════════════════════════════ -->
@@ -646,6 +676,42 @@ let token = localStorage.getItem('bb_token');
 let currentStore = JSON.parse(localStorage.getItem('bb_store') || 'null');
 let selectedPlan = 'starter';
 
+// Password strength checker for signup
+function checkSignupStrength(val) {
+  const bar   = document.getElementById('signup-strength-bar');
+  if (!bar) return;
+  let score   = 0;
+  if (val.length >= 8)                                     score++;
+  if (/[A-Z]/.test(val))                                   score++;
+  if (/[0-9]/.test(val))                                   score++;
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)) score++;
+  const colors = ['#e74c3c','#f39c12','#f39c12','#2ecc71','#2ecc71'];
+  bar.style.width      = (score / 4 * 100) + '%';
+  bar.style.background = colors[score];
+}
+
+// Forgot password
+async function doForgot() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email)
+    return showAlert('forgot-alert', 'Please enter your email.', 'error');
+
+  try {
+    const res  = await fetch(`${API}/forgot-password`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showAlert('forgot-alert', '✅ ' + data.message, 'success');
+    } else {
+      showAlert('forgot-alert', '❌ ' + data.error, 'error');
+    }
+  } catch {
+    showAlert('forgot-alert', '❌ Cannot connect to server.', 'error');
+  }
+}
 // ─── INIT ─────────────────────────────────────────────────
 window.onload = () => {
   if (token && currentStore) {

@@ -63,11 +63,30 @@ router.get('/admin/payments', adminAuth, async (req, res) => {
 router.post('/admin/approve-payment', adminAuth, async (req, res) => {
   const { id, storeId, plan } = req.body;
   await paymentDB.approve(id, storeId, plan);
+
+  // Send email notification
+  const store = await storeDB.findById(storeId);
+  if (store) {
+    const { sendEmail, paymentApprovedEmail } = require('../email');
+    sendEmail(paymentApprovedEmail(store.name, store.email, plan));
+  }
+
   res.json({ success: true });
 });
 
 router.post('/admin/reject-payment', adminAuth, async (req, res) => {
-  await paymentDB.reject(req.body.id);
+  const { id, storeId, plan } = req.body;
+  await paymentDB.reject(id);
+
+  // Send email notification
+  if (storeId && plan) {
+    const store = await storeDB.findById(storeId);
+    if (store) {
+      const { sendEmail, paymentRejectedEmail } = require('../email');
+      sendEmail(paymentRejectedEmail(store.name, store.email, plan));
+    }
+  }
+
   res.json({ success: true });
 });
 

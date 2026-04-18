@@ -39,10 +39,39 @@ app.get('/', (req, res) => {
 
 // Start server only after DB is ready
 initDB().then(() => {
+
+  // Check for trials ending soon — runs every 24 hours
+  const { sendEmail, trialEndingEmail } = require('./email');
+
+  async function checkTrialsEnding() {
+    try {
+      const { client } = require('./database');
+      const res = await client.execute(`
+        SELECT * FROM stores
+        WHERE plan = 'trial'
+        AND plan_status = 'active'
+        AND date(trial_ends) IN (
+          date('now', '+3 days'),
+          date('now', '+1 day')
+        )
+      `);
+      for (const store of res.rows) {
+        const daysLeft = Math.ceil(
+          (new Date(store.trial_ends) - new Date()) / (1000 * 60 * 60 * 24)
+        );
+        sendEmail(trialEndingEmail(store.name, store.email, daysLeft));
+        console.log(`Trial ending email sent to: ${store.email}`);
+      }
+    } catch(e) {
+      console.error('Trial check error:', e.message);
+    }
+  }
+
+  // Run once on startup then every 24 hours
+  checkTrialsEnding();
+  setInterval(checkTrialsEnding, 24 * 60 * 60 * 1000);
+
   app.listen(PORT, () => {
     console.log(`BuildBot server running on http://localhost:${PORT}`);
   });
-}).catch(err => {
-  console.error('Database connection failed:', err);
-  process.exit(1);
-});
+})

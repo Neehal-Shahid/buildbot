@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { storeDB, paymentDB, analyticsDB, productDB } = require('../database');
+const { storeDB, paymentDB, analyticsDB, productDB, client } = require('../database');
 
 const router = express.Router();
 const JWT_SECRET   = process.env.JWT_SECRET;
@@ -93,6 +93,32 @@ router.post('/admin/reject-payment', adminAuth, async (req, res) => {
 router.post('/admin/disable-store', adminAuth, async (req, res) => {
   await storeDB.disableStore(req.body.storeId);
   res.json({ success: true });
+});
+
+router.post('/admin/delete-store', adminAuth, async (req, res) => {
+  const { storeId } = req.body;
+  try {
+    // Delete all related data first
+    await client.execute({
+      sql:  'DELETE FROM products WHERE store_id = ?',
+      args: [storeId]
+    });
+    await client.execute({
+      sql:  'DELETE FROM recommendations WHERE store_id = ?',
+      args: [storeId]
+    });
+    await client.execute({
+      sql:  'DELETE FROM payments WHERE store_id = ?',
+      args: [storeId]
+    });
+    await client.execute({
+      sql:  'DELETE FROM stores WHERE store_id = ?',
+      args: [storeId]
+    });
+    res.json({ success: true, message: 'Store and all data deleted.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/admin/activate-store', adminAuth, async (req, res) => {

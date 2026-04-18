@@ -9,6 +9,7 @@ const client = createClient({
 
 // ─── CREATE TABLES ────────────────────────────────────────
 async function initDB() {
+  await client.execute('PRAGMA foreign_keys = ON');
   await client.batch([
     `CREATE TABLE IF NOT EXISTS stores (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,34 +26,37 @@ async function initDB() {
       created_at  TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE TABLE IF NOT EXISTS products (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      store_id    TEXT NOT NULL,
-      name        TEXT NOT NULL,
-      category    TEXT NOT NULL,
-      price       REAL NOT NULL,
-      description TEXT DEFAULT '',
-      in_stock    INTEGER DEFAULT 1,
-      created_at  TEXT DEFAULT (datetime('now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS recommendations (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      store_id   TEXT NOT NULL,
-      budget     REAL NOT NULL,
-      purpose    TEXT NOT NULL,
-      extras     TEXT DEFAULT '',
-      result     TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS payments (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      store_id        TEXT NOT NULL,
-      amount          REAL NOT NULL,
-      method          TEXT NOT NULL,
-      transaction_ref TEXT DEFAULT '',
-      plan            TEXT NOT NULL,
-      status          TEXT DEFAULT 'pending',
-      created_at      TEXT DEFAULT (datetime('now'))
-    )`
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id    TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  category    TEXT NOT NULL,
+  price       REAL NOT NULL,
+  description TEXT DEFAULT '',
+  in_stock    INTEGER DEFAULT 1,
+  created_at  TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+)`,
+`CREATE TABLE IF NOT EXISTS recommendations (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id   TEXT NOT NULL,
+  budget     REAL NOT NULL,
+  purpose    TEXT NOT NULL,
+  extras     TEXT DEFAULT '',
+  result     TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+)`,
+`CREATE TABLE IF NOT EXISTS payments (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id        TEXT NOT NULL,
+  amount          REAL NOT NULL,
+  method          TEXT NOT NULL,
+  transaction_ref TEXT DEFAULT '',
+  plan            TEXT NOT NULL,
+  status          TEXT DEFAULT 'pending',
+  created_at      TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+)`
   ], 'write');
   console.log('Turso database connected and tables ready!');
 }

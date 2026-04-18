@@ -95,5 +95,16 @@ router.get('/store-config/:storeId', async (req, res) => {
     currency: store.currency
   });
 });
+router.put('/settings', authMiddleware, async (req, res) => {
+  const { brandColor, currency } = req.body;
+  if (!brandColor || !currency)
+    return res.status(400).json({ error: 'Brand color and currency are required' });
 
+  try {
+    await storeDB.updateBranding(req.store.storeId, brandColor, currency);
+    res.json({ success: true, message: 'Settings saved!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = { router, authMiddleware };

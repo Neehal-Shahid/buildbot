@@ -742,20 +742,20 @@ function doLogout() {
 
 // ─── ENTER APP ────────────────────────────────────────────
 function enterApp() {
-  // Fetch fresh store data from server first
+  // Always fetch fresh data from server
   fetch(`${API}/me`, {
     headers: { 'Authorization': `Bearer ${token}` }
   }).then(r => r.json()).then(data => {
     if (data.success) {
       currentStore = {
-        storeId: data.store.store_id,
-        name: data.store.name,
-        email: data.store.email,
-        plan: data.store.plan,
+        storeId:    data.store.store_id,
+        name:       data.store.name,
+        email:      data.store.email,
+        plan:       data.store.plan,
         planStatus: data.store.plan_status,
-        trialEnds: data.store.trial_ends,
+        trialEnds:  data.store.trial_ends,
         brandColor: data.store.brand_color,
-        currency: data.store.currency
+        currency:   data.store.currency
       };
       localStorage.setItem('bb_store', JSON.stringify(currentStore));
     }
@@ -772,7 +772,8 @@ function enterApp() {
     if (currentStore.plan === 'trial') {
       document.getElementById('trial-banner').style.display = 'flex';
       document.getElementById('trial-end-date').textContent =
-        new Date(currentStore.trialEnds).toLocaleDateString('en-PK', { day:'numeric', month:'long', year:'numeric' });
+        new Date(currentStore.trialEnds).toLocaleDateString('en-PK',
+          { day:'numeric', month:'long', year:'numeric' });
     } else {
       document.getElementById('trial-banner').style.display = 'none';
     }
@@ -795,7 +796,6 @@ function enterApp() {
     showTab('home');
   });
 }
-
 // ─── TABS ─────────────────────────────────────────────────
 function showTab(name) {
   document.querySelectorAll('[id^="tab-content-"]').forEach(t => t.style.display = 'none');
@@ -993,18 +993,25 @@ async function saveSettings() {
   const currency   = document.getElementById('currency-select').value;
 
   try {
-    const res  = await fetch(`${API}/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const res  = await fetch(`${API}/settings`, {
+      method:  'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ brandColor, currency })
     });
     const data = await res.json();
     if (data.success) {
-      showAlert('settings-alert', '✅ Settings saved!', 'success');
       currentStore.brandColor = brandColor;
       currentStore.currency   = currency;
       localStorage.setItem('bb_store', JSON.stringify(currentStore));
+      showAlert('settings-alert', '✅ Settings saved!', 'success');
+    } else {
+      showAlert('settings-alert', '❌ ' + data.error, 'error');
     }
   } catch {
-    showAlert('settings-alert', '❌ Could not save.', 'error');
+    showAlert('settings-alert', '❌ Could not connect to server.', 'error');
   }
 }
 

@@ -33,6 +33,7 @@ router.post('/recommend', async (req, res) => {
       limitReached: true
     });
   }
+
   // Get products
   const products = await productDB.getByStore(storeId);
   if (!products.length)
@@ -43,6 +44,36 @@ router.post('/recommend', async (req, res) => {
     `${i+1}. Name: ${p.name}, Category: ${p.category}, Price: ${p.price} ${currency}, ${p.description}`
   ).join('\n');
 
+  // TEST MODE — returns fake data without using API credits
+  // Remove TEST_MODE variable from Railway when done testing
+  if (process.env.TEST_MODE === 'true') {
+    const fakeRecommendation = {
+      buildName: 'Test Budget Build',
+      totalPrice: parseInt(budget) * 0.9,
+      withinBudget: true,
+      parts: [
+        { category: 'CPU',     name: 'Test CPU',        price: 20000, reason: 'Good for ' + purpose },
+        { category: 'RAM',     name: 'Test RAM 16GB',   price: 8000,  reason: 'Sufficient for tasks' },
+        { category: 'Storage', name: 'Test SSD 512GB',  price: 10000, reason: 'Fast storage' }
+      ],
+      summary: 'This is a test build. AI is disabled to save API credits.',
+      tips: 'Remove TEST_MODE from Railway variables when done testing limits.'
+    };
+    await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', fakeRecommendation);
+    return res.json({
+      success: true,
+      recommendation: fakeRecommendation,
+      currency,
+      usage: {
+        used:      limitCheck.used + 1,
+        limit:     limitCheck.limit,
+        remaining: limitCheck.remaining - 1,
+        period:    limitCheck.period
+      }
+    });
+  }
+
+  // REAL AI MODE
   const prompt = `You are a PC build expert. A customer wants help building a PC.
 Customer: Budget: ${budget} ${currency}, Purpose: ${purpose}, Extras: ${extras || 'None'}
 Available products:
@@ -57,38 +88,8 @@ Select best compatible parts within budget. Respond ONLY in this JSON format:
   "tips": "extra tips"
 }`;
 
-// TEST MODE — returns fake data without using API credits
-// Remove this block when done testing
-if (process.env.TEST_MODE === 'true') {
-  const fakeRecommendation = {
-    buildName: 'Test Budget Build',
-    totalPrice: parseInt(budget) * 0.9,
-    withinBudget: true,
-    parts: [
-      { category: 'CPU', name: 'Test CPU', price: 20000, reason: 'Good for ' + purpose },
-      { category: 'RAM', name: 'Test RAM 16GB', price: 8000, reason: 'Sufficient for tasks' },
-      { category: 'Storage', name: 'Test SSD 512GB', price: 10000, reason: 'Fast storage' }
-    ],
-    summary: 'This is a test build. AI is disabled to save API credits.',
-    tips: 'Remove TEST_MODE from Railway variables when done testing limits.'
-  };
-  await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', fakeRecommendation);
-  return res.json({
-    success: true,
-    recommendation: fakeRecommendation,
-    currency,
-    usage: {
-      used:      limitCheck.used + 1,
-      limit:     limitCheck.limit,
-      remaining: limitCheck.remaining - 1,
-      period:    limitCheck.period
-    }
-  });
-}
-
   try {
     const message = await anthropic.messages.create({
-      
       model:      'claude-opus-4-5',
       max_tokens: 1500,
       messages:   [{ role: 'user', content: prompt }]
@@ -101,7 +102,6 @@ if (process.env.TEST_MODE === 'true') {
     const recommendation = JSON.parse(jsonMatch[0]);
     await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', recommendation);
 
-    // Send remaining info to widget
     res.json({
       success: true,
       recommendation,

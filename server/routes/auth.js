@@ -215,9 +215,12 @@ router.get('/store-config/:storeId', async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
   if (!store) return res.status(404).json({ error: 'Store not found' });
   res.json({
-    success:    true,
-    brandColor: store.brand_color,
-    currency:   store.currency
+    success:     true,
+    brandColor:  store.brand_color,
+    currency:    store.currency,
+    widgetTitle: store.widget_title || 'BuildBot',
+    welcomeMsg:  store.welcome_msg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.',
+    buttonText:  store.button_text  || 'Get Started'
   });
 });
 
@@ -242,4 +245,17 @@ router.get('/test-email', async (req, res) => {
     });
   }
 });
+
+router.put('/widget-settings', authMiddleware, async (req, res) => {
+  const { widgetTitle, welcomeMsg, buttonText } = req.body;
+  if (!widgetTitle || !welcomeMsg || !buttonText)
+    return res.status(400).json({ error: 'All fields required' });
+  try {
+    await storeDB.updateWidget(req.store.storeId, widgetTitle, welcomeMsg, buttonText);
+    res.json({ success: true, message: 'Widget settings saved!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = { router, authMiddleware };

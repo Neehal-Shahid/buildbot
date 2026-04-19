@@ -56,8 +56,38 @@ Select best compatible parts within budget. Respond ONLY in this JSON format:
   "tips": "extra tips"
 }`;
 
+// TEST MODE — returns fake data without using API credits
+// Remove this block when done testing
+if (process.env.TEST_MODE === 'true') {
+  const fakeRecommendation = {
+    buildName: 'Test Budget Build',
+    totalPrice: parseInt(budget) * 0.9,
+    withinBudget: true,
+    parts: [
+      { category: 'CPU', name: 'Test CPU', price: 20000, reason: 'Good for ' + purpose },
+      { category: 'RAM', name: 'Test RAM 16GB', price: 8000, reason: 'Sufficient for tasks' },
+      { category: 'Storage', name: 'Test SSD 512GB', price: 10000, reason: 'Fast storage' }
+    ],
+    summary: 'This is a test build. AI is disabled to save API credits.',
+    tips: 'Remove TEST_MODE from Railway variables when done testing limits.'
+  };
+  await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', fakeRecommendation);
+  return res.json({
+    success: true,
+    recommendation: fakeRecommendation,
+    currency,
+    usage: {
+      used:      limitCheck.used + 1,
+      limit:     limitCheck.limit,
+      remaining: limitCheck.remaining - 1,
+      period:    limitCheck.period
+    }
+  });
+}
+
   try {
     const message = await anthropic.messages.create({
+      
       model:      'claude-opus-4-5',
       max_tokens: 1500,
       messages:   [{ role: 'user', content: prompt }]

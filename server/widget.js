@@ -353,7 +353,7 @@
         if (data.success) {
           renderResults(data.recommendation, data.currency || CURRENCY);
         } else {
-          renderError(data.error || 'Something went wrong.');
+          renderError(data.error || 'Something went wrong.', data.limitReached);
         }
       } catch {
         $('bb-s5').classList.remove('active');
@@ -399,11 +399,12 @@
     `;
   }
 
-  function renderError(msg) {
+  function renderError(msg, limitReached) {
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-error">
-        <div class="bb-ei">⚠️</div>
+        <div class="bb-ei">${limitReached ? '⏳' : '⚠️'}</div>
         <p>${msg}</p>
+        ${limitReached ? `<p style="font-size:11px;color:#666;margin-top:8px;">Powered by BuildBot</p>` : ''}
       </div>
     `;
   }

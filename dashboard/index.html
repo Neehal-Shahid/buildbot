@@ -420,7 +420,7 @@
           <div class="stat-card">
             <div class="stat-icon">🤖</div>
             <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Total Recommendations</div>
+            <div class="stat-label" id="rec-limit-label">Total Recommendations</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon">📦</div>
@@ -909,10 +909,21 @@ async function loadAnalytics() {
     document.getElementById('stat-products').textContent = productCount.count;
     document.getElementById('stat-budget').textContent   =
       stats.avgBudget.avg ? Math.round(stats.avgBudget.avg).toLocaleString() : '0';
+// Show limit info
+const planLimits = {
+  trial:   '3/day',
+  starter: '500/mo',
+  growth:  '2,000/mo',
+  pro:     'Unlimited'
+};
+const limitLabel = planLimits[currentStore.plan] || '500/mo';
+const el = document.getElementById('rec-limit-label');
+if (el) el.textContent = `Recommendations (Limit: ${limitLabel})`;
 
     const todayStr = new Date().toISOString().split('T')[0];
     const todayRow = (stats.daily || []).find(d => d.day === todayStr);
     document.getElementById('stat-today').textContent = todayRow ? todayRow.count : '0';
+    
 
     // Analytics tab
     document.getElementById('a-total').textContent = stats.total.count;

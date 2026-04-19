@@ -245,6 +245,50 @@ const analyticsDB = {
       'SELECT COUNT(*) as c FROM recommendations'
     );
     return res.rows[0].c;
+  },
+
+  checkLimit: async (storeId, plan) => {
+    // Trial: max 3 per day
+    if (plan === 'trial') {
+      const res = await client.execute({
+        sql: `SELECT COUNT(*) as count FROM recommendations
+              WHERE store_id = ?
+              AND date(created_at) = date('now')`,
+        args: [storeId]
+      });
+      const used = res.rows[0].count;
+      return {
+        allowed: used < 3,
+        used,
+        limit: 3,
+        period: 'today',
+        remaining: Math.max(0, 3 - used)
+      };
+    }
+  
+    // Starter: 500/month, Growth: 2000/month, Pro: unlimited
+    const limits = { starter: 500, growth: 2000, pro: 999999 };
+    const limit  = limits[plan] || 500;
+  
+    if (limit === 999999) {
+      return { allowed: true, used: 0, limit: 999999, remaining: 999999 };
+    }
+  
+    const res = await client.execute({
+      sql: `SELECT COUNT(*) as count FROM recommendations
+            WHERE store_id = ?
+            AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')`,
+      args: [storeId]
+    });
+  
+    const used = res.rows[0].count;
+    return {
+      allowed: used < limit,
+      used,
+      limit,
+      period: 'this month',
+      remaining: Math.max(0, limit - used)
+    };
   }
 
 };

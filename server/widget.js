@@ -1,25 +1,19 @@
 (function () {
-  const script     = document.currentScript ||
-                     document.querySelector('script[data-store-id]');
-  const STORE_ID   = script ? script.getAttribute('data-store-id') : null;
-  const API        = 'https://buildbot-production.up.railway.app/api';
+  const script    = document.currentScript;
+  const STORE_ID  = script.getAttribute('data-store-id');
+  const API = 'https://buildbot-production.up.railway.app/api';
 
-  let BRAND_COLOR  = '#7c6af7';
-  let CURRENCY     = 'PKR';
-  let WIDGET_TITLE = 'BuildBot';
-  let WELCOME_MSG  = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
-  let BUTTON_TEXT  = 'Get Started';
+  // ─── FETCH STORE BRANDING ─────────────────────────────
+  let BRAND_COLOR = '#7c6af7';
+  let CURRENCY    = 'PKR';
 
   async function initWidget() {
     try {
       const res  = await fetch(`${API}/store-config/${STORE_ID}`);
       const data = await res.json();
       if (data.success) {
-        BRAND_COLOR  = data.brandColor  || '#7c6af7';
-        CURRENCY     = data.currency    || 'PKR';
-        WIDGET_TITLE = data.widgetTitle || 'BuildBot';
-        WELCOME_MSG  = data.welcomeMsg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.';
-        BUTTON_TEXT  = data.buttonText  || 'Get Started';
+        BRAND_COLOR = data.brandColor || '#7c6af7';
+        CURRENCY    = data.currency   || 'PKR';
       }
     } catch (e) {}
     injectStyles();
@@ -148,7 +142,7 @@
     panel.innerHTML = `
       <div id="bb-header">
         <div>
-          <div class="bb-title">⚡ ${WIDGET_TITLE}</div>
+          <div class="bb-title">⚡ BuildBot</div>
           <div class="bb-sub">AI PC Build Recommender</div>
         </div>
         <button id="bb-close">✕</button>
@@ -167,8 +161,11 @@
         <div class="bb-screen active" id="bb-s1">
           <div class="bb-welcome-icon">🖥️</div>
           <div class="bb-welcome-title">Build Your Perfect PC</div>
-<div class="bb-welcome-text">${WELCOME_MSG}</div>
-         <button class="bb-btn" id="bb-start-btn">${BUTTON_TEXT} →</button>
+          <div class="bb-welcome-text">
+            Tell me your budget and what you'll use it for —
+            I'll find the best parts from this store for you.
+          </div>
+          <button class="bb-btn" id="bb-start-btn">Get Started →</button>
         </div>
 
         <!-- S2: Budget -->

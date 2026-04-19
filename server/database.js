@@ -14,23 +14,19 @@ async function initDB() {
   await client.execute('PRAGMA foreign_keys = ON');
   await client.batch([
     `CREATE TABLE IF NOT EXISTS stores (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  store_id       TEXT UNIQUE NOT NULL,
-  name           TEXT NOT NULL,
-  email          TEXT UNIQUE NOT NULL,
-  password       TEXT NOT NULL,
-  plan           TEXT DEFAULT 'trial',
-  plan_status    TEXT DEFAULT 'active',
-  trial_ends     TEXT DEFAULT (date('now', '+14 days')),
-  logo_url       TEXT DEFAULT '',
-  brand_color    TEXT DEFAULT '#7c6af7',
-  currency       TEXT DEFAULT 'PKR',
-  widget_title   TEXT DEFAULT 'BuildBot',
-  welcome_msg    TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.',
-  button_text    TEXT DEFAULT 'Get Started',
-  email_verified INTEGER DEFAULT 0,
-  created_at     TEXT DEFAULT (datetime('now'))
-)`,
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id    TEXT UNIQUE NOT NULL,
+      name        TEXT NOT NULL,
+      email       TEXT UNIQUE NOT NULL,
+      password    TEXT NOT NULL,
+      plan        TEXT DEFAULT 'trial',
+      plan_status TEXT DEFAULT 'active',
+      trial_ends  TEXT DEFAULT (date('now', '+14 days')),
+      logo_url    TEXT DEFAULT '',
+      brand_color TEXT DEFAULT '#7c6af7',
+      currency    TEXT DEFAULT 'PKR',
+      created_at  TEXT DEFAULT (datetime('now'))
+    )`,
     `CREATE TABLE IF NOT EXISTS products (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   store_id    TEXT NOT NULL,
@@ -67,23 +63,6 @@ async function initDB() {
   console.log('Turso database connected and tables ready!');
 }
 
-async function migrateDB() {
-  const migrations = [
-    `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
-    `ALTER TABLE stores ADD COLUMN welcome_msg TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
-    `ALTER TABLE stores ADD COLUMN button_text TEXT DEFAULT 'Get Started'`,
-    `ALTER TABLE stores ADD COLUMN email_verified INTEGER DEFAULT 0`,
-  ];
-  for (const sql of migrations) {
-    try {
-      await client.execute(sql);
-    } catch(e) {
-      // Column already exists — ignore
-    }
-  }
-  console.log('Database migration complete!');
-}
-
 // ─── STORE FUNCTIONS ──────────────────────────────────────
 const storeDB = {
 
@@ -115,14 +94,6 @@ const storeDB = {
     return await client.execute({
       sql:  'UPDATE stores SET brand_color = ?, currency = ? WHERE store_id = ?',
       args: [brandColor, currency, storeId]
-    });
-  },
-
-  updateWidget: async (storeId, widgetTitle, welcomeMsg, buttonText) => {
-    return await client.execute({
-      sql:  `UPDATE stores SET widget_title = ?, welcome_msg = ?, button_text = ?
-             WHERE store_id = ?`,
-      args: [widgetTitle, welcomeMsg, buttonText, storeId]
     });
   },
 
@@ -215,13 +186,6 @@ const productDB = {
       args: [storeId]
     });
     return res.rows[0];
-  },
-  getAllByStore: async (storeId) => {
-    const res = await client.execute({
-      sql:  'SELECT * FROM products WHERE store_id = ? ORDER BY category, name',
-      args: [storeId]
-    });
-    return res.rows;
   }
 
 };
@@ -482,4 +446,4 @@ const verifyDB = {
 
 };
 
-module.exports = { client, initDB, migrateDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB };
+module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB };

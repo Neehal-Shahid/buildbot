@@ -501,7 +501,7 @@
           <h2>Current Products <span id="product-count-badge" style="color:var(--muted);font-size:14px;"></span></h2>
           <p style="margin-bottom:16px;">Products currently in your catalog.</p>
           <table>
-            <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Category</th><th>Price</th></tr></thead>
             <tbody id="products-table"><tr><td colspan="3" style="color:var(--muted);text-align:center;">No products yet. Upload a CSV to get started.</td></tr></tbody>
           </table>
         </div>
@@ -664,74 +664,10 @@
             </div>
           </div>
         </div>
-        <div class="card">
-          <h2>Widget Text Customization</h2>
-          <p style="margin-bottom:20px;">Customize what text appears in your widget.</p>
-          <div class="form-group">
-            <label class="form-label">Widget Title</label>
-            <input type="text" id="widget-title-input" placeholder="e.g. PC Builder, Build My PC"/>
-            <p style="font-size:11px;color:var(--muted);margin-top:4px;">
-              Appears in the widget header. Default: BuildBot
-            </p>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Welcome Message</label>
-            <textarea id="welcome-msg-input" placeholder="Tell customers what the widget does..."></textarea>
-            <p style="font-size:11px;color:var(--muted);margin-top:4px;">
-              Shown on the first screen of the widget.
-            </p>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Button Text</label>
-            <input type="text" id="button-text-input" placeholder="e.g. Get Started, Build Now"/>
-            <p style="font-size:11px;color:var(--muted);margin-top:4px;">
-              Text on the start button. Default: Get Started
-            </p>
-          </div>
-          <button class="btn btn-primary" onclick="saveWidgetSettings()">Save Widget Settings</button>
-          <div class="alert" id="widget-settings-alert"></div>
-        </div>
       </div>
 
     </div><!-- end main -->
   </div><!-- end app-layout -->
-  <!-- EDIT PRODUCT MODAL -->
-<div class="modal-bg" id="edit-product-modal">
-  <div class="modal">
-    <h3>✏️ Edit Product</h3>
-    <div class="form-group">
-      <label class="form-label">Product Name</label>
-      <input type="text" id="edit-product-name" placeholder="e.g. Intel Core i5-13400F"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <select id="edit-product-category">
-        <option>CPU</option>
-        <option>Motherboard</option>
-        <option>RAM</option>
-        <option>Storage</option>
-        <option>GPU</option>
-        <option>PSU</option>
-        <option>Case</option>
-        <option>Monitor</option>
-        <option>Accessory</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Price (PKR)</label>
-      <input type="number" id="edit-product-price" placeholder="e.g. 45000"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description</label>
-      <textarea id="edit-product-description" placeholder="Brief description..."></textarea>
-    </div>
-    <div class="modal-btns">
-      <button class="btn btn-primary" onclick="saveEditProduct()">💾 Save Changes</button>
-      <button class="btn" onclick="closeEditModal()"
-        style="background:#2a2d3e;color:#fff;">Cancel</button>
-    </div>
-  </div>
-</div>
 </div><!-- end page-app -->
 
 <script>
@@ -802,108 +738,6 @@ window.onload = async () => {
     showPage('landing');
   }
 
-  async function saveWidgetSettings() {
-  const widgetTitle = document.getElementById('widget-title-input').value.trim()  || 'BuildBot';
-  const welcomeMsg  = document.getElementById('welcome-msg-input').value.trim()   || 'Tell me your budget and what you need.';
-  const buttonText  = document.getElementById('button-text-input').value.trim()   || 'Get Started';
-
-  try {
-    const res  = await fetch(`${API}/widget-settings`, {
-      method:  'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ widgetTitle, welcomeMsg, buttonText })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert('widget-settings-alert', '✅ Widget settings saved!', 'success');
-    } else {
-      showAlert('widget-settings-alert', '❌ ' + data.error, 'error');
-    }
-  } catch {
-    showAlert('widget-settings-alert', '❌ Cannot connect to server.', 'error');
-  }
-}
-
-  // ─── PRODUCT MANAGEMENT ───────────────────────────────────
-let editingProductId = null;
-
-function openEditProduct(id, name, category, price, description) {
-  editingProductId = id;
-  document.getElementById('edit-product-name').value        = name;
-  document.getElementById('edit-product-category').value    = category;
-  document.getElementById('edit-product-price').value       = price;
-  document.getElementById('edit-product-description').value = description;
-  document.getElementById('edit-product-modal').classList.add('open');
-}
-
-async function saveEditProduct() {
-  const name        = document.getElementById('edit-product-name').value.trim();
-  const category    = document.getElementById('edit-product-category').value;
-  const price       = document.getElementById('edit-product-price').value;
-  const description = document.getElementById('edit-product-description').value.trim();
-
-  if (!name || !category || !price)
-    return alert('Name, category and price are required');
-
-  try {
-    const res  = await fetch(`${API}/product/${editingProductId}`, {
-      method:  'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ name, category, price, description })
-    });
-    const data = await res.json();
-    if (data.success) {
-      closeEditModal();
-      loadProducts();
-      showAlert('upload-alert', '✅ Product updated!', 'success');
-    } else {
-      alert('Error: ' + data.error);
-    }
-  } catch(e) {
-    alert('Could not connect to server');
-  }
-}
-
-async function toggleStock(id, inStock) {
-  try {
-    const res  = await fetch(`${API}/product/${id}/stock`, {
-      method:  'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ inStock: inStock === 1 })
-    });
-    const data = await res.json();
-    if (data.success) loadProducts();
-  } catch(e) { console.error(e); }
-}
-
-async function deleteProduct(id) {
-  if (!confirm('Delete this product? This cannot be undone.')) return;
-  try {
-    const res  = await fetch(`${API}/product/${id}`, {
-      method:  'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      loadProducts();
-      showAlert('upload-alert', '✅ Product deleted!', 'success');
-    }
-  } catch(e) { console.error(e); }
-}
-
-function closeEditModal() {
-  document.getElementById('edit-product-modal').classList.remove('open');
-  editingProductId = null;
-}
 
   // Color picker sync
   document.getElementById('brand-color').addEventListener('input', (e) => {
@@ -1080,22 +914,8 @@ function showTab(name) {
   if (name === 'analytics') loadAnalytics();
   if (name === 'products')  loadProducts();
   if (name === 'billing')   loadPaymentHistory();
-  if (name === 'settings') loadSettings();
 }
 
-async function loadSettings() {
-  try {
-    const res  = await fetch(`${API}/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('widget-title-input').value = data.store.widget_title || 'BuildBot';
-      document.getElementById('welcome-msg-input').value  = data.store.welcome_msg  || '';
-      document.getElementById('button-text-input').value  = data.store.button_text  || 'Get Started';
-    }
-  } catch(e) {}
-}
 // ─── ANALYTICS ────────────────────────────────────────────
 async function loadAnalytics() {
   try {
@@ -1179,55 +999,36 @@ if (el) el.textContent = `Recommendations (Limit: ${limitLabel})`;
 // ─── PRODUCTS ─────────────────────────────────────────────
 async function loadProducts() {
   try {
+    // Get fresh store info first to make sure we use correct storeId
     const meRes  = await fetch(`${API}/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const meData = await meRes.json();
     if (!meData.success) return;
+
     const storeId = meData.store.store_id;
 
-    // Use all products endpoint (including out of stock)
-    const res  = await fetch(`${API}/products/all/${storeId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const res  = await fetch(`${API}/products/${storeId}`);
     const data = await res.json();
 
     if (data.products && data.products.length) {
       document.getElementById('product-count-badge').textContent = `(${data.products.length})`;
       document.getElementById('products-table').innerHTML = data.products.map(p => `
-        <tr id="product-row-${p.id}">
+        <tr>
           <td>${p.name}</td>
           <td><span class="badge badge-primary">${p.category}</span></td>
           <td>PKR ${Number(p.price).toLocaleString()}</td>
-          <td>
-            <span class="badge ${p.in_stock ? 'badge-success' : 'badge-danger'}">
-              ${p.in_stock ? 'In Stock' : 'Out of Stock'}
-            </span>
-          </td>
-          <td style="display:flex;gap:6px;">
-            <button class="btn btn-sm" style="background:#2a2d3e;color:#fff;"
-              onclick="openEditProduct(${p.id},'${p.name.replace(/'/g,"\\'")}','${p.category}',${p.price},'${(p.description||'').replace(/'/g,"\\'")}')">
-              ✏️ Edit
-            </button>
-            <button class="btn btn-sm" style="background:${p.in_stock ? '#3a1a1a' : '#1a3a2a'};color:${p.in_stock ? '#e74c3c' : '#2ecc71'};"
-              onclick="toggleStock(${p.id}, ${p.in_stock ? 0 : 1})">
-              ${p.in_stock ? '📦 Mark Out' : '✅ Mark In'}
-            </button>
-            <button class="btn btn-sm btn-danger"
-              onclick="deleteProduct(${p.id})">
-              🗑️
-            </button>
-          </td>
         </tr>`).join('');
     } else {
       document.getElementById('product-count-badge').textContent = '(0)';
       document.getElementById('products-table').innerHTML =
-        `<tr><td colspan="5" style="color:var(--muted);text-align:center;">
+        `<tr><td colspan="3" style="color:var(--muted);text-align:center;">
           No products yet. Upload a CSV to get started.
         </td></tr>`;
     }
   } catch(e) { console.error(e); }
 }
+
 function csvSelected(input) {
   if (input.files[0]) {
     document.getElementById('csv-filename').textContent = '📄 ' + input.files[0].name;

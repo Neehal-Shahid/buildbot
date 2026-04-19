@@ -400,11 +400,12 @@
   }
 
   function renderError(msg, limitReached) {
+    // Customer friendly message always — never show business/billing info
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-error">
-        <div class="bb-ei">${limitReached ? '⏳' : '⚠️'}</div>
-        <p>${msg}</p>
-        ${limitReached ? `<p style="font-size:11px;color:#666;margin-top:8px;">Powered by BuildBot</p>` : ''}
+        <div class="bb-ei">😔</div>
+        <p style="color:#ccc;font-size:14px;">Sorry, we couldn't generate a recommendation right now.</p>
+        <p style="color:#666;font-size:12px;margin-top:8px;">Please try again later or contact the store directly.</p>
       </div>
     `;
   }

@@ -20,18 +20,19 @@ router.post('/recommend', async (req, res) => {
   const isActive = await storeDB.isActive(storeId);
   if (!isActive)
     return res.status(403).json({
-      error: 'This store\'s trial has expired. The store owner needs to upgrade their plan.'
+      error: 'Service temporarily unavailable.',
+      customerMessage: true
     });
 
   // Check recommendation limit
   const limitCheck = await analyticsDB.checkLimit(storeId, store.plan);
   if (!limitCheck.allowed) {
-    const msg = store.plan === 'trial'
-      ? `Daily limit reached. This store has used all ${limitCheck.limit} free recommendations for today. Come back tomorrow!`
-      : `Monthly limit reached. This store has used ${limitCheck.used}/${limitCheck.limit} recommendations this month.`;
-    return res.status(429).json({ error: msg, limitReached: true });
+    return res.status(429).json({
+      error: 'Service temporarily unavailable.',
+      customerMessage: true,
+      limitReached: true
+    });
   }
-
   // Get products
   const products = await productDB.getByStore(storeId);
   if (!products.length)

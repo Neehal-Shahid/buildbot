@@ -97,25 +97,17 @@ router.post('/admin/disable-store', adminAuth, async (req, res) => {
 
 router.post('/admin/delete-store', adminAuth, async (req, res) => {
   const { storeId } = req.body;
+  if (!storeId) return res.status(400).json({ error: 'storeId required' });
+
   try {
-    // Delete all related data first
-    await client.execute({
-      sql:  'DELETE FROM products WHERE store_id = ?',
-      args: [storeId]
-    });
-    await client.execute({
-      sql:  'DELETE FROM recommendations WHERE store_id = ?',
-      args: [storeId]
-    });
-    await client.execute({
-      sql:  'DELETE FROM payments WHERE store_id = ?',
-      args: [storeId]
-    });
-    await client.execute({
-      sql:  'DELETE FROM stores WHERE store_id = ?',
-      args: [storeId]
-    });
-    res.json({ success: true, message: 'Store and all data deleted.' });
+    // Delete all related data in correct order
+    await client.execute({ sql: 'DELETE FROM recommendations WHERE store_id = ?', args: [storeId] });
+    await client.execute({ sql: 'DELETE FROM payments WHERE store_id = ?', args: [storeId] });
+    await client.execute({ sql: 'DELETE FROM products WHERE store_id = ?', args: [storeId] });
+    await client.execute({ sql: 'DELETE FROM tokens WHERE email = (SELECT email FROM stores WHERE store_id = ?)', args: [storeId] });
+    await client.execute({ sql: 'DELETE FROM stores WHERE store_id = ?', args: [storeId] });
+
+    res.json({ success: true, message: 'Store and all related data deleted.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

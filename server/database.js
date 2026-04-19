@@ -6,6 +6,8 @@ const client = createClient({
   url:       process.env.TURSO_URL,
   authToken: process.env.TURSO_TOKEN
 });
+// Enable foreign key enforcement
+client.execute('PRAGMA foreign_keys = ON').catch(() => {});
 
 // ─── CREATE TABLES ────────────────────────────────────────
 async function initDB() {

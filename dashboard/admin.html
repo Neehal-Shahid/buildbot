@@ -345,7 +345,19 @@
     </div>
   </div>
 </div>
-
+<div class="modal-bg" id="delete-modal">
+  <div class="modal">
+    <h3>🗑️ Delete Store Permanently</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      This will permanently delete the store AND all their products, payments and data. Cannot be undone.
+    </p>
+    <div id="delete-details" style="background:#0f1117;border-radius:8px;padding:16px;font-size:13px;"></div>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="confirmDelete()">🗑️ Delete Permanently</button>
+      <button class="btn" onclick="closeModal()" style="background:#2a2d3e;color:#fff;">Cancel</button>
+    </div>
+  </div>
+</div>
 <script>
 const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
 let adminToken = localStorage.getItem('bb_admin_token');
@@ -499,10 +511,37 @@ function renderStores(stores) {
             onclick="activateStore('${s.store_id}','${s.plan}')">✅ Activate</button>
           <button class="btn btn-danger btn-sm"
             onclick="openDisable('${s.store_id}','${s.name}')">⛔ Disable</button>
+            <button class="btn btn-danger btn-sm" style="background:#5a1a1a;"
+  onclick="openDelete('${s.store_id}','${s.name}')">🗑️ Delete</button>
         </td>
       </tr>`).join('');
 }
+function openDelete(storeId, name) {
+  pendingAction = { storeId };
+  document.getElementById('delete-details').innerHTML =
+    `🏪 Store: <strong>${name}</strong> (${storeId})`;
+  document.getElementById('delete-modal').classList.add('open');
+}
 
+async function confirmDelete() {
+  if (!pendingAction) return;
+  try {
+    const res  = await fetch(`${API}/admin/delete-store`, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ storeId: pendingAction.storeId })
+    });
+    const data = await res.json();
+    closeModal();
+    if (data.success) {
+      loadStores();
+      loadOverview();
+    }
+  } catch(e) { console.error(e); }
+}
 function filterStores() {
   const q = document.getElementById('store-search').value.toLowerCase();
   renderStores(allStoresData.filter(s =>

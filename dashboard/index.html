@@ -1417,15 +1417,14 @@ function filterProducts() {
 function openAddProduct() {
   editingProduct = null;
   document.getElementById('product-modal-title').textContent = '+ Add Product';
-  document.getElementById('product-modal-sub').textContent   =
-    'Add a single product to your catalog.';
+  document.getElementById('product-modal-sub').textContent   = 'Add a single product to your catalog.';
   document.getElementById('pm-save-btn').textContent = 'Add Product';
   document.getElementById('pm-name').value        = '';
   document.getElementById('pm-category').value    = '';
   document.getElementById('pm-price').value       = '';
   document.getElementById('pm-description').value = '';
   document.getElementById('pm-alert').className   = 'alert';
-  document.getElementById('product-modal').classList.add('open');
+  document.getElementById('product-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('pm-name').focus(), 100);
 }
 
@@ -1435,15 +1434,14 @@ function openEditProduct(id) {
   if (!p) return;
   editingProduct = p;
   document.getElementById('product-modal-title').textContent = '✏️ Edit Product';
-  document.getElementById('product-modal-sub').textContent   =
-    'Update product details.';
+  document.getElementById('product-modal-sub').textContent   = 'Update product details.';
   document.getElementById('pm-save-btn').textContent = 'Save Changes';
   document.getElementById('pm-name').value        = p.name;
   document.getElementById('pm-category').value    = p.category;
   document.getElementById('pm-price').value       = p.price;
   document.getElementById('pm-description').value = p.description || '';
   document.getElementById('pm-alert').className   = 'alert';
-  document.getElementById('product-modal').classList.add('open');
+  document.getElementById('product-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('pm-name').focus(), 100);
 }
 
@@ -1493,7 +1491,7 @@ async function saveProduct() {
 }
 
 function closeProductModal() {
-  document.getElementById('product-modal').classList.remove('open');
+  document.getElementById('product-modal').style.display = 'none';
   editingProduct = null;
 }
 
@@ -1525,7 +1523,7 @@ let deletingProductId = null;
 function openDeleteProduct(id, name) {
   deletingProductId = id;
   document.getElementById('delete-product-name').textContent = name;
-  document.getElementById('delete-product-modal').classList.add('open');
+  document.getElementById('delete-product-modal').style.display = 'flex';
 }
 
 async function confirmDeleteProduct() {
@@ -1545,7 +1543,7 @@ async function confirmDeleteProduct() {
 }
 
 function closeDeleteModal() {
-  document.getElementById('delete-product-modal').classList.remove('open');
+  document.getElementById('delete-product-modal').style.display = 'none';
   deletingProductId = null;
 }
 

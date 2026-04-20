@@ -594,6 +594,77 @@
       </table>
     </div>
   </div>
+    <!-- ADD / EDIT PRODUCT MODAL -->
+<div class="modal-bg" id="product-modal">
+  <div class="modal" style="max-width:500px;">
+    <h3 id="product-modal-title">+ Add Product</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;"
+      id="product-modal-sub">
+      Add a single product to your catalog.
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Product Name</label>
+        <input type="text" id="pm-name"
+          placeholder="e.g. Intel Core i5-13400F"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="pm-category">
+          <option value="">Select category</option>
+          <option>CPU</option>
+          <option>Motherboard</option>
+          <option>RAM</option>
+          <option>Storage</option>
+          <option>GPU</option>
+          <option>PSU</option>
+          <option>Case</option>
+          <option>Monitor</option>
+          <option>Accessory</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price (PKR)</label>
+        <input type="number" id="pm-price" placeholder="e.g. 45000"/>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Description
+          <span style="color:#555;font-weight:400;">(optional)</span>
+        </label>
+        <textarea id="pm-description" rows="2"
+          placeholder="Brief description of the product..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="pm-save-btn"
+        onclick="saveProduct()">Save Product</button>
+      <button class="btn" onclick="closeProductModal()"
+        style="background:#2a2d3e;color:#aaa;">Cancel</button>
+    </div>
+    <div class="alert" id="pm-alert"></div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-bg" id="delete-product-modal">
+  <div class="modal" style="max-width:400px;">
+    <h3>🗑️ Delete Product</h3>
+    <p style="font-size:13px;color:var(--muted);margin:12px 0 20px;line-height:1.6;">
+      Are you sure you want to delete
+      <strong id="delete-product-name" style="color:#fff;"></strong>?
+      This cannot be undone.
+    </p>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="confirmDeleteProduct()">
+        🗑️ Yes, Delete
+      </button>
+      <button class="btn" onclick="closeDeleteModal()"
+        style="background:#2a2d3e;color:#aaa;">Cancel</button>
+    </div>
+  </div>
+</div>
 </div>
 
       <!-- ── ANALYTICS TAB ── -->
@@ -857,77 +928,7 @@
 
     </div><!-- end main -->
   </div><!-- end app-layout -->
-  <!-- ADD / EDIT PRODUCT MODAL -->
-<div class="modal-bg" id="product-modal">
-  <div class="modal" style="max-width:500px;">
-    <h3 id="product-modal-title">+ Add Product</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;"
-      id="product-modal-sub">
-      Add a single product to your catalog.
-    </p>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-      <div class="form-group" style="grid-column:1/-1;">
-        <label class="form-label">Product Name</label>
-        <input type="text" id="pm-name"
-          placeholder="e.g. Intel Core i5-13400F"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Category</label>
-        <select id="pm-category">
-          <option value="">Select category</option>
-          <option>CPU</option>
-          <option>Motherboard</option>
-          <option>RAM</option>
-          <option>Storage</option>
-          <option>GPU</option>
-          <option>PSU</option>
-          <option>Case</option>
-          <option>Monitor</option>
-          <option>Accessory</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Price (PKR)</label>
-        <input type="number" id="pm-price" placeholder="e.g. 45000"/>
-      </div>
-      <div class="form-group" style="grid-column:1/-1;">
-        <label class="form-label">Description
-          <span style="color:#555;font-weight:400;">(optional)</span>
-        </label>
-        <textarea id="pm-description" rows="2"
-          placeholder="Brief description of the product..."></textarea>
-      </div>
-    </div>
-
-    <div class="modal-btns">
-      <button class="btn btn-primary" id="pm-save-btn"
-        onclick="saveProduct()">Save Product</button>
-      <button class="btn" onclick="closeProductModal()"
-        style="background:#2a2d3e;color:#aaa;">Cancel</button>
-    </div>
-    <div class="alert" id="pm-alert"></div>
-  </div>
-</div>
-
-<!-- DELETE CONFIRM MODAL -->
-<div class="modal-bg" id="delete-product-modal">
-  <div class="modal" style="max-width:400px;">
-    <h3>🗑️ Delete Product</h3>
-    <p style="font-size:13px;color:var(--muted);margin:12px 0 20px;line-height:1.6;">
-      Are you sure you want to delete
-      <strong id="delete-product-name" style="color:#fff;"></strong>?
-      This cannot be undone.
-    </p>
-    <div class="modal-btns">
-      <button class="btn btn-danger" onclick="confirmDeleteProduct()">
-        🗑️ Yes, Delete
-      </button>
-      <button class="btn" onclick="closeDeleteModal()"
-        style="background:#2a2d3e;color:#aaa;">Cancel</button>
-    </div>
-  </div>
-</div>
 </div><!-- end page-app -->
 
 <script>

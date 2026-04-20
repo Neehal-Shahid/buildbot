@@ -224,7 +224,8 @@ router.get('/store-config/:storeId', async (req, res) => {
     widgetSettings = {
       widgetTitle: 'BuildBot',
       welcomeMsg:  'Tell me your budget and what you need — I will find the best parts from this store for you.',
-      buttonText:  'Get Started'
+      buttonText:  'Get Started',
+      widgetBg:    '#1a1d27'
     };
   }
 
@@ -234,7 +235,8 @@ router.get('/store-config/:storeId', async (req, res) => {
     currency:    store.currency     || 'PKR',
     widgetTitle: widgetSettings.widgetTitle,
     welcomeMsg:  widgetSettings.welcomeMsg,
-    buttonText:  widgetSettings.buttonText
+    buttonText:  widgetSettings.buttonText,
+    widgetBg:    widgetSettings.widgetBg
   });
 });
 
@@ -262,7 +264,7 @@ router.get('/test-email', async (req, res) => {
 
 // ─── WIDGET SETTINGS ──────────────────────────────────────
 router.put('/widget-settings', authMiddleware, async (req, res) => {
-  const { widgetTitle, welcomeMsg, buttonText } = req.body;
+  const { widgetTitle, welcomeMsg, buttonText, widgetBg } = req.body;
   if (!widgetTitle || !welcomeMsg || !buttonText)
     return res.status(400).json({ error: 'All fields are required' });
   if (widgetTitle.length > 30)
@@ -273,7 +275,9 @@ router.put('/widget-settings', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: 'Button text must be 20 characters or less' });
   try {
     const { widgetDB } = require('../database');
-    await widgetDB.updateSettings(req.store.storeId, widgetTitle, welcomeMsg, buttonText);
+    await widgetDB.updateSettings(
+      req.store.storeId, widgetTitle, welcomeMsg, buttonText, widgetBg || '#1a1d27'
+    );
     res.json({ success: true, message: 'Widget settings saved!' });
   } catch (err) {
     res.status(500).json({ error: err.message });

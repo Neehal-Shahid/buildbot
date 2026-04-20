@@ -449,21 +449,35 @@ const verifyDB = {
 // ─── WIDGET CUSTOMIZATION ─────────────────────────────────
 const widgetDB = {
 
-  updateSettings: async (storeId, widgetTitle, welcomeMsg, buttonText) => {
-    // Add columns if they don't exist yet
+  updateSettings: async (storeId, widgetTitle, welcomeMsg, buttonText, bgColor) => {
     const migrations = [
       `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
       `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
-      `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`
+      `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`,
+      `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`
     ];
     for (const sql of migrations) {
       try { await client.execute(sql); } catch(e) {}
     }
     return await client.execute({
-      sql:  `UPDATE stores SET widget_title = ?, welcome_msg = ?, button_text = ?
+      sql:  `UPDATE stores SET widget_title = ?, welcome_msg = ?, button_text = ?, widget_bg = ?
              WHERE store_id = ?`,
-      args: [widgetTitle, welcomeMsg, buttonText, storeId]
+      args: [widgetTitle, welcomeMsg, buttonText, bgColor || '#1a1d27', storeId]
     });
+  },
+  
+  getSettings: async (storeId) => {
+    const res = await client.execute({
+      sql:  'SELECT widget_title, welcome_msg, button_text, widget_bg FROM stores WHERE store_id = ?',
+      args: [storeId]
+    });
+    const row = res.rows[0];
+    return {
+      widgetTitle: row?.widget_title || 'BuildBot',
+      welcomeMsg:  row?.welcome_msg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.',
+      buttonText:  row?.button_text  || 'Get Started',
+      widgetBg:    row?.widget_bg    || '#1a1d27'
+    };
   },
 
   getSettings: async (storeId) => {

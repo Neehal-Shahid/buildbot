@@ -458,54 +458,143 @@
       </div>
 
       <!-- ── PRODUCTS TAB ── -->
-      <div id="tab-content-products" style="display:none;">
-        <div class="section-title">Product Catalog</div>
-        <div class="section-sub">Upload your products via CSV. The AI will use these to recommend builds.</div>
+<!-- ── PRODUCTS TAB ── -->
+<div id="tab-content-products" style="display:none;">
+  <div class="section-title">Product Catalog</div>
+  <div class="section-sub">Manage your products. The AI only recommends in-stock items.</div>
 
-        <div class="two-col">
-          <div class="card">
-            <h2>Upload CSV</h2>
-            <p style="margin-bottom:16px;">
-              Need a template?
-              <a href="#" onclick="downloadTemplate()" style="color:var(--primary);">Download sample CSV</a>
-            </p>
-            <div class="upload-area" onclick="document.getElementById('csv-upload').click()">
-              <div class="ui">📂</div>
-              <p>Click to select your CSV file</p>
-              <div id="csv-filename" style="color:var(--primary);font-size:13px;margin-top:8px;"></div>
-            </div>
-            <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="csvSelected(this)"/>
-            <button class="btn btn-primary btn-full" id="upload-btn" onclick="doUpload()" disabled>Upload Catalog</button>
-            <div class="alert" id="upload-alert"></div>
-          </div>
+  <!-- Top Action Bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:20px;gap:12px;flex-wrap:wrap;">
+    <div style="display:flex;gap:10px;align-items:center;flex:1;">
+      <input type="text" id="product-search" placeholder="🔍 Search products..."
+        oninput="filterProducts()"
+        style="max-width:260px;padding:10px 14px;background:#0f1117;
+        border:1px solid #2a2d3e;border-radius:8px;color:#fff;
+        font-size:13px;outline:none;"/>
+      <select id="product-category-filter" onchange="filterProducts()"
+        style="padding:10px 14px;background:#0f1117;border:1px solid #2a2d3e;
+        border-radius:8px;color:#888;font-size:13px;outline:none;">
+        <option value="">All Categories</option>
+        <option>CPU</option><option>Motherboard</option><option>RAM</option>
+        <option>Storage</option><option>GPU</option><option>PSU</option>
+        <option>Case</option><option>Monitor</option><option>Accessory</option>
+      </select>
+      <select id="product-stock-filter" onchange="filterProducts()"
+        style="padding:10px 14px;background:#0f1117;border:1px solid #2a2d3e;
+        border-radius:8px;color:#888;font-size:13px;outline:none;">
+        <option value="">All Status</option>
+        <option value="1">In Stock</option>
+        <option value="0">Out of Stock</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary btn-sm" onclick="openAddProduct()">
+        + Add Product
+      </button>
+      <button class="btn btn-sm" onclick="showTab('products')"
+        style="background:#2a2d3e;color:#aaa;">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
 
-          <div class="card">
-            <h2>CSV Format</h2>
-            <p style="margin-bottom:16px;">Your CSV must have these columns:</p>
-            <table>
-              <thead><tr><th>Column</th><th>Example</th></tr></thead>
-              <tbody>
-                <tr><td>name</td><td>Intel Core i5-13400F</td></tr>
-                <tr><td>category</td><td>CPU</td></tr>
-                <tr><td>price</td><td>45000</td></tr>
-                <tr><td>description</td><td>Great mid-range processor</td></tr>
-              </tbody>
-            </table>
-            <p style="margin-top:16px;font-size:12px;color:var(--muted);">
-              Categories: CPU, Motherboard, RAM, Storage, GPU, PSU, Case, Monitor, Accessory
-            </p>
-          </div>
-        </div>
+  <!-- Stats Row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+    <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
+      padding:16px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#fff;" id="pm-total">0</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Total Products</div>
+    </div>
+    <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
+      padding:16px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#2ecc71;" id="pm-instock">0</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">In Stock</div>
+    </div>
+    <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
+      padding:16px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#e74c3c;" id="pm-outstock">0</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Out of Stock</div>
+    </div>
+    <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
+      padding:16px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#7c6af7;" id="pm-categories">0</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Categories</div>
+    </div>
+  </div>
 
-        <div class="card">
-          <h2>Current Products <span id="product-count-badge" style="color:var(--muted);font-size:14px;"></span></h2>
-          <p style="margin-bottom:16px;">Products currently in your catalog.</p>
-          <table>
-            <thead><tr><th>Name</th><th>Category</th><th>Price</th></tr></thead>
-            <tbody id="products-table"><tr><td colspan="3" style="color:var(--muted);text-align:center;">No products yet. Upload a CSV to get started.</td></tr></tbody>
-          </table>
-        </div>
+  <!-- Upload CSV Card -->
+  <div class="card" style="margin-bottom:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="margin-bottom:4px;">Bulk Upload via CSV</h2>
+        <p>Replace all products at once.
+          <a href="#" onclick="downloadTemplate()"
+            style="color:var(--primary);">Download template</a>
+        </p>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="csv-filename" style="font-size:12px;color:#7c6af7;"></div>
+        <label style="background:#2a2d3e;color:#ccc;padding:9px 16px;
+          border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
+          transition:background .2s;border:1px solid #3a3d50;"
+          onmouseover="this.style.background='#3a3d50'"
+          onmouseout="this.style.background='#2a2d3e'">
+          📂 Choose File
+          <input type="file" id="csv-upload" accept=".csv" style="display:none"
+            onchange="csvSelected(this)"/>
+        </label>
+        <button class="btn btn-primary btn-sm" id="upload-btn"
+          onclick="doUpload()" disabled>Upload</button>
+      </div>
+    </div>
+    <div class="alert" id="upload-alert"></div>
+  </div>
+
+  <!-- Products Table -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:20px 24px 16px;border-bottom:1px solid #2a2d3e;
+      display:flex;align-items:center;justify-content:space-between;">
+      <h2 style="margin:0;">
+        Products
+        <span id="product-count-badge"
+          style="color:#555;font-size:13px;font-weight:400;margin-left:6px;"></span>
+      </h2>
+      <div id="pm-filtered-note" style="font-size:12px;color:#555;display:none;">
+        Showing filtered results
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#0f1117;">
+            <th style="padding:12px 24px;text-align:left;color:#555;
+              font-weight:600;border-bottom:1px solid #2a2d3e;white-space:nowrap;">
+              Product Name
+            </th>
+            <th style="padding:12px 16px;text-align:left;color:#555;
+              font-weight:600;border-bottom:1px solid #2a2d3e;">Category</th>
+            <th style="padding:12px 16px;text-align:right;color:#555;
+              font-weight:600;border-bottom:1px solid #2a2d3e;">Price</th>
+            <th style="padding:12px 16px;text-align:center;color:#555;
+              font-weight:600;border-bottom:1px solid #2a2d3e;">Status</th>
+            <th style="padding:12px 24px;text-align:right;color:#555;
+              font-weight:600;border-bottom:1px solid #2a2d3e;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="products-table">
+          <tr>
+            <td colspan="5" style="padding:40px;text-align:center;color:#555;">
+              Loading products...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
       <!-- ── ANALYTICS TAB ── -->
       <div id="tab-content-analytics" style="display:none;">
@@ -768,6 +857,77 @@
 
     </div><!-- end main -->
   </div><!-- end app-layout -->
+  <!-- ADD / EDIT PRODUCT MODAL -->
+<div class="modal-bg" id="product-modal">
+  <div class="modal" style="max-width:500px;">
+    <h3 id="product-modal-title">+ Add Product</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;"
+      id="product-modal-sub">
+      Add a single product to your catalog.
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Product Name</label>
+        <input type="text" id="pm-name"
+          placeholder="e.g. Intel Core i5-13400F"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="pm-category">
+          <option value="">Select category</option>
+          <option>CPU</option>
+          <option>Motherboard</option>
+          <option>RAM</option>
+          <option>Storage</option>
+          <option>GPU</option>
+          <option>PSU</option>
+          <option>Case</option>
+          <option>Monitor</option>
+          <option>Accessory</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Price (PKR)</label>
+        <input type="number" id="pm-price" placeholder="e.g. 45000"/>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Description
+          <span style="color:#555;font-weight:400;">(optional)</span>
+        </label>
+        <textarea id="pm-description" rows="2"
+          placeholder="Brief description of the product..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="pm-save-btn"
+        onclick="saveProduct()">Save Product</button>
+      <button class="btn" onclick="closeProductModal()"
+        style="background:#2a2d3e;color:#aaa;">Cancel</button>
+    </div>
+    <div class="alert" id="pm-alert"></div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-bg" id="delete-product-modal">
+  <div class="modal" style="max-width:400px;">
+    <h3>🗑️ Delete Product</h3>
+    <p style="font-size:13px;color:var(--muted);margin:12px 0 20px;line-height:1.6;">
+      Are you sure you want to delete
+      <strong id="delete-product-name" style="color:#fff;"></strong>?
+      This cannot be undone.
+    </p>
+    <div class="modal-btns">
+      <button class="btn btn-danger" onclick="confirmDeleteProduct()">
+        🗑️ Yes, Delete
+      </button>
+      <button class="btn" onclick="closeDeleteModal()"
+        style="background:#2a2d3e;color:#aaa;">Cancel</button>
+    </div>
+  </div>
+</div>
 </div><!-- end page-app -->
 
 <script>
@@ -1111,36 +1271,286 @@ if (el) el.textContent = `Recommendations (Limit: ${limitLabel})`;
 }
 
 // ─── PRODUCTS ─────────────────────────────────────────────
+// ─── PRODUCTS ─────────────────────────────────────────────
+let allProducts    = [];
+let editingProduct = null;
+
 async function loadProducts() {
   try {
-    // Get fresh store info first to make sure we use correct storeId
-    const meRes  = await fetch(`${API}/me`, {
+    const res  = await fetch(`${API}/products/manage/${currentStore.storeId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const meData = await meRes.json();
-    if (!meData.success) return;
+    const data = await res.json();
+    allProducts = data.products || [];
+    renderProducts(allProducts);
+    updateProductStats(allProducts);
+  } catch(e) {
+    document.getElementById('products-table').innerHTML = `
+      <tr><td colspan="5" style="padding:40px;text-align:center;color:#e74c3c;">
+        Could not load products.
+      </td></tr>`;
+  }
+}
 
-    const storeId = meData.store.store_id;
+function updateProductStats(products) {
+  const inStock    = products.filter(p => p.in_stock == 1).length;
+  const outStock   = products.filter(p => p.in_stock == 0).length;
+  const categories = [...new Set(products.map(p => p.category))].length;
 
-    const res  = await fetch(`${API}/products/${storeId}`);
+  document.getElementById('pm-total').textContent      = products.length;
+  document.getElementById('pm-instock').textContent    = inStock;
+  document.getElementById('pm-outstock').textContent   = outStock;
+  document.getElementById('pm-categories').textContent = categories;
+  document.getElementById('product-count-badge').textContent =
+    `(${products.length} products)`;
+}
+
+function renderProducts(products) {
+  const tbody = document.getElementById('products-table');
+  if (!products.length) {
+    tbody.innerHTML = `
+      <tr><td colspan="5" style="padding:48px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">📦</div>
+        <div style="color:#555;font-size:14px;">No products found.</div>
+        <div style="color:#444;font-size:12px;margin-top:6px;">
+          Upload a CSV or add products manually.
+        </div>
+      </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = products.map(p => `
+    <tr id="prow-${p.id}" style="border-bottom:1px solid #1a1d27;
+      transition:background .15s;"
+      onmouseover="this.style.background='#1a1d27'"
+      onmouseout="this.style.background='transparent'">
+
+      <td style="padding:14px 24px;">
+        <div style="font-weight:500;color:#fff;margin-bottom:2px;">
+          ${escHtml(p.name)}
+        </div>
+        ${p.description
+          ? `<div style="font-size:11px;color:#555;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">
+              ${escHtml(p.description)}
+             </div>`
+          : ''}
+      </td>
+
+      <td style="padding:14px 16px;">
+        <span style="background:#1a1a3a;color:#7c6af7;padding:3px 10px;
+          border-radius:20px;font-size:11px;font-weight:600;">
+          ${escHtml(p.category)}
+        </span>
+      </td>
+
+      <td style="padding:14px 16px;text-align:right;
+        font-weight:600;color:#fff;white-space:nowrap;">
+        PKR ${Number(p.price).toLocaleString()}
+      </td>
+
+      <td style="padding:14px 16px;text-align:center;">
+        <button onclick="toggleStock(${p.id}, ${p.in_stock == 1 ? 0 : 1})"
+          style="border:none;cursor:pointer;padding:4px 12px;border-radius:20px;
+          font-size:11px;font-weight:600;transition:all .2s;
+          background:${p.in_stock == 1 ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)'};
+          color:${p.in_stock == 1 ? '#2ecc71' : '#e74c3c'};
+          border:1px solid ${p.in_stock == 1 ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'};">
+          ${p.in_stock == 1 ? '✓ In Stock' : '✗ Out of Stock'}
+        </button>
+      </td>
+
+      <td style="padding:14px 24px;text-align:right;">
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button onclick="openEditProduct(${p.id})"
+            style="background:transparent;border:1px solid #2a2d3e;
+            color:#aaa;padding:6px 12px;border-radius:6px;
+            font-size:12px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.borderColor='#7c6af7';this.style.color='#7c6af7'"
+            onmouseout="this.style.borderColor='#2a2d3e';this.style.color='#aaa'">
+            ✏️ Edit
+          </button>
+          <button onclick="openDeleteProduct(${p.id}, '${escHtml(p.name).replace(/'/g,"\\'")}' )"
+            style="background:transparent;border:1px solid #2a2d3e;
+            color:#aaa;padding:6px 12px;border-radius:6px;
+            font-size:12px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.borderColor='#e74c3c';this.style.color='#e74c3c'"
+            onmouseout="this.style.borderColor='#2a2d3e';this.style.color='#aaa'">
+            🗑️
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterProducts() {
+  const search   = document.getElementById('product-search').value.toLowerCase();
+  const category = document.getElementById('product-category-filter').value;
+  const stock    = document.getElementById('product-stock-filter').value;
+
+  const filtered = allProducts.filter(p => {
+    const matchSearch   = !search   || p.name.toLowerCase().includes(search) ||
+                          (p.description || '').toLowerCase().includes(search);
+    const matchCategory = !category || p.category === category;
+    const matchStock    = stock === '' || String(p.in_stock) === stock;
+    return matchSearch && matchCategory && matchStock;
+  });
+
+  renderProducts(filtered);
+
+  const note = document.getElementById('pm-filtered-note');
+  note.style.display = filtered.length < allProducts.length ? 'block' : 'none';
+}
+
+// ─── ADD PRODUCT ──────────────────────────────────────────
+function openAddProduct() {
+  editingProduct = null;
+  document.getElementById('product-modal-title').textContent = '+ Add Product';
+  document.getElementById('product-modal-sub').textContent   =
+    'Add a single product to your catalog.';
+  document.getElementById('pm-save-btn').textContent = 'Add Product';
+  document.getElementById('pm-name').value        = '';
+  document.getElementById('pm-category').value    = '';
+  document.getElementById('pm-price').value       = '';
+  document.getElementById('pm-description').value = '';
+  document.getElementById('pm-alert').className   = 'alert';
+  document.getElementById('product-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pm-name').focus(), 100);
+}
+
+// ─── EDIT PRODUCT ─────────────────────────────────────────
+function openEditProduct(id) {
+  const p = allProducts.find(p => p.id == id);
+  if (!p) return;
+  editingProduct = p;
+  document.getElementById('product-modal-title').textContent = '✏️ Edit Product';
+  document.getElementById('product-modal-sub').textContent   =
+    'Update product details.';
+  document.getElementById('pm-save-btn').textContent = 'Save Changes';
+  document.getElementById('pm-name').value        = p.name;
+  document.getElementById('pm-category').value    = p.category;
+  document.getElementById('pm-price').value       = p.price;
+  document.getElementById('pm-description').value = p.description || '';
+  document.getElementById('pm-alert').className   = 'alert';
+  document.getElementById('product-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pm-name').focus(), 100);
+}
+
+async function saveProduct() {
+  const name        = document.getElementById('pm-name').value.trim();
+  const category    = document.getElementById('pm-category').value;
+  const price       = document.getElementById('pm-price').value;
+  const description = document.getElementById('pm-description').value.trim();
+
+  if (!name)     return showPmAlert('Product name is required.', 'error');
+  if (!category) return showPmAlert('Please select a category.', 'error');
+  if (!price || isNaN(price) || parseFloat(price) <= 0)
+    return showPmAlert('Please enter a valid price.', 'error');
+
+  const btn = document.getElementById('pm-save-btn');
+  btn.disabled    = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const isEdit = !!editingProduct;
+    const url    = isEdit ? `${API}/product/${editingProduct.id}` : `${API}/product`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const res  = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ name, category, price: parseFloat(price), description })
+    });
     const data = await res.json();
 
-    if (data.products && data.products.length) {
-      document.getElementById('product-count-badge').textContent = `(${data.products.length})`;
-      document.getElementById('products-table').innerHTML = data.products.map(p => `
-        <tr>
-          <td>${p.name}</td>
-          <td><span class="badge badge-primary">${p.category}</span></td>
-          <td>PKR ${Number(p.price).toLocaleString()}</td>
-        </tr>`).join('');
+    if (data.success) {
+      closeProductModal();
+      await loadProducts();
+      showAlert('upload-alert', `✅ ${data.message}`, 'success');
     } else {
-      document.getElementById('product-count-badge').textContent = '(0)';
-      document.getElementById('products-table').innerHTML =
-        `<tr><td colspan="3" style="color:var(--muted);text-align:center;">
-          No products yet. Upload a CSV to get started.
-        </td></tr>`;
+      showPmAlert(data.error || 'Something went wrong.', 'error');
+    }
+  } catch {
+    showPmAlert('Cannot connect to server.', 'error');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = editingProduct ? 'Save Changes' : 'Add Product';
+  }
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').classList.remove('open');
+  editingProduct = null;
+}
+
+// ─── STOCK TOGGLE ─────────────────────────────────────────
+async function toggleStock(id, newStock) {
+  try {
+    const res  = await fetch(`${API}/product/${id}/stock`, {
+      method:  'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ inStock: newStock === 1 })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Update locally without full reload
+      const p = allProducts.find(p => p.id == id);
+      if (p) p.in_stock = newStock;
+      filterProducts();
+      updateProductStats(allProducts);
     }
   } catch(e) { console.error(e); }
+}
+
+// ─── DELETE PRODUCT ───────────────────────────────────────
+let deletingProductId = null;
+
+function openDeleteProduct(id, name) {
+  deletingProductId = id;
+  document.getElementById('delete-product-name').textContent = name;
+  document.getElementById('delete-product-modal').classList.add('open');
+}
+
+async function confirmDeleteProduct() {
+  if (!deletingProductId) return;
+  try {
+    const res  = await fetch(`${API}/product/${deletingProductId}`, {
+      method:  'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeDeleteModal();
+      await loadProducts();
+      showAlert('upload-alert', '✅ Product deleted!', 'success');
+    }
+  } catch(e) { console.error(e); }
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-product-modal').classList.remove('open');
+  deletingProductId = null;
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showPmAlert(msg, type) {
+  const el = document.getElementById('pm-alert');
+  el.textContent = msg;
+  el.className   = `alert alert-${type} show`;
+  setTimeout(() => el.className = 'alert', 4000);
 }
 
 function csvSelected(input) {

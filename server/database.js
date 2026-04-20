@@ -446,4 +446,39 @@ const verifyDB = {
 
 };
 
-module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB };
+// ─── WIDGET CUSTOMIZATION ─────────────────────────────────
+const widgetDB = {
+
+  updateSettings: async (storeId, widgetTitle, welcomeMsg, buttonText) => {
+    // Add columns if they don't exist yet
+    const migrations = [
+      `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
+      `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
+      `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`
+    ];
+    for (const sql of migrations) {
+      try { await client.execute(sql); } catch(e) {}
+    }
+    return await client.execute({
+      sql:  `UPDATE stores SET widget_title = ?, welcome_msg = ?, button_text = ?
+             WHERE store_id = ?`,
+      args: [widgetTitle, welcomeMsg, buttonText, storeId]
+    });
+  },
+
+  getSettings: async (storeId) => {
+    const res = await client.execute({
+      sql:  'SELECT widget_title, welcome_msg, button_text FROM stores WHERE store_id = ?',
+      args: [storeId]
+    });
+    const row = res.rows[0];
+    return {
+      widgetTitle: row?.widget_title || 'BuildBot',
+      welcomeMsg:  row?.welcome_msg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.',
+      buttonText:  row?.button_text  || 'Get Started'
+    };
+  }
+
+};
+
+module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB, widgetDB };

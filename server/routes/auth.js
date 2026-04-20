@@ -214,10 +214,27 @@ router.put('/settings', authMiddleware, async (req, res) => {
 router.get('/store-config/:storeId', async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
   if (!store) return res.status(404).json({ error: 'Store not found' });
+
+  // Get widget customization settings
+  const { widgetDB } = require('../database');
+  let widgetSettings = {};
+  try {
+    widgetSettings = await widgetDB.getSettings(req.params.storeId);
+  } catch(e) {
+    widgetSettings = {
+      widgetTitle: 'BuildBot',
+      welcomeMsg:  'Tell me your budget and what you need — I will find the best parts from this store for you.',
+      buttonText:  'Get Started'
+    };
+  }
+
   res.json({
-    success:    true,
-    brandColor: store.brand_color,
-    currency:   store.currency
+    success:     true,
+    brandColor:  store.brand_color  || '#7c6af7',
+    currency:    store.currency     || 'PKR',
+    widgetTitle: widgetSettings.widgetTitle,
+    welcomeMsg:  widgetSettings.welcomeMsg,
+    buttonText:  widgetSettings.buttonText
   });
 });
 
@@ -242,4 +259,25 @@ router.get('/test-email', async (req, res) => {
     });
   }
 });
+
+// ─── WIDGET SETTINGS ──────────────────────────────────────
+router.put('/widget-settings', authMiddleware, async (req, res) => {
+  const { widgetTitle, welcomeMsg, buttonText } = req.body;
+  if (!widgetTitle || !welcomeMsg || !buttonText)
+    return res.status(400).json({ error: 'All fields are required' });
+  if (widgetTitle.length > 30)
+    return res.status(400).json({ error: 'Widget title must be 30 characters or less' });
+  if (welcomeMsg.length > 200)
+    return res.status(400).json({ error: 'Welcome message must be 200 characters or less' });
+  if (buttonText.length > 20)
+    return res.status(400).json({ error: 'Button text must be 20 characters or less' });
+  try {
+    const { widgetDB } = require('../database');
+    await widgetDB.updateSettings(req.store.storeId, widgetTitle, welcomeMsg, buttonText);
+    res.json({ success: true, message: 'Widget settings saved!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = { router, authMiddleware };

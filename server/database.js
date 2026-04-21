@@ -143,6 +143,51 @@ const storeDB = {
       args: [hashedPassword, email]
     });
   },
+  updatePluginKey: async (storeId, pluginSecret) => {
+    const migrations = [
+      `ALTER TABLE stores ADD COLUMN plugin_secret TEXT DEFAULT ''`,
+      `ALTER TABLE stores ADD COLUMN woo_connected INTEGER DEFAULT 0`,
+      `ALTER TABLE stores ADD COLUMN woo_url TEXT DEFAULT ''`,
+      `ALTER TABLE stores ADD COLUMN woo_last_sync TEXT DEFAULT ''`,
+      `ALTER TABLE stores ADD COLUMN woo_product_count INTEGER DEFAULT 0`
+    ];
+    for (const sql of migrations) {
+      try { await client.execute(sql); } catch(e) {}
+    }
+    return await client.execute({
+      sql:  'UPDATE stores SET plugin_secret = ? WHERE store_id = ?',
+      args: [pluginSecret, storeId]
+    });
+  },
+  
+  updateWooStatus: async (storeId, wooUrl, productCount) => {
+    const now = new Date().toISOString();
+    return await client.execute({
+      sql:  `UPDATE stores SET woo_connected = 1, woo_url = ?,
+             woo_last_sync = ?, woo_product_count = ?
+             WHERE store_id = ?`,
+      args: [wooUrl, now, productCount, storeId]
+    });
+  },
+  
+  findByPluginSecret: async (storeId, secret) => {
+    const res = await client.execute({
+      sql:  `SELECT * FROM stores
+             WHERE store_id = ? AND plugin_secret = ?`,
+      args: [storeId, secret]
+    });
+    return res.rows[0] || null;
+  },
+  
+  getPluginKey: async (storeId) => {
+    const res = await client.execute({
+      sql:  `SELECT plugin_secret, woo_connected, woo_url,
+             woo_last_sync, woo_product_count
+             FROM stores WHERE store_id = ?`,
+      args: [storeId]
+    });
+    return res.rows[0] || null;
+  }
 };
 
 // ─── PRODUCT FUNCTIONS ────────────────────────────────────

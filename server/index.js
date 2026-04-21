@@ -11,6 +11,7 @@ const { router: authRoute } = require('./routes/auth');
 const analyticsRoute = require('./routes/analytics');
 const paymentRoute = require('./routes/payment');
 const adminRoute = require('./routes/admin');
+const pluginRoute = require('./routes/plugin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,7 @@ app.use('/api', recommendRoute);
 app.use('/api', analyticsRoute);
 app.use('/api', paymentRoute);
 app.use('/api', adminRoute);
+app.use('/api', pluginRoute);
 
 // Serve widget
 app.get('/widget.js', (req, res) => {

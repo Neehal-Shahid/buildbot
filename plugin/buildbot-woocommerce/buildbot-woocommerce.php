@@ -3,7 +3,7 @@
  * Plugin Name: BuildBot AI PC Recommender
  * Plugin URI:  https://buildbot-nine.vercel.app
  * Description: Connects your WooCommerce store to BuildBot — syncs products automatically so customers get AI-powered PC build recommendations.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      BuildBot
  * Author URI:  https://buildbot-nine.vercel.app
  * License:     GPL v2 or later
@@ -16,16 +16,278 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDBOT_API',     'https://buildbot-production.up.railway.app/api');
-define('BUILDBOT_VERSION', '1.0.0');
-define('BUILDBOT_PLUGIN',  plugin_basename(__FILE__));
+define('BUILDBOT_VERSION', '1.1.0');
+define('BUILDBOT_UPDATE_URL', 'https://buildbot-production.up.railway.app/plugin-update.json');
 
-// ─── ACTIVATION ───────────────────────────────────────────
+// ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
 register_activation_hook(__FILE__, 'buildbot_activate');
 function buildbot_activate() {
+  if (!class_exists('WooCommerce')) {
+    deactivate_plugins(plugin_basename(__FILE__));
+    wp_die(
+      '<div style="font-family:sans-serif;padding:20px;">
+        <h2>⚡ BuildBot — Activation Failed</h2>
+        <p><strong>WooCommerce is not installed or active.</strong></p>
+        <p>BuildBot requires WooCommerce to work. Please install and activate
+        WooCommerce first, then activate BuildBot.</p>
+        <a href="' . admin_url('plugins.php') . '">← Back to Plugins</a>
+      </div>',
+      'WooCommerce Required',
+      ['back_link' => false]
+    );
+  }
+
+  // Schedule auto sync every 6 hours
+  if (!wp_next_scheduled('buildbot_auto_sync')) {
+    wp_schedule_event(time(), 'buildbot_6hours', 'buildbot_auto_sync');
+  }
+}
+
+// ─── DEACTIVATION ─────────────────────────────────────────
+register_deactivation_hook(__FILE__, 'buildbot_deactivate');
+function buildbot_deactivate() {
+  wp_clear_scheduled_hook('buildbot_auto_sync');
+}
+
+// ─── CUSTOM CRON SCHEDULE ─────────────────────────────────
+add_filter('cron_schedules', 'buildbot_cron_schedules');
+function buildbot_cron_schedules($schedules) {
+  $schedules['buildbot_6hours'] = [
+    'interval' => 6 * HOUR_IN_SECONDS,
+    'display'  => 'Every 6 Hours'
+  ];
+  return $schedules;
+}
+
+// ─── AUTO SYNC CRON ───────────────────────────────────────
+add_action('buildbot_auto_sync', 'buildbot_full_sync');
+
+// ─── AUTO UPDATES ─────────────────────────────────────────
+add_filter('pre_set_site_transient_update_plugins', 'buildbot_check_update');
+function buildbot_check_update($transient) {
+  if (empty($transient->checked)) return $transient;
+
+  $response = wp_remote_get(BUILDBOT_UPDATE_URL, ['timeout' => 10]);
+  if (is_wp_error($response)) return $transient;
+
+  $update = json_decode(wp_remote_retrieve_body($response), true);
+  if (!$update) return $transient;
+
+  $plugin_file = plugin_basename(__FILE__);
+  if (isset($update['version']) &&
+      version_compare($update['version'], BUILDBOT_VERSION, '>')) {
+    $transient->response[$plugin_file] = (object)[
+      'slug'        => 'buildbot-woocommerce',
+      'plugin'      => $plugin_file,
+      'new_version' => $update['version'],
+      'url'         => 'https://buildbot-nine.vercel.app',
+      'package'     => $update['download_url']
+    ];
+  }
+  return $transient;
+}
+
+// ─── CATEGORY MAPPING ─────────────────────────────────────
+function buildbot_map_category($woo_categories, $product_name = '') {
+  // Keywords → BuildBot category
+  $keyword_map = [
+    'CPU'         => ['cpu', 'processor', 'intel core', 'ryzen', 'amd ryzen',
+                      'core i3', 'core i5', 'core i7', 'core i9',
+                      'threadripper', 'xeon', 'celeron', 'pentium', 'athlon'],
+    'Motherboard' => ['motherboard', 'mobo', 'mainboard', 'lga', 'am4', 'am5',
+                      'b450', 'b550', 'b660', 'b760', 'x570', 'z690', 'z790',
+                      'h610', 'h410', 'h510', 'asus prime', 'msi pro',
+                      'gigabyte', 'asrock'],
+    'RAM'         => ['ram', 'memory', 'ddr4', 'ddr5', 'dimm', 'sodimm',
+                      'vengeance', 'ripjaws', 'fury', '3200mhz', '3600mhz',
+                      '4800mhz', '6000mhz', '8gb ram', '16gb ram', '32gb ram'],
+    'Storage'     => ['ssd', 'hdd', 'hard drive', 'hard disk', 'nvme', 'solid state',
+                      'm.2', 'sata', '970 evo', 'wd blue', 'seagate', 'barracuda',
+                      'crucial mx', 'kingston', 'tb hdd', 'gb ssd', '1tb', '2tb', '500gb'],
+    'GPU'         => ['gpu', 'graphics', 'video card', 'rtx', 'gtx', 'radeon',
+                      'rx 6', 'rx 7', 'geforce', 'nvidia', 'amd gpu',
+                      '3060', '3070', '3080', '4060', '4070', '4080', '4090',
+                      '6600', '6700', '7600', '7700', '1660', '1650'],
+    'PSU'         => ['psu', 'power supply', 'power unit', 'smps', 'watt',
+                      '550w', '650w', '750w', '850w', '1000w',
+                      'corsair cv', 'seasonic', 'evga', 'cooler master mwe',
+                      '80 plus', 'gold psu', 'bronze psu', 'modular'],
+    'Case'        => ['case', 'cabinet', 'casing', 'chassis', 'tower',
+                      'mid tower', 'full tower', 'mini itx', 'micro atx',
+                      'matrexx', 'nzxt', 'fractal', 'lian li', 'phanteks',
+                      'corsair 4000', 'ant esports', 'deepcool'],
+    'Monitor'     => ['monitor', 'display', 'screen', 'led monitor', 'ips',
+                      'va panel', 'tn panel', '144hz', '165hz', '240hz',
+                      '1080p', '1440p', '4k monitor', '24 inch', '27 inch',
+                      'dell monitor', 'lg monitor', 'aoc', 'benq'],
+    'Cooling'     => ['cooler', 'cooling', 'heatsink', 'aio', 'liquid cool',
+                      'cpu fan', 'case fan', 'rgb fan', 'arctic', 'noctua',
+                      'be quiet', 'hyper 212', 'thermal paste', 'thermal grease'],
+    'Networking'  => ['wifi', 'wireless', 'network card', 'lan card', 'ethernet',
+                      'router', 'tp-link', 'asus router', 'pcie wifi',
+                      'bluetooth adapter', 'usb wifi'],
+    'UPS'         => ['ups', 'uninterruptible', 'power backup', 'inverter ups',
+                      'apc ups', 'cyber power', 'voltage stabilizer'],
+    'Peripherals' => ['keyboard', 'mouse', 'headset', 'headphone', 'webcam',
+                      'gamepad', 'controller', 'microphone', 'speaker',
+                      'redragon', 'logitech', 'razer', 'corsair k',
+                      'gaming keyboard', 'mechanical keyboard', 'wireless mouse'],
+    'Cable'       => ['cable', 'hdmi', 'displayport', 'usb cable', 'sata cable',
+                      'extension cable', 'adapter', 'hub', 'usb hub'],
+    'Software'    => ['windows', 'microsoft office', 'antivirus', 'os',
+                      'operating system', 'software license', 'windows 11',
+                      'windows 10']
+  ];
+
+  $search_text = strtolower($product_name);
+
+  // First try to match from WooCommerce category names
+  if (!empty($woo_categories)) {
+    foreach ($woo_categories as $cat) {
+      $cat_lower = strtolower($cat['name']);
+      foreach ($keyword_map as $buildbot_cat => $keywords) {
+        foreach ($keywords as $keyword) {
+          if (strpos($cat_lower, $keyword) !== false) {
+            return $buildbot_cat;
+          }
+        }
+      }
+    }
+  }
+
+  // Then try to match from product name
+  foreach ($keyword_map as $buildbot_cat => $keywords) {
+    foreach ($keywords as $keyword) {
+      if (strpos($search_text, $keyword) !== false) {
+        return $buildbot_cat;
+      }
+    }
+  }
+
+  return 'Accessory';
+}
+
+// ─── GET ALL WOOCOMMERCE PRODUCTS ─────────────────────────
+function buildbot_get_all_products() {
+  $query = new WP_Query([
+    'post_type'      => 'product',
+    'posts_per_page' => -1,
+    'post_status'    => 'publish'
+  ]);
+
+  $products      = [];
+  $unmapped      = 0;
+  $category_stats = [];
+
+  foreach ($query->posts as $post) {
+    $product = wc_get_product($post->ID);
+    if (!$product) continue;
+
+    // Skip variable products with no price
+    $price = floatval(
+      $product->get_sale_price()
+      ?: $product->get_regular_price()
+      ?: $product->get_price()
+    );
+    if ($price <= 0) continue;
+
+    // Get WooCommerce categories
+    $terms      = get_the_terms($post->ID, 'product_cat');
+    $woo_cats   = [];
+    if ($terms && !is_wp_error($terms)) {
+      foreach ($terms as $term) {
+        $woo_cats[] = ['name' => $term->name];
+      }
+    }
+
+    $product_name     = $product->get_name();
+    $mapped_category  = buildbot_map_category($woo_cats, $product_name);
+
+    if ($mapped_category === 'Accessory' && empty($woo_cats)) {
+      $unmapped++;
+    }
+
+    // Track stats
+    if (!isset($category_stats[$mapped_category])) {
+      $category_stats[$mapped_category] = 0;
+    }
+    $category_stats[$mapped_category]++;
+
+    // Get description
+    $description = strip_tags(
+      $product->get_short_description()
+      ?: wp_trim_words($product->get_description(), 25, '')
+    );
+
+    $products[] = [
+      'id'                => $product->get_id(),
+      'name'              => $product_name,
+      'price'             => $price,
+      'regular_price'     => $product->get_regular_price(),
+      'sale_price'        => $product->get_sale_price(),
+      'stock_status'      => $product->get_stock_status(),
+      'categories'        => $woo_cats,
+      'short_description' => $description
+    ];
+  }
+
+  return [
+    'products'       => $products,
+    'unmapped'       => $unmapped,
+    'category_stats' => $category_stats,
+    'total'          => count($products)
+  ];
+}
+
+// ─── DETECT IF PC STORE ───────────────────────────────────
+function buildbot_is_pc_store($category_stats) {
+  $pc_categories = ['CPU', 'Motherboard', 'RAM', 'Storage', 'GPU', 'PSU', 'Case'];
+  $pc_count      = 0;
+  foreach ($pc_categories as $cat) {
+    if (!empty($category_stats[$cat])) $pc_count++;
+  }
+  return $pc_count >= 2; // at least 2 PC categories = PC store
+}
+
+// ─── FULL SYNC FUNCTION ───────────────────────────────────
+function buildbot_full_sync() {
   $store_id = get_option('buildbot_store_id');
   $secret   = get_option('buildbot_secret_key');
-  if ($store_id && $secret) {
-    buildbot_full_sync();
+
+  if (!$store_id || !$secret || !get_option('buildbot_connected')) return;
+  if (!class_exists('WooCommerce')) return;
+
+  $result   = buildbot_get_all_products();
+  $products = $result['products'];
+
+  if (empty($products)) return;
+
+  // Check if it's a PC store
+  $is_pc = buildbot_is_pc_store($result['category_stats']);
+  update_option('buildbot_is_pc_store', $is_pc);
+  update_option('buildbot_category_stats', $result['category_stats']);
+  update_option('buildbot_unmapped_count', $result['unmapped']);
+
+  $response = wp_remote_post(BUILDBOT_API . '/plugin/sync', [
+    'headers' => [
+      'Content-Type'        => 'application/json',
+      'X-BuildBot-Store-ID' => $store_id,
+      'X-BuildBot-Secret'   => $secret
+    ],
+    'body'    => json_encode([
+      'products' => $products,
+      'storeUrl' => get_site_url()
+    ]),
+    'timeout' => 30
+  ]);
+
+  if (!is_wp_error($response)) {
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    if (!empty($body['synced'])) {
+      update_option('buildbot_last_sync',     current_time('mysql'));
+      update_option('buildbot_product_count', $body['synced']);
+      update_option('buildbot_woo_url',       get_site_url());
+    }
   }
 }
 
@@ -43,205 +305,68 @@ function buildbot_admin_menu() {
   );
 }
 
-// ─── ADMIN PAGE STYLES ────────────────────────────────────
+// ─── ADMIN STYLES ─────────────────────────────────────────
 add_action('admin_head', 'buildbot_admin_styles');
 function buildbot_admin_styles() {
   $screen = get_current_screen();
   if (!$screen || $screen->id !== 'toplevel_page_buildbot') return;
   ?>
   <style>
-    /* BuildBot Admin Styles */
-    #buildbot-wrap {
-      max-width: 720px;
-      margin: 30px 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-    .bb-header {
-      background: linear-gradient(135deg, #7c6af7, #5b4fe0);
-      border-radius: 16px;
-      padding: 28px 32px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .bb-header-icon { font-size: 40px; }
-    .bb-header h1 {
-      color: #fff !important;
-      font-size: 24px !important;
-      margin: 0 0 4px !important;
-      padding: 0 !important;
-      border: none !important;
-    }
-    .bb-header p { color: rgba(255,255,255,0.75); margin: 0; font-size: 14px; }
-    .bb-card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    }
-    .bb-card h2 {
-      font-size: 16px !important;
-      margin: 0 0 6px !important;
-      padding: 0 !important;
-      border: none !important;
-      color: #1a1d27;
-    }
-    .bb-card p { color: #64748b; font-size: 13px; margin: 0 0 16px; }
-    .bb-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-    .bb-status.connected {
-      background: #f0fdf4;
-      color: #16a34a;
-      border: 1px solid #bbf7d0;
-    }
-    .bb-status.disconnected {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 1px solid #fecaca;
-    }
-    .bb-field { margin-bottom: 16px; }
-    .bb-field label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #475569;
-      margin-bottom: 6px;
-    }
-    .bb-field input[type="text"],
-    .bb-field input[type="password"] {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 14px;
-      color: #1a1d27;
-      background: #f8fafc;
-      box-sizing: border-box;
-      transition: border-color 0.2s;
-    }
-    .bb-field input:focus {
-      border-color: #7c6af7;
-      outline: none;
-      background: #fff;
-    }
-    .bb-field .bb-hint {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
-    .bb-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-    .bb-btn-primary {
-      background: #7c6af7;
-      color: #fff;
-    }
-    .bb-btn-primary:hover { background: #5b4fe0; color: #fff; }
-    .bb-btn-secondary {
-      background: #f1f5f9;
-      color: #475569;
-      border: 1px solid #e2e8f0;
-    }
-    .bb-btn-secondary:hover { background: #e2e8f0; }
-    .bb-btn-danger {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 1px solid #fecaca;
-    }
-    .bb-btn-danger:hover { background: #fee2e2; }
-    .bb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .bb-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .bb-stat {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 14px;
-      text-align: center;
-    }
-    .bb-stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #7c6af7;
-      margin-bottom: 2px;
-    }
-    .bb-stat-label { font-size: 11px; color: #94a3b8; }
-    .bb-divider {
-      height: 1px;
-      background: #e2e8f0;
-      margin: 20px 0;
-    }
-    .bb-notice {
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      margin-top: 12px;
-      display: none;
-    }
-    .bb-notice.success {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #16a34a;
-    }
-    .bb-notice.error {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #dc2626;
-    }
-    .bb-notice.info {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #2563eb;
-    }
-    .bb-footer {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 12px;
-      margin-top: 8px;
-    }
-    .bb-footer a { color: #7c6af7; text-decoration: none; }
-    @media (max-width: 600px) {
-      .bb-stats { grid-template-columns: 1fr; }
-    }
+    #buildbot-wrap{max-width:720px;margin:30px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    .bb-header{background:linear-gradient(135deg,#7c6af7,#5b4fe0);border-radius:16px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;gap:16px;}
+    .bb-header-icon{font-size:40px;}
+    .bb-header h1{color:#fff!important;font-size:24px!important;margin:0 0 4px!important;padding:0!important;border:none!important;}
+    .bb-header p{color:rgba(255,255,255,.75);margin:0;font-size:14px;}
+    .bb-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+    .bb-card h2{font-size:16px!important;margin:0 0 6px!important;padding:0!important;border:none!important;color:#1a1d27;}
+    .bb-card p{color:#64748b;font-size:13px;margin:0 0 16px;}
+    .bb-status{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px;}
+    .bb-status.connected{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+    .bb-status.disconnected{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+    .bb-field{margin-bottom:16px;}
+    .bb-field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:6px;}
+    .bb-field input{width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1a1d27;background:#f8fafc;box-sizing:border-box;transition:border-color .2s;}
+    .bb-field input:focus{border-color:#7c6af7;outline:none;background:#fff;}
+    .bb-field .bb-hint{font-size:11px;color:#94a3b8;margin-top:4px;}
+    .bb-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none;}
+    .bb-btn-primary{background:#7c6af7;color:#fff;}
+    .bb-btn-primary:hover{background:#5b4fe0;color:#fff;}
+    .bb-btn-secondary{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
+    .bb-btn-secondary:hover{background:#e2e8f0;}
+    .bb-btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+    .bb-btn-danger:hover{background:#fee2e2;}
+    .bb-btn:disabled{opacity:.5;cursor:not-allowed;}
+    .bb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+    .bb-stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;}
+    .bb-stat-value{font-size:24px;font-weight:700;color:#7c6af7;margin-bottom:2px;}
+    .bb-stat-label{font-size:11px;color:#94a3b8;}
+    .bb-divider{height:1px;background:#e2e8f0;margin:20px 0;}
+    .bb-notice{padding:12px 16px;border-radius:8px;font-size:13px;margin-top:12px;display:none;}
+    .bb-notice.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;}
+    .bb-notice.error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;}
+    .bb-notice.info{background:#eff6ff;border:1px solid #bfdbfe;color:#2563eb;}
+    .bb-notice.warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
+    .bb-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;}
+    .bb-cat-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+    .bb-cat-count{background:#7c6af7;color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+    .bb-warning-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#92400e;}
+    .bb-footer{text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;}
+    .bb-footer a{color:#7c6af7;text-decoration:none;}
+    @media(max-width:600px){.bb-stats{grid-template-columns:1fr;}.bb-cat-grid{grid-template-columns:1fr;}}
   </style>
   <?php
 }
 
-// ─── ADMIN PAGE HTML ──────────────────────────────────────
+// ─── ADMIN PAGE ───────────────────────────────────────────
 function buildbot_admin_page() {
-  $store_id     = get_option('buildbot_store_id', '');
-  $secret_key   = get_option('buildbot_secret_key', '');
-  $is_connected = get_option('buildbot_connected', false);
-  $last_sync    = get_option('buildbot_last_sync', '');
+  $store_id      = get_option('buildbot_store_id', '');
+  $secret_key    = get_option('buildbot_secret_key', '');
+  $is_connected  = get_option('buildbot_connected', false);
+  $last_sync     = get_option('buildbot_last_sync', '');
   $product_count = get_option('buildbot_product_count', 0);
-  $woo_url      = get_option('buildbot_woo_url', '');
+  $is_pc_store   = get_option('buildbot_is_pc_store', true);
+  $cat_stats     = get_option('buildbot_category_stats', []);
+  $unmapped      = get_option('buildbot_unmapped_count', 0);
   ?>
 
   <div id="buildbot-wrap">
@@ -253,11 +378,27 @@ function buildbot_admin_page() {
         <h1>BuildBot</h1>
         <p>AI-powered PC Build Recommender for your store</p>
       </div>
+      <?php if ($is_connected): ?>
+      <div style="margin-left:auto;background:rgba(255,255,255,.15);
+        border-radius:8px;padding:8px 14px;font-size:12px;color:#fff;">
+        v<?php echo BUILDBOT_VERSION; ?>
+      </div>
+      <?php endif; ?>
     </div>
 
     <?php if ($is_connected && $store_id && $secret_key): ?>
 
     <!-- ── CONNECTED STATE ── -->
+
+    <?php if (!$is_pc_store): ?>
+    <div class="bb-warning-box">
+      ⚠️ <strong>No PC parts detected</strong> in your product catalog.
+      BuildBot works best with PC components (CPU, GPU, RAM, etc.).
+      Your products may not generate useful recommendations.
+      Make sure your WooCommerce products are properly categorized.
+    </div>
+    <?php endif; ?>
+
     <div class="bb-card">
       <h2>Connection Status</h2>
       <div class="bb-status connected">✅ Connected to BuildBot</div>
@@ -268,18 +409,26 @@ function buildbot_admin_page() {
           <div class="bb-stat-label">Products Synced</div>
         </div>
         <div class="bb-stat">
-          <div class="bb-stat-value" style="font-size:14px;">
+          <div class="bb-stat-value" style="font-size:13px;">
             <?php echo $last_sync ? esc_html(buildbot_time_ago($last_sync)) : 'Never'; ?>
           </div>
           <div class="bb-stat-label">Last Synced</div>
         </div>
         <div class="bb-stat">
-          <div class="bb-stat-value" style="font-size:13px;">
+          <div class="bb-stat-value" style="font-size:12px;">
             <?php echo esc_html($store_id); ?>
           </div>
           <div class="bb-stat-label">Store ID</div>
         </div>
       </div>
+
+      <?php if ($unmapped > 0): ?>
+      <div class="bb-notice info" style="display:block;margin-bottom:14px;">
+        ℹ️ <?php echo $unmapped; ?> products were saved as "Accessory"
+        because their category could not be detected.
+        Consider adding proper categories in WooCommerce for better recommendations.
+      </div>
+      <?php endif; ?>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="bb-btn bb-btn-primary" onclick="buildbotSync()" id="bb-sync-btn">
@@ -293,12 +442,27 @@ function buildbot_admin_page() {
       <div class="bb-notice" id="bb-notice"></div>
     </div>
 
+    <?php if (!empty($cat_stats)): ?>
+    <div class="bb-card">
+      <h2>Category Breakdown</h2>
+      <p>How your products were categorized for AI recommendations.</p>
+      <div class="bb-cat-grid">
+        <?php foreach ($cat_stats as $cat => $count): ?>
+        <div class="bb-cat-item">
+          <span><?php echo esc_html($cat); ?></span>
+          <span class="bb-cat-count"><?php echo esc_html($count); ?></span>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <?php else: ?>
 
     <!-- ── SETUP STATE ── -->
     <div class="bb-card">
       <h2>Connect to BuildBot</h2>
-      <p>Enter your BuildBot Store ID and Secret Key to connect your WooCommerce store.</p>
+      <p>Enter your Store ID and Secret Key from your BuildBot dashboard.</p>
 
       <div class="bb-status disconnected">● Not Connected</div>
 
@@ -308,7 +472,7 @@ function buildbot_admin_page() {
           value="<?php echo esc_attr($store_id); ?>"
           placeholder="e.g. techzone-lahore"/>
         <div class="bb-hint">
-          Find this in your BuildBot Dashboard → Settings → WooCommerce section
+          BuildBot Dashboard → Settings → WooCommerce section → Your Store ID
         </div>
       </div>
 
@@ -318,7 +482,7 @@ function buildbot_admin_page() {
           value="<?php echo esc_attr($secret_key); ?>"
           placeholder="bb_live_..."/>
         <div class="bb-hint">
-          Generate this key in BuildBot Dashboard → Settings → WooCommerce section
+          BuildBot Dashboard → Settings → WooCommerce section → Generate Key → Copy
         </div>
       </div>
 
@@ -330,49 +494,63 @@ function buildbot_admin_page() {
       <div class="bb-notice" id="bb-notice"></div>
     </div>
 
-    <?php endif; ?>
-
     <!-- How it works -->
     <div class="bb-card">
       <h2>How It Works</h2>
-      <p>Once connected, BuildBot will:</p>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <span style="font-size:18px;">🔄</span>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;gap:12px;">
+          <span style="font-size:20px;flex-shrink:0;">🔌</span>
           <div>
-            <strong style="font-size:13px;color:#1a1d27;">Auto-sync products</strong>
-            <div style="font-size:12px;color:#64748b;">
-              Every time you add, update or delete a product in WooCommerce,
-              BuildBot updates automatically.
-            </div>
+            <strong style="font-size:13px;color:#1a1d27;display:block;margin-bottom:2px;">
+              One-time setup
+            </strong>
+            <span style="font-size:12px;color:#64748b;">
+              Connect once and forget. No CSV uploads, no manual work.
+            </span>
           </div>
         </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <span style="font-size:18px;">🤖</span>
+        <div style="display:flex;gap:12px;">
+          <span style="font-size:20px;flex-shrink:0;">🔄</span>
           <div>
-            <strong style="font-size:13px;color:#1a1d27;">AI recommendations</strong>
-            <div style="font-size:12px;color:#64748b;">
-              Customers visiting your store get personalized PC build recommendations
-              using only your products.
-            </div>
+            <strong style="font-size:13px;color:#1a1d27;display:block;margin-bottom:2px;">
+              Auto-syncs every 6 hours
+            </strong>
+            <span style="font-size:12px;color:#64748b;">
+              Price changes, new products, stock updates — all automatic.
+            </span>
           </div>
         </div>
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <span style="font-size:18px;">📦</span>
+        <div style="display:flex;gap:12px;">
+          <span style="font-size:20px;flex-shrink:0;">🤖</span>
           <div>
-            <strong style="font-size:13px;color:#1a1d27;">Stock aware</strong>
-            <div style="font-size:12px;color:#64748b;">
+            <strong style="font-size:13px;color:#1a1d27;display:block;margin-bottom:2px;">
+              AI recommends only your products
+            </strong>
+            <span style="font-size:12px;color:#64748b;">
+              Customers get personalized PC builds using parts you actually sell.
+            </span>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <span style="font-size:20px;flex-shrink:0;">📦</span>
+          <div>
+            <strong style="font-size:13px;color:#1a1d27;display:block;margin-bottom:2px;">
+              Stock-aware
+            </strong>
+            <span style="font-size:12px;color:#64748b;">
               Out of stock products are never recommended to customers.
-            </div>
+            </span>
           </div>
         </div>
       </div>
     </div>
 
+    <?php endif; ?>
+
     <div class="bb-footer">
       BuildBot v<?php echo BUILDBOT_VERSION; ?> •
       <a href="https://buildbot-nine.vercel.app" target="_blank">Dashboard</a> •
-      Need help? Contact support
+      Auto-syncs every 6 hours
     </div>
 
   </div>
@@ -387,9 +565,7 @@ function buildbot_admin_page() {
     el.textContent   = msg;
     el.className     = 'bb-notice ' + type;
     el.style.display = 'block';
-    if (type === 'success') {
-      setTimeout(() => el.style.display = 'none', 5000);
-    }
+    if (type === 'success') setTimeout(() => el.style.display = 'none', 6000);
   }
 
   async function buildbotConnect() {
@@ -397,21 +573,22 @@ function buildbot_admin_page() {
     const secret  = document.getElementById('bb-secret-key').value.trim();
     const btn     = document.getElementById('bb-connect-btn');
 
-    if (!storeId || !secret) {
-      showNotice('Please enter both Store ID and Secret Key.', 'error');
+    if (!storeId) { showNotice('❌ Please enter your Store ID.', 'error'); return; }
+    if (!secret)  { showNotice('❌ Please enter your Secret Key.', 'error'); return; }
+    if (!secret.startsWith('bb_live_')) {
+      showNotice('❌ Invalid Secret Key. It should start with bb_live_', 'error');
       return;
     }
 
     btn.disabled    = true;
-    btn.textContent = '🔄 Connecting...';
-    showNotice('Testing connection...', 'info');
+    btn.textContent = '🔄 Testing connection...';
+    showNotice('Testing connection to BuildBot...', 'info');
 
     try {
-      // Test connection first
       const pingRes = await fetch(BB_API + '/plugin/ping', {
         method:  'POST',
         headers: {
-          'Content-Type':       'application/json',
+          'Content-Type':        'application/json',
           'X-BuildBot-Store-ID': storeId,
           'X-BuildBot-Secret':   secret
         }
@@ -419,31 +596,32 @@ function buildbot_admin_page() {
       const pingData = await pingRes.json();
 
       if (!pingData.success) {
-        showNotice('❌ Connection failed: ' + pingData.error, 'error');
+        showNotice('❌ ' + (pingData.error || 'Connection failed. Check your Store ID and Secret Key.'), 'error');
         btn.disabled    = false;
         btn.textContent = '🔌 Connect & Sync Products';
         return;
       }
 
-      showNotice('✅ Connected! Syncing products...', 'info');
+      showNotice('✅ Connected to ' + pingData.storeName + '! Now syncing products...', 'info');
+      btn.textContent = '🔄 Syncing products...';
 
-      // Save settings via WordPress AJAX
-      await fetch(ajaxurl, {
+      // Save settings
+      const saveRes = await fetch(ajaxurl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          action:     'buildbot_save_settings',
-          store_id:   storeId,
+          action: 'buildbot_save_settings',
+          store_id: storeId,
           secret_key: secret,
-          nonce:      buildbotNonce
+          nonce: buildbotNonce
         })
       });
 
-      // Sync all products
+      // Do full sync
       await buildbotDoSync(storeId, secret);
 
     } catch(err) {
-      showNotice('❌ Error: ' + err.message, 'error');
+      showNotice('❌ Connection error: ' + err.message, 'error');
       btn.disabled    = false;
       btn.textContent = '🔌 Connect & Sync Products';
     }
@@ -453,17 +631,15 @@ function buildbot_admin_page() {
     const btn = document.getElementById('bb-sync-btn');
     btn.disabled    = true;
     btn.textContent = '🔄 Syncing...';
-    showNotice('Syncing all products...', 'info');
-
     await buildbotDoSync(BB_STORE_ID, BB_SECRET);
-
     btn.disabled    = false;
     btn.textContent = '🔄 Sync All Products Now';
   }
 
   async function buildbotDoSync(storeId, secret) {
     try {
-      // Get WooCommerce products via WordPress AJAX
+      showNotice('📦 Getting your WooCommerce products...', 'info');
+
       const prodRes = await fetch(ajaxurl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -475,12 +651,18 @@ function buildbot_admin_page() {
       const prodData = await prodRes.json();
 
       if (!prodData.success) {
-        showNotice('❌ Could not get products: ' + prodData.error, 'error');
+        showNotice('❌ Could not get products: ' + (prodData.data?.error || 'Unknown error'), 'error');
         return;
       }
 
-      // Send to BuildBot
-      const storeUrl = window.location.origin;
+      const products = prodData.data.products;
+      if (products.length === 0) {
+        showNotice('⚠️ No published products found in WooCommerce. Add some products first!', 'warning');
+        return;
+      }
+
+      showNotice(`🤖 Sending ${products.length} products to BuildBot...`, 'info');
+
       const syncRes = await fetch(BB_API + '/plugin/sync', {
         method:  'POST',
         headers: {
@@ -489,14 +671,13 @@ function buildbot_admin_page() {
           'X-BuildBot-Secret':   secret
         },
         body: JSON.stringify({
-          products: prodData.products,
-          storeUrl: storeUrl
+          products: products,
+          storeUrl: window.location.origin
         })
       });
       const syncData = await syncRes.json();
 
       if (syncData.success) {
-        // Save sync results via AJAX
         await fetch(ajaxurl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -509,15 +690,13 @@ function buildbot_admin_page() {
         });
 
         showNotice(
-          '✅ ' + syncData.synced + ' products synced successfully!',
+          `✅ ${syncData.synced} products synced successfully! Reloading...`,
           'success'
         );
-
-        // Reload page after 2 seconds to show updated stats
         setTimeout(() => location.reload(), 2000);
 
       } else {
-        showNotice('❌ Sync failed: ' + syncData.error, 'error');
+        showNotice('❌ Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
       }
 
     } catch(err) {
@@ -526,277 +705,130 @@ function buildbot_admin_page() {
   }
 
   async function buildbotDisconnect() {
-    if (!confirm('Disconnect BuildBot? Auto-sync will stop but your existing products on BuildBot will remain.')) return;
-
+    if (!confirm('Disconnect BuildBot?\n\nAuto-sync will stop but your existing products on BuildBot will remain until next manual upload.')) return;
     await fetch(ajaxurl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        action: 'buildbot_disconnect',
-        nonce:  buildbotNonce
-      })
+      body: new URLSearchParams({ action: 'buildbot_disconnect', nonce: buildbotNonce })
     });
-
     location.reload();
   }
   </script>
+
   <?php
 }
 
-// ─── WORDPRESS AJAX HANDLERS ──────────────────────────────
-
-// Save settings
-add_action('wp_ajax_buildbot_save_settings', 'buildbot_save_settings');
-function buildbot_save_settings() {
+// ─── AJAX HANDLERS ────────────────────────────────────────
+add_action('wp_ajax_buildbot_save_settings', 'buildbot_save_settings_ajax');
+function buildbot_save_settings_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-
   update_option('buildbot_store_id',  sanitize_text_field($_POST['store_id']));
   update_option('buildbot_secret_key', sanitize_text_field($_POST['secret_key']));
   update_option('buildbot_connected', true);
-
   wp_send_json_success();
 }
 
-// Get WooCommerce products
-add_action('wp_ajax_buildbot_get_products', 'buildbot_get_products');
-function buildbot_get_products() {
+add_action('wp_ajax_buildbot_get_products', 'buildbot_get_products_ajax');
+function buildbot_get_products_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-
   if (!class_exists('WooCommerce')) {
-    wp_send_json_error(['error' => 'WooCommerce is not installed or active']);
+    wp_send_json_error(['error' => 'WooCommerce not active']);
     return;
   }
-
-  $args = [
-    'post_type'      => 'product',
-    'posts_per_page' => -1,
-    'post_status'    => 'publish'
-  ];
-
-  $query    = new WP_Query($args);
-  $products = [];
-
-  foreach ($query->posts as $post) {
-    $product = wc_get_product($post->ID);
-    if (!$product) continue;
-
-    // Get categories
-    $terms      = get_the_terms($post->ID, 'product_cat');
-    $categories = [];
-    if ($terms && !is_wp_error($terms)) {
-      foreach ($terms as $term) {
-        $categories[] = ['name' => $term->name];
-      }
-    }
-
-    // Get price
-    $price = $product->get_sale_price()
-      ?: $product->get_regular_price()
-      ?: $product->get_price();
-
-    // Get description
-    $description = $product->get_short_description()
-      ?: wp_trim_words($product->get_description(), 30, '');
-
-    $products[] = [
-      'id'           => $product->get_id(),
-      'name'         => $product->get_name(),
-      'price'        => $price,
-      'regular_price' => $product->get_regular_price(),
-      'sale_price'   => $product->get_sale_price(),
-      'stock_status' => $product->get_stock_status(),
-      'categories'   => $categories,
-      'short_description' => strip_tags($description)
-    ];
-  }
-
-  wp_send_json_success(['products' => $products]);
+  $result = buildbot_get_all_products();
+  wp_send_json_success($result);
 }
 
-// Save sync results
-add_action('wp_ajax_buildbot_save_sync', 'buildbot_save_sync');
-function buildbot_save_sync() {
+add_action('wp_ajax_buildbot_save_sync', 'buildbot_save_sync_ajax');
+function buildbot_save_sync_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-
   update_option('buildbot_last_sync',     current_time('mysql'));
   update_option('buildbot_product_count', intval($_POST['product_count']));
   update_option('buildbot_woo_url',       esc_url_raw($_POST['woo_url']));
-
   wp_send_json_success();
 }
 
-// Disconnect
-add_action('wp_ajax_buildbot_disconnect', 'buildbot_disconnect');
-function buildbot_disconnect() {
+add_action('wp_ajax_buildbot_disconnect', 'buildbot_disconnect_ajax');
+function buildbot_disconnect_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-
   update_option('buildbot_connected', false);
   wp_send_json_success();
 }
 
-// ─── INJECT NONCE INTO ADMIN PAGE ─────────────────────────
-add_action('admin_footer', 'buildbot_admin_footer');
-function buildbot_admin_footer() {
+// ─── NONCE IN FOOTER ──────────────────────────────────────
+add_action('admin_footer', 'buildbot_footer_nonce');
+function buildbot_footer_nonce() {
   $screen = get_current_screen();
   if (!$screen || $screen->id !== 'toplevel_page_buildbot') return;
-  ?>
-  <script>
-    const buildbotNonce = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
-  </script>
-  <?php
+  echo '<script>const buildbotNonce="' . wp_create_nonce('buildbot_nonce') . '";</script>';
 }
 
-// ─── WOOCOMMERCE HOOKS (real-time sync) ───────────────────
-add_action('woocommerce_update_product',  'buildbot_on_product_update');
-add_action('woocommerce_new_product',     'buildbot_on_product_update');
-function buildbot_on_product_update($product_id) {
+// ─── REAL-TIME HOOKS ──────────────────────────────────────
+add_action('woocommerce_update_product', 'buildbot_hook_product_update');
+add_action('woocommerce_new_product',    'buildbot_hook_product_update');
+function buildbot_hook_product_update($product_id) {
+  if (!get_option('buildbot_connected')) return;
   $store_id = get_option('buildbot_store_id');
   $secret   = get_option('buildbot_secret_key');
-
-  if (!$store_id || !$secret || !get_option('buildbot_connected')) return;
+  if (!$store_id || !$secret) return;
 
   $product = wc_get_product($product_id);
   if (!$product) return;
 
-  $terms      = get_the_terms($product_id, 'product_cat');
-  $categories = [];
+  $terms    = get_the_terms($product_id, 'product_cat');
+  $woo_cats = [];
   if ($terms && !is_wp_error($terms)) {
-    foreach ($terms as $term) {
-      $categories[] = ['name' => $term->name];
-    }
+    foreach ($terms as $t) $woo_cats[] = ['name' => $t->name];
   }
 
-  $price = $product->get_sale_price()
-    ?: $product->get_regular_price()
-    ?: $product->get_price();
+  $price = floatval($product->get_sale_price() ?: $product->get_regular_price() ?: $product->get_price());
+  if ($price <= 0) return;
 
-  $data = [
-    'product' => [
-      'id'           => $product->get_id(),
-      'name'         => $product->get_name(),
-      'price'        => $price,
-      'regular_price' => $product->get_regular_price(),
-      'sale_price'   => $product->get_sale_price(),
-      'stock_status' => $product->get_stock_status(),
-      'categories'   => $categories,
-      'short_description' => strip_tags(
-        $product->get_short_description()
-        ?: wp_trim_words($product->get_description(), 30, '')
-      )
-    ]
-  ];
+  $description = strip_tags($product->get_short_description() ?: wp_trim_words($product->get_description(), 25, ''));
 
   wp_remote_post(BUILDBOT_API . '/plugin/product/update', [
-    'headers' => [
-      'Content-Type'         => 'application/json',
-      'X-BuildBot-Store-ID'  => $store_id,
-      'X-BuildBot-Secret'    => $secret
-    ],
-    'body'    => json_encode($data),
-    'timeout' => 10
+    'headers' => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
+    'body'    => json_encode(['product' => [
+      'id'                => $product->get_id(),
+      'name'              => $product->get_name(),
+      'price'             => $price,
+      'regular_price'     => $product->get_regular_price(),
+      'sale_price'        => $product->get_sale_price(),
+      'stock_status'      => $product->get_stock_status(),
+      'categories'        => $woo_cats,
+      'short_description' => $description
+    ]]),
+    'timeout' => 10,
+    'blocking' => false
   ]);
 }
 
-add_action('wp_trash_post', 'buildbot_on_product_delete');
-function buildbot_on_product_delete($post_id) {
+add_action('wp_trash_post', 'buildbot_hook_product_delete');
+function buildbot_hook_product_delete($post_id) {
   if (get_post_type($post_id) !== 'product') return;
-
+  if (!get_option('buildbot_connected')) return;
   $store_id = get_option('buildbot_store_id');
   $secret   = get_option('buildbot_secret_key');
-
-  if (!$store_id || !$secret || !get_option('buildbot_connected')) return;
-
+  if (!$store_id || !$secret) return;
   $product = wc_get_product($post_id);
   if (!$product) return;
-
   wp_remote_post(BUILDBOT_API . '/plugin/product/delete', [
-    'headers' => [
-      'Content-Type'         => 'application/json',
-      'X-BuildBot-Store-ID'  => $store_id,
-      'X-BuildBot-Secret'    => $secret
-    ],
-    'body'    => json_encode(['productName' => $product->get_name()]),
-    'timeout' => 10
+    'headers'  => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
+    'body'     => json_encode(['productName' => $product->get_name()]),
+    'timeout'  => 10,
+    'blocking' => false
   ]);
 }
 
-// ─── HELPER: Time ago ─────────────────────────────────────
+// ─── TIME AGO HELPER ──────────────────────────────────────
 function buildbot_time_ago($datetime) {
   $diff = time() - strtotime($datetime);
-  if ($diff < 60)   return $diff . ' seconds ago';
-  if ($diff < 3600) return floor($diff/60) . ' minutes ago';
-  if ($diff < 86400) return floor($diff/3600) . ' hours ago';
-  return floor($diff/86400) . ' days ago';
-}
-
-// ─── FULL SYNC FUNCTION ───────────────────────────────────
-function buildbot_full_sync() {
-  if (!class_exists('WooCommerce')) return;
-
-  $store_id = get_option('buildbot_store_id');
-  $secret   = get_option('buildbot_secret_key');
-
-  if (!$store_id || !$secret) return;
-
-  $query    = new WP_Query([
-    'post_type'      => 'product',
-    'posts_per_page' => -1,
-    'post_status'    => 'publish'
-  ]);
-
-  $products = [];
-  foreach ($query->posts as $post) {
-    $product = wc_get_product($post->ID);
-    if (!$product) continue;
-
-    $terms      = get_the_terms($post->ID, 'product_cat');
-    $categories = [];
-    if ($terms && !is_wp_error($terms)) {
-      foreach ($terms as $term) {
-        $categories[] = ['name' => $term->name];
-      }
-    }
-
-    $price = $product->get_sale_price()
-      ?: $product->get_regular_price()
-      ?: $product->get_price();
-
-    $products[] = [
-      'id'           => $product->get_id(),
-      'name'         => $product->get_name(),
-      'price'        => $price,
-      'stock_status' => $product->get_stock_status(),
-      'categories'   => $categories,
-      'short_description' => strip_tags(
-        $product->get_short_description()
-        ?: wp_trim_words($product->get_description(), 30, '')
-      )
-    ];
-  }
-
-  $response = wp_remote_post(BUILDBOT_API . '/plugin/sync', [
-    'headers' => [
-      'Content-Type'         => 'application/json',
-      'X-BuildBot-Store-ID'  => $store_id,
-      'X-BuildBot-Secret'    => $secret
-    ],
-    'body'    => json_encode([
-      'products' => $products,
-      'storeUrl' => get_site_url()
-    ]),
-    'timeout' => 30
-  ]);
-
-  if (!is_wp_error($response)) {
-    $body = json_decode(wp_remote_retrieve_body($response), true);
-    if (!empty($body['synced'])) {
-      update_option('buildbot_last_sync',     current_time('mysql'));
-      update_option('buildbot_product_count', $body['synced']);
-      update_option('buildbot_woo_url',       get_site_url());
-    }
-  }
+  if ($diff < 60)    return $diff . 's ago';
+  if ($diff < 3600)  return floor($diff/60) . 'm ago';
+  if ($diff < 86400) return floor($diff/3600) . 'h ago';
+  return floor($diff/86400) . 'd ago';
 }

@@ -43,6 +43,16 @@ app.get('/buildbot-woocommerce.zip', (req, res) => {
     res.status(404).json({ error: 'Plugin file not found' });
   }
 });
+// Plugin update checker
+app.get('/plugin-update.json', (req, res) => {
+  res.json({
+    version: '1.1.0',
+    download_url: 'https://buildbot-production.up.railway.app/buildbot-woocommerce.zip',
+    tested: '6.5',
+    requires: '5.0',
+    requires_php: '7.4'
+  });
+});
 
 // Health check
 app.get('/', (req, res) => {

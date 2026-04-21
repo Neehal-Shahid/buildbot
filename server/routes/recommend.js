@@ -74,19 +74,70 @@ router.post('/recommend', async (req, res) => {
   }
 
   // REAL AI MODE
-  const prompt = `You are a PC build expert. A customer wants help building a PC.
-Customer: Budget: ${budget} ${currency}, Purpose: ${purpose}, Extras: ${extras || 'None'}
-Available products:
-${productList}
-Select best compatible parts within budget. Respond ONLY in this JSON format:
-{
-  "buildName": "Name",
-  "totalPrice": 0,
-  "withinBudget": true,
-  "parts": [{"category":"CPU","name":"...","price":0,"reason":"..."}],
-  "summary": "2-3 sentences",
-  "tips": "extra tips"
-}`;
+  const prompt = `You are an expert PC build advisor for a Pakistani PC parts store.
+
+  CUSTOMER REQUIREMENTS:
+  - Budget: ${budget} ${currency}
+  - Purpose: ${purpose}
+  - Extras requested: ${extras || 'None'}
+  
+  AVAILABLE PRODUCTS IN THIS STORE:
+  ${productList}
+  
+  YOUR TASK:
+  Build the best possible PC using ONLY the products listed above.
+  
+  IMPORTANT RULES:
+  1. QUANTITIES: You CAN recommend multiple units of the same product if needed.
+     Example: 2x RAM sticks for dual channel, multiple cables, etc.
+     If recommending multiple units, multiply the price accordingly.
+  
+  2. BUDGET HANDLING:
+     - If budget is under 30,000 ${currency}: Respond that budget is too low for a complete PC build. Suggest minimum required budget.
+     - If budget is tight but possible: Build the most basic working PC and warn the customer.
+     - If budget is good: Build the best possible PC for the purpose.
+     - Try to stay within budget. If impossible with available products, explain why.
+     - If significant budget remains after build, suggest what to do with remaining amount.
+  
+  3. MISSING CATEGORIES:
+     - If a critical component (CPU, Motherboard, RAM, PSU) is not available in the store catalog, mention it clearly in tips.
+     - Do NOT invent products that are not in the list above.
+     - ONLY recommend products that exist exactly in the list above.
+  
+  4. PURPOSE OPTIMIZATION:
+     - Gaming: Prioritize GPU, then CPU, then RAM (16GB minimum)
+     - Video Editing: Prioritize RAM (32GB if possible), CPU, Storage (SSD)
+     - Office/Studies: Prioritize value, basic CPU, 8GB RAM, SSD
+     - Coding: Prioritize RAM (16GB), fast CPU, SSD storage
+     - Designing: Prioritize GPU, RAM, good monitor if available
+     - Streaming: Prioritize CPU, RAM, fast internet card if available
+  
+  5. COMPATIBILITY:
+     - Make sure CPU and Motherboard socket types match if detectable from names
+     - Make sure PSU wattage is sufficient for the GPU chosen
+     - Make sure RAM type matches motherboard if detectable
+  
+  Respond ONLY in this exact JSON format, no extra text:
+  {
+    "buildName": "Descriptive name for this build",
+    "totalPrice": 0,
+    "withinBudget": true,
+    "budgetRemaining": 0,
+    "parts": [
+      {
+        "category": "RAM",
+        "name": "Exact product name from list",
+        "price": 0,
+        "quantity": 2,
+        "totalPrice": 0,
+        "reason": "Why this was chosen"
+      }
+    ],
+    "missingCategories": [],
+    "summary": "2-3 sentence summary of this build",
+    "tips": "Budget advice, compatibility notes, or upgrade suggestions",
+    "budgetAdvice": "What to do with remaining budget OR why budget was insufficient"
+  }`;
 
   try {
     const message = await anthropic.messages.create({

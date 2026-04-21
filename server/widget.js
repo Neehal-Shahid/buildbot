@@ -475,26 +475,50 @@
   // ─── RENDER RESULTS ───────────────────────────────────────
   function renderResults(r, currency) {
     const over = !r.withinBudget;
-    const partsHtml = r.parts.map(p => `
-      <div class="bb-part">
-        <div class="bb-part-cat">${p.category}</div>
-        <div class="bb-part-top">
-          <div class="bb-part-name">${p.name}</div>
-          <div class="bb-part-price">${currency} ${Number(p.price).toLocaleString()}</div>
+  
+    const partsHtml = r.parts.map(p => {
+      const qty        = p.quantity || 1;
+      const totalPrice = p.totalPrice || (p.price * qty);
+      return `
+        <div class="bb-part">
+          <div class="bb-part-cat">${p.category}${qty > 1 ? ` <span style="color:#f39c12;">×${qty}</span>` : ''}</div>
+          <div class="bb-part-top">
+            <div class="bb-part-name">${p.name}</div>
+            <div class="bb-part-price">${currency} ${Number(totalPrice).toLocaleString()}</div>
+          </div>
+          ${qty > 1 ? `<div style="font-size:11px;color:#666;margin-bottom:3px;">${currency} ${Number(p.price).toLocaleString()} × ${qty} units</div>` : ''}
+          <div class="bb-part-reason">${p.reason}</div>
         </div>
-        <div class="bb-part-reason">${p.reason}</div>
-      </div>
-    `).join('');
-
+      `;
+    }).join('');
+  
+    const missingHtml = r.missingCategories && r.missingCategories.length
+      ? `<div style="background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.3);
+          border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#f39c12;">
+          ⚠️ Not available in this store: ${r.missingCategories.join(', ')}
+         </div>`
+      : '';
+  
+    const budgetAdviceHtml = r.budgetAdvice
+      ? `<div class="bb-tips">💰 ${r.budgetAdvice}</div>`
+      : '';
+  
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-build-name">${r.buildName}</div>
       <div class="bb-summary">${r.summary}</div>
+      ${missingHtml}
       ${partsHtml}
       <div class="bb-total ${over ? 'bb-over' : ''}">
         <div class="bb-total-label">${over ? '⚠️ Over budget' : '✅ Total Cost'}</div>
         <div class="bb-total-price">${currency} ${Number(r.totalPrice).toLocaleString()}</div>
       </div>
+      ${r.budgetRemaining > 0
+        ? `<div style="font-size:12px;color:#2ecc71;text-align:right;margin-top:-8px;margin-bottom:8px;">
+             Remaining: ${currency} ${Number(r.budgetRemaining).toLocaleString()}
+           </div>`
+        : ''}
       <div class="bb-tips">💡 ${r.tips}</div>
+      ${budgetAdviceHtml}
     `;
   }
 

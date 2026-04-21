@@ -2030,11 +2030,19 @@ async function disconnectWoo() {
 }
 
 function downloadPlugin() {
-  // Plugin will be generated and downloaded
-  alert('Plugin download will be available once you generate your secret key first!');
   if (!pluginSecretKey) {
+    showAlert('widget-settings-alert',
+      '⚠️ Please generate your Secret Key first (Step 2), then download the plugin.',
+      'error'
+    );
     generatePluginKey();
+    return;
   }
+  // Download the plugin zip from server
+  window.open(
+    'https://buildbot-production.up.railway.app/buildbot-woocommerce.zip',
+    '_blank'
+  );
 }
 
 function timeAgo(isoString) {

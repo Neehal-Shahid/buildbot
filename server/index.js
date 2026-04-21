@@ -34,6 +34,16 @@ app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'widget.js'));
 });
 
+// Serve WooCommerce plugin zip
+app.get('/buildbot-woocommerce.zip', (req, res) => {
+  const zipPath = path.join(__dirname, 'buildbot-woocommerce.zip');
+  if (require('fs').existsSync(zipPath)) {
+    res.download(zipPath, 'buildbot-woocommerce.zip');
+  } else {
+    res.status(404).json({ error: 'Plugin file not found' });
+  }
+});
+
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'BuildBot server is running!', version: '2.0' });

@@ -81,8 +81,12 @@ initDB().then(() => {
         const daysLeft = Math.ceil(
           (new Date(store.trial_ends) - new Date()) / (1000 * 60 * 60 * 24)
         );
-        sendEmail(trialEndingEmail(store.name, store.email, daysLeft));
-        console.log(`Trial ending email sent to: ${store.email}`);
+        const check = await client.execute({ sql: 'SELECT * FROM trial_emails_sent WHERE store_id = ? AND days_left = ?', args: [store.store_id, daysLeft] });
+        if (check.rows.length === 0) {
+          sendEmail(trialEndingEmail(store.name, store.email, daysLeft));
+          await client.execute({ sql: 'INSERT INTO trial_emails_sent (store_id, days_left) VALUES (?, ?)', args: [store.store_id, daysLeft] });
+          console.log(`Trial ending email sent to: ${store.email}`);
+        }
       }
     } catch(e) {
       console.error('Trial check error:', e.message);

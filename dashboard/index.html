@@ -340,7 +340,7 @@
   Must contain uppercase, lowercase, number and special character. Example: MyStore@123
 </div>
       </div>
-      <button class="btn btn-primary btn-full" onclick="doSignup()">Create Account & Start Trial</button>
+      <button class="btn btn-primary btn-full" onclick="doSignup(this)">Create Account & Start Trial</button>
       <div class="alert" id="signup-alert"></div>
       <div class="auth-switch">Already have an account? <a onclick="showPage('login')">Login here</a></div>
     </div>
@@ -363,7 +363,7 @@
         <label class="form-label">Password</label>
         <input type="password" id="login-password" placeholder="Your password"/>
       </div>
-      <button class="btn btn-primary btn-full" onclick="doLogin()">Login to Dashboard</button>
+      <button class="btn btn-primary btn-full" onclick="doLogin(this)">Login to Dashboard</button>
 <div style="text-align:right;margin-top:10px;">
   <a onclick="showPage('forgot')"
     style="font-size:12px;color:var(--primary);cursor:pointer;">
@@ -385,7 +385,7 @@
         <label class="form-label">Email Address</label>
         <input type="email" id="forgot-email" placeholder="you@yourstore.com"/>
       </div>
-      <button class="btn btn-primary btn-full" onclick="doForgot()">Send Reset Link</button>
+      <button class="btn btn-primary btn-full" onclick="doForgot(this)">Send Reset Link</button>
       <div class="alert" id="forgot-alert"></div>
       <div class="auth-switch">
         <a onclick="showPage('login')" style="color:var(--primary);cursor:pointer;">← Back to Login</a>
@@ -1114,10 +1114,14 @@ function checkSignupStrength(val) {
 }
 
 // Forgot password
-async function doForgot() {
+async function doForgot(btn) {
   const email = document.getElementById('forgot-email').value.trim();
   if (!email)
     return showAlert('forgot-alert', 'Please enter your email.', 'error');
+
+  const origText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = 'Sending...';
 
   try {
     const res  = await fetch(`${API}/forgot-password`, {
@@ -1133,6 +1137,9 @@ async function doForgot() {
     }
   } catch {
     showAlert('forgot-alert', '❌ Cannot connect to server.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = origText;
   }
 }
 // ─── INIT ─────────────────────────────────────────────────
@@ -1193,13 +1200,17 @@ function showPage(name) {
 }
 
 // ─── AUTH ─────────────────────────────────────────────────
-async function doSignup() {
+async function doSignup(btn) {
   const name     = document.getElementById('signup-name').value.trim();
   const email    = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
 
   if (!name || !email || !password)
     return showAlert('signup-alert', 'Please fill all fields.', 'error');
+
+  const origText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = 'Please wait...';
 
   try {
     const res  = await fetch(`${API}/signup`, {
@@ -1220,15 +1231,22 @@ async function doSignup() {
     }
   } catch {
     showAlert('signup-alert', 'Cannot connect to server.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = origText;
   }
 }
 
-async function doLogin() {
+async function doLogin(btn) {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
 
   if (!email || !password)
     return showAlert('login-alert', 'Please fill all fields.', 'error');
+
+  const origText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = 'Logging in...';
 
   try {
     const res  = await fetch(`${API}/login`, {
@@ -1249,6 +1267,9 @@ async function doLogin() {
     }
   } catch {
     showAlert('login-alert', 'Cannot connect to server.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = origText;
   }
 }
 

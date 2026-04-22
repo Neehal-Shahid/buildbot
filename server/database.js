@@ -58,8 +58,40 @@ async function initDB() {
   status          TEXT DEFAULT 'pending',
   created_at      TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
-)`
+)`,
+    `CREATE TABLE IF NOT EXISTS tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      email      TEXT NOT NULL,
+      token      TEXT NOT NULL,
+      type       TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used       INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS trial_emails_sent (
+      store_id TEXT,
+      days_left INTEGER,
+      PRIMARY KEY (store_id, days_left)
+    )`
   ], 'write');
+
+  const migrations = [
+    `ALTER TABLE stores ADD COLUMN plugin_secret TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN woo_connected INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN woo_url TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN woo_last_sync TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN woo_product_count INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN email_verified INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
+    `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
+    `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`,
+    `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`,
+    `ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1`
+  ];
+  for (const sql of migrations) {
+    try { await client.execute(sql); } catch(e) {}
+  }
+
   console.log('Turso database connected and tables ready!');
 }
 
@@ -144,16 +176,6 @@ const storeDB = {
     });
   },
   updatePluginKey: async (storeId, pluginSecret) => {
-    const migrations = [
-      `ALTER TABLE stores ADD COLUMN plugin_secret TEXT DEFAULT ''`,
-      `ALTER TABLE stores ADD COLUMN woo_connected INTEGER DEFAULT 0`,
-      `ALTER TABLE stores ADD COLUMN woo_url TEXT DEFAULT ''`,
-      `ALTER TABLE stores ADD COLUMN woo_last_sync TEXT DEFAULT ''`,
-      `ALTER TABLE stores ADD COLUMN woo_product_count INTEGER DEFAULT 0`
-    ];
-    for (const sql of migrations) {
-      try { await client.execute(sql); } catch(e) {}
-    }
     return await client.execute({
       sql:  'UPDATE stores SET plugin_secret = ? WHERE store_id = ?',
       args: [pluginSecret, storeId]
@@ -182,7 +204,7 @@ const storeDB = {
   getPluginKey: async (storeId) => {
     const res = await client.execute({
       sql:  `SELECT plugin_secret, woo_connected, woo_url,
-             woo_last_sync, woo_product_count
+             woo_last_sync, woo_product_count, widget_enabled
              FROM stores WHERE store_id = ?`,
       args: [storeId]
     });
@@ -405,18 +427,6 @@ const paymentDB = {
 const tokenDB = {
 
   save: async (email, token, type) => {
-    // Create tokens table if not exists
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS tokens (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        email      TEXT NOT NULL,
-        token      TEXT NOT NULL,
-        type       TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        used       INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `);
     // Delete old tokens of same type for this email
     await client.execute({
       sql:  'DELETE FROM tokens WHERE email = ? AND type = ?',
@@ -432,17 +442,6 @@ const tokenDB = {
   },
 
   verify: async (token, type) => {
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS tokens (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        email      TEXT NOT NULL,
-        token      TEXT NOT NULL,
-        type       TEXT NOT NULL,
-        expires_at TEXT NOT NULL,
-        used       INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `);
     const res = await client.execute({
       sql:  `SELECT * FROM tokens
              WHERE token = ? AND type = ? AND used = 0
@@ -465,12 +464,6 @@ const tokenDB = {
 const verifyDB = {
 
   setVerified: async (email) => {
-    // Add email_verified column if not exists
-    try {
-      await client.execute(
-        'ALTER TABLE stores ADD COLUMN email_verified INTEGER DEFAULT 0'
-      );
-    } catch(e) {} // column already exists, ignore
     await client.execute({
       sql:  'UPDATE stores SET email_verified = 1 WHERE email = ?',
       args: [email]
@@ -495,15 +488,6 @@ const verifyDB = {
 const widgetDB = {
 
   updateSettings: async (storeId, widgetTitle, welcomeMsg, buttonText, bgColor) => {
-    const migrations = [
-      `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
-      `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
-      `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`,
-      `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`
-    ];
-    for (const sql of migrations) {
-      try { await client.execute(sql); } catch(e) {}
-    }
     return await client.execute({
       sql:  `UPDATE stores SET widget_title = ?, welcome_msg = ?, button_text = ?, widget_bg = ?
              WHERE store_id = ?`,
@@ -522,19 +506,6 @@ const widgetDB = {
       welcomeMsg:  row?.welcome_msg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.',
       buttonText:  row?.button_text  || 'Get Started',
       widgetBg:    row?.widget_bg    || '#1a1d27'
-    };
-  },
-
-  getSettings: async (storeId) => {
-    const res = await client.execute({
-      sql:  'SELECT widget_title, welcome_msg, button_text FROM stores WHERE store_id = ?',
-      args: [storeId]
-    });
-    const row = res.rows[0];
-    return {
-      widgetTitle: row?.widget_title || 'BuildBot',
-      welcomeMsg:  row?.welcome_msg  || 'Tell me your budget and what you need — I will find the best parts from this store for you.',
-      buttonText:  row?.button_text  || 'Get Started'
     };
   }
 

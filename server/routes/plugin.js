@@ -184,13 +184,6 @@ router.post('/plugin/widget-toggle', async (req, res) => {
   const { enabled } = req.body;
 
   try {
-    // Add widget_enabled column if not exists
-    try {
-      await client.execute(
-        'ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1'
-      );
-    } catch(e) {}
-
     await client.execute({
       sql:  'UPDATE stores SET widget_enabled = ? WHERE store_id = ?',
       args: [enabled ? 1 : 0, store.store_id]
@@ -319,16 +312,20 @@ router.post('/plugin/product/delete', async (req, res) => {
 
 // ─── PING ─────────────────────────────────────────────────
 router.post('/plugin/ping', async (req, res) => {
-  const store = await authenticatePlugin(req, res);
-  if (!store) return;
+  try {
+    const store = await authenticatePlugin(req, res);
+    if (!store) return;
 
-  res.json({
-    success:   true,
-    message:   'Connected successfully!',
-    storeName: store.name,
-    storeId:   store.store_id,
-    plan:      store.plan
-  });
+    res.json({
+      success:   true,
+      message:   'Connected successfully!',
+      storeName: store.name,
+      storeId:   store.store_id,
+      plan:      store.plan
+    });
+  } catch(err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ─── GET WIDGET CONFIG (called by plugin to check if enabled)

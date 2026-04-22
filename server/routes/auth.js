@@ -53,9 +53,11 @@ router.post('/signup', async (req, res) => {
   if (existing)
     return res.status(400).json({ error: 'Email already registered' });
 
-  const storeId = name.toLowerCase()
+  const baseSlug = name.toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
+  const randomSuffix = crypto.randomBytes(3).toString('hex');
+  const storeId = `${baseSlug}-${randomSuffix}`;
 
   const hashedPassword = await bcrypt.hash(password, 10);
 

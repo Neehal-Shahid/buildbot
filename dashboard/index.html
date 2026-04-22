@@ -908,6 +908,11 @@
         <div style="font-size:13px;color:#fff;font-weight:500;" id="woo-sync-display">Never</div>
       </div>
     </div>
+    <div id="woo-widget-status"
+  style="font-size:13px;margin-bottom:14px;padding:10px 14px;
+  background:#0f1117;border-radius:8px;border:1px solid #2a2d3e;">
+  Checking widget status...
+</div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary btn-sm" onclick="manualSync()">
         🔄 Sync Now
@@ -1969,6 +1974,14 @@ async function loadWooStatus() {
       document.getElementById('woo-count-display').textContent    = data.productCount || 0;
       document.getElementById('woo-sync-display').textContent     = data.lastSync
         ? timeAgo(data.lastSync) : 'Never';
+        // Show widget status in connected view
+const widgetStatus = document.getElementById('woo-widget-status');
+if (widgetStatus) {
+  widgetStatus.textContent = data.widgetEnabled
+    ? '✅ Widget is showing on your store'
+    : '⛔ Widget is disabled — enable it from WordPress';
+  widgetStatus.style.color = data.widgetEnabled ? '#2ecc71' : '#e74c3c';
+}
     }
   } catch(e) { console.error(e); }
 }

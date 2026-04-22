@@ -359,14 +359,15 @@ function buildbot_admin_styles() {
 
 // ─── ADMIN PAGE ───────────────────────────────────────────
 function buildbot_admin_page() {
-  $store_id      = get_option('buildbot_store_id', '');
-  $secret_key    = get_option('buildbot_secret_key', '');
-  $is_connected  = get_option('buildbot_connected', false);
-  $last_sync     = get_option('buildbot_last_sync', '');
-  $product_count = get_option('buildbot_product_count', 0);
-  $is_pc_store   = get_option('buildbot_is_pc_store', true);
-  $cat_stats     = get_option('buildbot_category_stats', []);
-  $unmapped      = get_option('buildbot_unmapped_count', 0);
+  $store_id       = get_option('buildbot_store_id', '');
+  $secret_key     = get_option('buildbot_secret_key', '');
+  $is_connected   = get_option('buildbot_connected', false);
+  $last_sync      = get_option('buildbot_last_sync', '');
+  $product_count  = get_option('buildbot_product_count', 0);
+  $is_pc_store    = get_option('buildbot_is_pc_store', true);
+  $cat_stats      = get_option('buildbot_category_stats', []);
+  $unmapped       = get_option('buildbot_unmapped_count', 0);
+  $widget_enabled = get_option('buildbot_widget_enabled', true);
   ?>
 
   <div id="buildbot-wrap">
@@ -440,6 +441,42 @@ function buildbot_admin_page() {
       </div>
 
       <div class="bb-notice" id="bb-notice"></div>
+    </div>
+
+    <!-- Widget Enable/Disable -->
+    <div class="bb-card">
+      <h2>Widget Visibility</h2>
+      <p>Control whether the BuildBot widget appears on your store frontend.</p>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+        padding:16px 20px;">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#1a1d27;margin-bottom:2px;">
+            <?php echo $widget_enabled ? '✅ Widget is Enabled' : '⛔ Widget is Disabled'; ?>
+          </div>
+          <div style="font-size:12px;color:#64748b;">
+            <?php echo $widget_enabled
+              ? 'Customers can see and use the BuildBot widget on your store.'
+              : 'Widget is hidden. Customers cannot see it on your store.'; ?>
+          </div>
+        </div>
+        <label style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
+          <input type="checkbox" id="bb-widget-toggle"
+            <?php echo $widget_enabled ? 'checked' : ''; ?>
+            onchange="buildbotToggleWidget(this.checked)"
+            style="opacity:0;width:0;height:0;">
+          <span id="bb-toggle-slider" style="position:absolute;cursor:pointer;inset:0;
+            background:<?php echo $widget_enabled ? '#7c6af7' : '#cbd5e1'; ?>;
+            border-radius:34px;transition:.3s;">
+            <span style="position:absolute;content:'';height:20px;width:20px;
+              left:<?php echo $widget_enabled ? '28px' : '4px'; ?>;bottom:4px;
+              background:white;border-radius:50%;transition:.3s;
+              display:block;" id="bb-toggle-knob"></span>
+          </span>
+        </label>
+      </div>
+      <div class="bb-notice" id="bb-toggle-notice"></div>
     </div>
 
     <?php if (!empty($cat_stats)): ?>
@@ -713,6 +750,46 @@ function buildbot_admin_page() {
     });
     location.reload();
   }
+
+  async function buildbotToggleWidget(enabled) {
+    const slider = document.getElementById('bb-toggle-slider');
+    const knob   = document.getElementById('bb-toggle-knob');
+    const notice = document.getElementById('bb-toggle-notice');
+
+    // Update UI immediately
+    slider.style.background  = enabled ? '#7c6af7' : '#cbd5e1';
+    knob.style.left          = enabled ? '28px'    : '4px';
+
+    notice.textContent   = enabled ? 'Enabling widget...' : 'Disabling widget...';
+    notice.className     = 'bb-notice info';
+    notice.style.display = 'block';
+
+    try {
+      const res = await fetch(ajaxurl, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action:  'buildbot_toggle_widget',
+          enabled: enabled ? 'true' : 'false',
+          nonce:   buildbotNonce
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        notice.textContent   = enabled
+          ? '✅ Widget is now visible on your store!'
+          : '⛔ Widget is now hidden from your store.';
+        notice.className     = 'bb-notice ' + (enabled ? 'success' : 'warning');
+        setTimeout(() => {
+          notice.style.display = 'none';
+          location.reload();
+        }, 2000);
+      }
+    } catch(err) {
+      notice.textContent   = '❌ Error: ' + err.message;
+      notice.className     = 'bb-notice error';
+    }
+  }
   </script>
 
   <?php
@@ -831,4 +908,52 @@ function buildbot_time_ago($datetime) {
   if ($diff < 3600)  return floor($diff/60) . 'm ago';
   if ($diff < 86400) return floor($diff/3600) . 'h ago';
   return floor($diff/86400) . 'd ago';
+}
+
+// ─── WIDGET ENABLE/DISABLE TOGGLE ────────────────────────
+add_action('wp_ajax_buildbot_toggle_widget', 'buildbot_toggle_widget_ajax');
+function buildbot_toggle_widget_ajax() {
+  check_ajax_referer('buildbot_nonce', 'nonce');
+  if (!current_user_can('manage_options')) wp_die('Unauthorized');
+
+  $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
+  update_option('buildbot_widget_enabled', $enabled);
+
+  // Also notify BuildBot server
+  $store_id = get_option('buildbot_store_id');
+  $secret   = get_option('buildbot_secret_key');
+
+  if ($store_id && $secret) {
+    wp_remote_post(BUILDBOT_API . '/plugin/widget-toggle', [
+      'headers' => [
+        'Content-Type'        => 'application/json',
+        'X-BuildBot-Store-ID' => $store_id,
+        'X-BuildBot-Secret'   => $secret
+      ],
+      'body'    => json_encode(['enabled' => $enabled]),
+      'timeout' => 10
+    ]);
+  }
+
+  wp_send_json_success(['enabled' => $enabled]);
+}
+
+// ─── AUTO INJECT WIDGET SCRIPT ────────────────────────────
+add_action('wp_footer', 'buildbot_inject_widget');
+function buildbot_inject_widget() {
+  // Only inject if connected AND widget is enabled
+  if (!get_option('buildbot_connected'))     return;
+  if (!get_option('buildbot_widget_enabled', true)) return;
+
+  $store_id = get_option('buildbot_store_id');
+  if (!$store_id) return;
+
+  // Never inject in admin
+  if (is_admin()) return;
+
+  $widget_url = 'https://buildbot-production.up.railway.app/widget.js';
+  echo '<!-- BuildBot AI PC Recommender -->' . "
+";
+  echo '<script src="' . esc_url($widget_url) . '" data-store-id="' . esc_attr($store_id) . '"></script>' . "
+";
 }

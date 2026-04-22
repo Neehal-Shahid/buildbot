@@ -593,9 +593,10 @@ function buildbot_admin_page() {
   </div>
 
   <script>
-  const BB_API      = '<?php echo BUILDBOT_API; ?>';
-  const BB_STORE_ID = '<?php echo esc_js(get_option("buildbot_store_id", "")); ?>';
-  const BB_SECRET   = '<?php echo esc_js(get_option("buildbot_secret_key", "")); ?>';
+  const BB_API          = '<?php echo BUILDBOT_API; ?>';
+  const BB_STORE_ID     = '<?php echo esc_js(get_option("buildbot_store_id", "")); ?>';
+  const BB_SECRET       = '<?php echo esc_js(get_option("buildbot_secret_key", "")); ?>';
+  const buildbotNonce   = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
 
   function showNotice(msg, type) {
     const el = document.getElementById('bb-notice');
@@ -836,13 +837,8 @@ function buildbot_disconnect_ajax() {
   wp_send_json_success();
 }
 
-// ─── NONCE IN FOOTER ──────────────────────────────────────
-add_action('admin_footer', 'buildbot_footer_nonce');
-function buildbot_footer_nonce() {
-  $screen = get_current_screen();
-  if (!$screen || $screen->id !== 'toplevel_page_buildbot') return;
-  echo '<script>const buildbotNonce="' . wp_create_nonce('buildbot_nonce') . '";</script>';
-}
+// ─── NONCE IN FOOTER (kept for compatibility) ────────────
+// Note: nonce is now defined inline in the admin page script
 
 // ─── REAL-TIME HOOKS ──────────────────────────────────────
 add_action('woocommerce_update_product', 'buildbot_hook_product_update');

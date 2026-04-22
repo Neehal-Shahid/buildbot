@@ -232,37 +232,18 @@ router.get('/store-config/:storeId', async (req, res) => {
   }
 
   res.json({
-    success:     true,
-    brandColor:  store.brand_color  || '#7c6af7',
-    currency:    store.currency     || 'PKR',
-    widgetTitle: widgetSettings.widgetTitle,
-    welcomeMsg:  widgetSettings.welcomeMsg,
-    buttonText:  widgetSettings.buttonText,
-    widgetBg:    widgetSettings.widgetBg
+    success:       true,
+    brandColor:    store.brand_color   || '#7c6af7',
+    currency:      store.currency      || 'PKR',
+    widgetTitle:   widgetSettings.widgetTitle,
+    welcomeMsg:    widgetSettings.welcomeMsg,
+    buttonText:    widgetSettings.buttonText,
+    widgetBg:      widgetSettings.widgetBg,
+    widgetEnabled: store.widget_enabled !== 0
   });
 });
 
-// TEMP: Email test route — remove after confirming emails work
-router.get('/test-email', async (req, res) => {
-  try {
-    const result = await sendEmail({
-      from: `"BuildBot" <${process.env.GMAIL_USER}>`,
-      to: process.env.GMAIL_USER,
-      subject: '✅ BuildBot Email Test',
-      html: '<h2>Email is working!</h2>'
-    });
-    res.json({
-      success: result,
-      gmail_user: process.env.GMAIL_USER || 'NOT SET',
-      gmail_pass: process.env.GMAIL_PASS ? 'SET ✅' : 'NOT SET ❌'
-    });
-  } catch (err) {
-    res.json({
-      success: false,
-      error: err.message
-    });
-  }
-});
+// test-email route removed for security
 
 // ─── WIDGET SETTINGS ──────────────────────────────────────
 router.put('/widget-settings', authMiddleware, async (req, res) => {

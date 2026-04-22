@@ -35,6 +35,11 @@
       const res  = await fetch(`${API}/store-config/${STORE_ID}`);
       const data = await res.json();
       if (data.success) {
+        // If store owner disabled the widget, don't show it
+        if (data.widgetEnabled === false) {
+          console.log('BuildBot: Widget is disabled for this store.');
+          return;
+        }
         BRAND_COLOR  = data.brandColor  || BRAND_COLOR;
         WIDGET_BG    = data.widgetBg    || WIDGET_BG;
         CURRENCY     = data.currency    || CURRENCY;

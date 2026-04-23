@@ -306,6 +306,227 @@ function buildbot_admin_menu() {
 }
 
 // ─── ADMIN STYLES ─────────────────────────────────────────
+add_action('admin_enqueue_scripts', 'buildbot_enqueue_admin_scripts');
+function buildbot_enqueue_admin_scripts($hook) {
+  if ($hook !== 'toplevel_page_buildbot') return;
+
+  // Enqueue jQuery (WordPress has it built-in)
+  wp_enqueue_script('jquery');
+
+  // Inline script with all BuildBot JS
+  $store_id  = get_option('buildbot_store_id', '');
+  $secret    = get_option('buildbot_secret_key', '');
+  $api       = BUILDBOT_API;
+  $nonce     = wp_create_nonce('buildbot_nonce');
+
+  $inline_js = "
+    var BB_API        = '" . esc_js($api) . "';
+    var BB_STORE_ID   = '" . esc_js($store_id) . "';
+    var BB_SECRET     = '" . esc_js($secret) . "';
+    var buildbotNonce = '" . esc_js($nonce) . "';
+  ";
+
+  wp_add_inline_script('jquery', $inline_js);
+  wp_add_inline_script('jquery', buildbot_get_admin_js());
+}
+
+function buildbot_get_admin_js() {
+  return <<<'JSEOF'
+  window.showNotice = function(msg, type) {
+    console.log('BuildBot [' + type + ']:', msg);
+    var el = document.getElementById('bb-notice');
+    if (!el) { console.warn('BuildBot: no #bb-notice element'); return; }
+    el.textContent   = msg;
+    el.className     = 'bb-notice ' + type;
+    el.style.display = 'block';
+    if (type === 'success') setTimeout(function(){ el.style.display = 'none'; }, 6000);
+  };
+
+  window.buildbotConnect = async function() {
+    var storeId = document.getElementById('bb-store-id').value.trim();
+    var secret  = document.getElementById('bb-secret-key').value.trim();
+    var btn     = document.getElementById('bb-connect-btn');
+
+    if (!storeId) { window.showNotice('Please enter your Store ID.', 'error'); return; }
+    if (!secret)  { window.showNotice('Please enter your Secret Key.', 'error'); return; }
+    if (secret.indexOf('bb_live_') !== 0) {
+      window.showNotice('Invalid Secret Key. It should start with bb_live_', 'error');
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Testing connection...';
+    window.showNotice('Testing connection to BuildBot...', 'info');
+
+    try {
+      var pingRes = await fetch(BB_API + '/plugin/ping', {
+        method:  'POST',
+        headers: {
+          'Content-Type':        'application/json',
+          'X-BuildBot-Store-ID': storeId,
+          'X-BuildBot-Secret':   secret
+        }
+      });
+      var pingData = await pingRes.json();
+
+      if (!pingData.success) {
+        window.showNotice('Connection failed: ' + (pingData.error || 'Check Store ID and Secret Key'), 'error');
+        btn.disabled    = false;
+        btn.textContent = 'Connect & Sync Products';
+        return;
+      }
+
+      window.showNotice('Connected to ' + pingData.storeName + '! Saving settings...', 'info');
+      btn.textContent = 'Syncing products...';
+
+      var saveRes = await fetch(ajaxurl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action:     'buildbot_save_settings',
+          store_id:   storeId,
+          secret_key: secret,
+          nonce:      buildbotNonce
+        })
+      });
+      var saveData = await saveRes.json();
+      console.log('Save settings response:', saveData);
+
+      await window.buildbotDoSync(storeId, secret);
+
+    } catch(err) {
+      window.showNotice('Error: ' + err.message, 'error');
+      btn.disabled    = false;
+      btn.textContent = 'Connect & Sync Products';
+    }
+  };
+
+  window.buildbotSync = async function() {
+    var btn = document.getElementById('bb-sync-btn');
+    btn.disabled    = true;
+    btn.textContent = 'Syncing...';
+    await window.buildbotDoSync(BB_STORE_ID, BB_SECRET);
+    btn.disabled    = false;
+    btn.textContent = 'Sync All Products Now';
+  };
+
+  window.buildbotDoSync = async function(storeId, secret) {
+    try {
+      window.showNotice('Getting your WooCommerce products...', 'info');
+
+      var prodRes = await fetch(ajaxurl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'buildbot_get_products',
+          nonce:  buildbotNonce
+        })
+      });
+      var prodData = await prodRes.json();
+      console.log('Products response:', prodData);
+
+      if (!prodData.success) {
+        window.showNotice('Could not get products: ' + (prodData.data ? prodData.data.error : 'Unknown error'), 'error');
+        return;
+      }
+
+      var products = prodData.data.products;
+      if (!products || products.length === 0) {
+        window.showNotice('No published products found in WooCommerce. Please add products first.', 'warning');
+        return;
+      }
+
+      window.showNotice('Sending ' + products.length + ' products to BuildBot...', 'info');
+
+      var syncRes = await fetch(BB_API + '/plugin/sync', {
+        method:  'POST',
+        headers: {
+          'Content-Type':        'application/json',
+          'X-BuildBot-Store-ID': storeId,
+          'X-BuildBot-Secret':   secret
+        },
+        body: JSON.stringify({
+          products: products,
+          storeUrl: window.location.origin
+        })
+      });
+      var syncData = await syncRes.json();
+      console.log('Sync response:', syncData);
+
+      if (syncData.success) {
+        await fetch(ajaxurl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            action:        'buildbot_save_sync',
+            product_count: syncData.synced,
+            woo_url:       window.location.origin,
+            nonce:         buildbotNonce
+          })
+        });
+        window.showNotice(syncData.synced + ' products synced! Reloading...', 'success');
+        setTimeout(function(){ location.reload(); }, 2000);
+      } else {
+        window.showNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
+      }
+
+    } catch(err) {
+      window.showNotice('Error: ' + err.message, 'error');
+    }
+  };
+
+  window.buildbotDisconnect = async function() {
+    if (!confirm('Disconnect BuildBot? Auto-sync will stop.')) return;
+    await fetch(ajaxurl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'buildbot_disconnect', nonce: buildbotNonce })
+    });
+    location.reload();
+  };
+
+  window.buildbotToggleWidget = async function(enabled) {
+    var slider = document.getElementById('bb-toggle-slider');
+    var knob   = document.getElementById('bb-toggle-knob');
+    var notice = document.getElementById('bb-toggle-notice');
+
+    if (slider) slider.style.background = enabled ? '#7c6af7' : '#cbd5e1';
+    if (knob)   knob.style.left         = enabled ? '28px'   : '4px';
+    if (notice) {
+      notice.textContent   = enabled ? 'Enabling widget...' : 'Disabling widget...';
+      notice.className     = 'bb-notice info';
+      notice.style.display = 'block';
+    }
+
+    try {
+      var res = await fetch(ajaxurl, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action:  'buildbot_toggle_widget',
+          enabled: enabled ? 'true' : 'false',
+          nonce:   buildbotNonce
+        })
+      });
+      var data = await res.json();
+      if (data.success && notice) {
+        notice.textContent   = enabled ? 'Widget is now visible on your store!' : 'Widget is now hidden.';
+        notice.className     = 'bb-notice ' + (enabled ? 'success' : 'warning');
+        setTimeout(function(){ location.reload(); }, 2000);
+      }
+    } catch(err) {
+      if (notice) {
+        notice.textContent   = 'Error: ' + err.message;
+        notice.className     = 'bb-notice error';
+      }
+    }
+  };
+
+  console.log('BuildBot admin scripts loaded successfully');
+JSEOF;
+}
+
+
 add_action('admin_head', 'buildbot_admin_styles');
 function buildbot_admin_styles() {
   $screen = get_current_screen();
@@ -592,213 +813,7 @@ function buildbot_admin_page() {
 
   </div>
 
-  <script>
-  // Global variables — accessible from onclick handlers
-  var BB_API        = '<?php echo BUILDBOT_API; ?>';
-  var BB_STORE_ID   = '<?php echo esc_js(get_option("buildbot_store_id", "")); ?>';
-  var BB_SECRET     = '<?php echo esc_js(get_option("buildbot_secret_key", "")); ?>';
-  var buildbotNonce = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
-
-  // Use var (not const/let) so functions are hoisted and globally accessible
-  window.showNotice = function(msg, type) {
-    console.log('BuildBot Notice [' + type + ']:', msg);
-    var el = document.getElementById('bb-notice');
-    if (!el) {
-      console.warn('BuildBot: bb-notice element not found');
-      return;
-    }
-    el.textContent   = msg;
-    el.className     = 'bb-notice ' + type;
-    el.style.display = 'block';
-    if (type === 'success') setTimeout(function(){ el.style.display = 'none'; }, 6000);
-  }
-
-  window.buildbotConnect = async function() {
-    const storeId = document.getElementById('bb-store-id').value.trim();
-    const secret  = document.getElementById('bb-secret-key').value.trim();
-    const btn     = document.getElementById('bb-connect-btn');
-
-    if (!storeId) { showNotice('❌ Please enter your Store ID.', 'error'); return; }
-    if (!secret)  { showNotice('❌ Please enter your Secret Key.', 'error'); return; }
-    if (!secret.startsWith('bb_live_')) {
-      showNotice('❌ Invalid Secret Key. It should start with bb_live_', 'error');
-      return;
-    }
-
-    btn.disabled    = true;
-    btn.textContent = '🔄 Testing connection...';
-    showNotice('Testing connection to BuildBot...', 'info');
-
-    try {
-      const pingRes = await fetch(BB_API + '/plugin/ping', {
-        method:  'POST',
-        headers: {
-          'Content-Type':        'application/json',
-          'X-BuildBot-Store-ID': storeId,
-          'X-BuildBot-Secret':   secret
-        }
-      });
-      const pingData = await pingRes.json();
-
-      if (!pingData.success) {
-        showNotice('❌ ' + (pingData.error || 'Connection failed. Check your Store ID and Secret Key.'), 'error');
-        btn.disabled    = false;
-        btn.textContent = '🔌 Connect & Sync Products';
-        return;
-      }
-
-      showNotice('✅ Connected to ' + pingData.storeName + '! Now syncing products...', 'info');
-      btn.textContent = '🔄 Syncing products...';
-
-      // Save settings
-      const saveRes = await fetch(ajaxurl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action: 'buildbot_save_settings',
-          store_id: storeId,
-          secret_key: secret,
-          nonce: buildbotNonce
-        })
-      });
-
-      // Do full sync
-      await buildbotDoSync(storeId, secret);
-
-    } catch(err) {
-      showNotice('❌ Connection error: ' + err.message, 'error');
-      btn.disabled    = false;
-      btn.textContent = '🔌 Connect & Sync Products';
-    }
-  }
-
-  window.buildbotSync = async function() {
-    const btn = document.getElementById('bb-sync-btn');
-    btn.disabled    = true;
-    btn.textContent = '🔄 Syncing...';
-    await buildbotDoSync(BB_STORE_ID, BB_SECRET);
-    btn.disabled    = false;
-    btn.textContent = '🔄 Sync All Products Now';
-  }
-
-  window.buildbotDoSync = async function(storeId, secret) {
-    try {
-      showNotice('📦 Getting your WooCommerce products...', 'info');
-
-      const prodRes = await fetch(ajaxurl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action: 'buildbot_get_products',
-          nonce:  buildbotNonce
-        })
-      });
-      const prodData = await prodRes.json();
-
-      if (!prodData.success) {
-        showNotice('❌ Could not get products: ' + (prodData.data?.error || 'Unknown error'), 'error');
-        return;
-      }
-
-      const products = prodData.data.products;
-      if (products.length === 0) {
-        showNotice('⚠️ No published products found in WooCommerce. Add some products first!', 'warning');
-        return;
-      }
-
-      showNotice(`🤖 Sending ${products.length} products to BuildBot...`, 'info');
-
-      const syncRes = await fetch(BB_API + '/plugin/sync', {
-        method:  'POST',
-        headers: {
-          'Content-Type':        'application/json',
-          'X-BuildBot-Store-ID': storeId,
-          'X-BuildBot-Secret':   secret
-        },
-        body: JSON.stringify({
-          products: products,
-          storeUrl: window.location.origin
-        })
-      });
-      const syncData = await syncRes.json();
-
-      if (syncData.success) {
-        await fetch(ajaxurl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            action:        'buildbot_save_sync',
-            product_count: syncData.synced,
-            woo_url:       window.location.origin,
-            nonce:         buildbotNonce
-          })
-        });
-
-        showNotice(
-          `✅ ${syncData.synced} products synced successfully! Reloading...`,
-          'success'
-        );
-        setTimeout(() => location.reload(), 2000);
-
-      } else {
-        showNotice('❌ Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
-      }
-
-    } catch(err) {
-      showNotice('❌ Error: ' + err.message, 'error');
-    }
-  }
-
-  window.buildbotDisconnect = async function() {
-    if (!confirm('Disconnect BuildBot?\n\nAuto-sync will stop but your existing products on BuildBot will remain until next manual upload.')) return;
-    await fetch(ajaxurl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ action: 'buildbot_disconnect', nonce: buildbotNonce })
-    });
-    location.reload();
-  }
-
-  window.buildbotToggleWidget = async function(enabled) {
-    const slider = document.getElementById('bb-toggle-slider');
-    const knob   = document.getElementById('bb-toggle-knob');
-    const notice = document.getElementById('bb-toggle-notice');
-
-    // Update UI immediately
-    slider.style.background  = enabled ? '#7c6af7' : '#cbd5e1';
-    knob.style.left          = enabled ? '28px'    : '4px';
-
-    notice.textContent   = enabled ? 'Enabling widget...' : 'Disabling widget...';
-    notice.className     = 'bb-notice info';
-    notice.style.display = 'block';
-
-    try {
-      const res = await fetch(ajaxurl, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          action:  'buildbot_toggle_widget',
-          enabled: enabled ? 'true' : 'false',
-          nonce:   buildbotNonce
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        notice.textContent   = enabled
-          ? '✅ Widget is now visible on your store!'
-          : '⛔ Widget is now hidden from your store.';
-        notice.className     = 'bb-notice ' + (enabled ? 'success' : 'warning');
-        setTimeout(() => {
-          notice.style.display = 'none';
-          location.reload();
-        }, 2000);
-      }
-    } catch(err) {
-      notice.textContent   = '❌ Error: ' + err.message;
-      notice.className     = 'bb-notice error';
-    }
-  }
-  </script>
+  <?php // JavaScript loaded via buildbot_enqueue_admin_scripts ?>
 
   <?php
 }

@@ -45,13 +45,12 @@ app.get('/buildbot-woocommerce.zip', (req, res) => {
 });
 // Plugin update checker
 app.get('/plugin-update.json', (req, res) => {
-  res.json({
-    version: '1.1.0',
-    download_url: 'https://buildbot-production.up.railway.app/buildbot-woocommerce.zip',
-    tested: '6.5',
-    requires: '5.0',
-    requires_php: '7.4'
-  });
+  const jsonPath = path.join(__dirname, 'plugin-update.json');
+  if (fs.existsSync(jsonPath)) {
+    res.sendFile(jsonPath);
+  } else {
+    res.status(404).json({ error: 'Update file not found' });
+  }
 });
 
 // Health check

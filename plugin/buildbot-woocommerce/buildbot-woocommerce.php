@@ -3,7 +3,7 @@
  * Plugin Name: BuildBot AI PC Recommender
  * Plugin URI:  https://buildbot-nine.vercel.app
  * Description: Connects your WooCommerce store to BuildBot — syncs products automatically so customers get AI-powered PC build recommendations.
- * Version:     1.1.0
+ * Version:     1.5.0
  * Author:      BuildBot
  * Author URI:  https://buildbot-nine.vercel.app
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDBOT_API',     'https://buildbot-production.up.railway.app/api');
-define('BUILDBOT_VERSION', '1.1.0');
+define('BUILDBOT_VERSION', '1.5.0');
 define('BUILDBOT_UPDATE_URL', 'https://buildbot-production.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────

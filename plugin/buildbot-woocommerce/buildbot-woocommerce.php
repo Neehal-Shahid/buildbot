@@ -593,11 +593,13 @@ function buildbot_admin_page() {
   </div>
 
   <script>
-  const BB_API          = '<?php echo BUILDBOT_API; ?>';
-  const BB_STORE_ID     = '<?php echo esc_js(get_option("buildbot_store_id", "")); ?>';
-  const BB_SECRET       = '<?php echo esc_js(get_option("buildbot_secret_key", "")); ?>';
-  const buildbotNonce   = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
+  // Global variables — accessible from onclick handlers
+  var BB_API        = '<?php echo BUILDBOT_API; ?>';
+  var BB_STORE_ID   = '<?php echo esc_js(get_option("buildbot_store_id", "")); ?>';
+  var BB_SECRET     = '<?php echo esc_js(get_option("buildbot_secret_key", "")); ?>';
+  var buildbotNonce = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
 
+  // Use var (not const/let) so functions are hoisted and globally accessible
   function showNotice(msg, type) {
     const el = document.getElementById('bb-notice');
     el.textContent   = msg;
@@ -606,7 +608,7 @@ function buildbot_admin_page() {
     if (type === 'success') setTimeout(() => el.style.display = 'none', 6000);
   }
 
-  async function buildbotConnect() {
+  window.buildbotConnect = async function() {
     const storeId = document.getElementById('bb-store-id').value.trim();
     const secret  = document.getElementById('bb-secret-key').value.trim();
     const btn     = document.getElementById('bb-connect-btn');
@@ -665,7 +667,7 @@ function buildbot_admin_page() {
     }
   }
 
-  async function buildbotSync() {
+  window.buildbotSync = async function() {
     const btn = document.getElementById('bb-sync-btn');
     btn.disabled    = true;
     btn.textContent = '🔄 Syncing...';
@@ -674,7 +676,7 @@ function buildbot_admin_page() {
     btn.textContent = '🔄 Sync All Products Now';
   }
 
-  async function buildbotDoSync(storeId, secret) {
+  window.buildbotDoSync = async function(storeId, secret) {
     try {
       showNotice('📦 Getting your WooCommerce products...', 'info');
 
@@ -742,7 +744,7 @@ function buildbot_admin_page() {
     }
   }
 
-  async function buildbotDisconnect() {
+  window.buildbotDisconnect = async function() {
     if (!confirm('Disconnect BuildBot?\n\nAuto-sync will stop but your existing products on BuildBot will remain until next manual upload.')) return;
     await fetch(ajaxurl, {
       method: 'POST',
@@ -752,7 +754,7 @@ function buildbot_admin_page() {
     location.reload();
   }
 
-  async function buildbotToggleWidget(enabled) {
+  window.buildbotToggleWidget = async function(enabled) {
     const slider = document.getElementById('bb-toggle-slider');
     const knob   = document.getElementById('bb-toggle-knob');
     const notice = document.getElementById('bb-toggle-notice');

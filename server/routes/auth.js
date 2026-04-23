@@ -3,12 +3,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { storeDB, tokenDB, verifyDB } = require('../database');
+const { OAuth2Client } = require('google-auth-library');
 const {
   sendEmail, welcomeEmail, emailVerificationEmail, passwordResetEmail
 } = require('../email');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'buildbot-secret';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ─── PASSWORD STRENGTH CHECK ──────────────────────────────
 function isStrongPassword(password) {
@@ -144,6 +147,67 @@ router.post('/login', async (req, res) => {
   });
 });
 
+// ─── GOOGLE AUTH ──────────────────────────────────────────
+router.post('/google-auth', async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ error: 'Credential is required' });
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    const name = payload.name;
+    const googleId = payload.sub;
+
+    let store = await storeDB.findByEmail(email);
+
+    if (!store) {
+      // Create new store for Google user
+      const baseSlug = name.toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      const randomSuffix = crypto.randomBytes(3).toString('hex');
+      const storeId = `${baseSlug}-${randomSuffix}`;
+      
+      // Generate a strong random password for Google users
+      const randomPassword = crypto.randomBytes(16).toString('hex') + 'G@1';
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      await storeDB.create(storeId, name, email, hashedPassword, googleId);
+      store = await storeDB.findByEmail(email);
+
+      // Auto-verify their email since Google verified it
+      await verifyDB.setVerified(email);
+      sendEmail(welcomeEmail(name, email));
+    }
+
+    const token = jwt.sign(
+      { storeId: store.store_id, email: store.email, name: store.name },
+      JWT_SECRET, { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true, token,
+      store: {
+        storeId:    store.store_id,
+        name:       store.name,
+        email:      store.email,
+        plan:       store.plan,
+        planStatus: store.plan_status,
+        trialEnds:  store.trial_ends,
+        brandColor: store.brand_color,
+        currency:   store.currency
+      }
+    });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
+});
+
 // ─── FORGOT PASSWORD ──────────────────────────────────────
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
@@ -189,6 +253,30 @@ router.post('/reset-password', async (req, res) => {
   await tokenDB.markUsed(token);
 
   res.json({ success: true, message: 'Password reset successfully! You can now login.' });
+});
+
+// ─── CHANGE PASSWORD (DASHBOARD) ──────────────────────────
+router.put('/change-password', authMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword)
+    return res.status(400).json({ error: 'Both current and new password are required' });
+
+  if (!isStrongPassword(newPassword))
+    return res.status(400).json({
+      error: 'New password must contain uppercase, lowercase, number and special character'
+    });
+
+  const store = await storeDB.findById(req.store.storeId);
+  if (!store) return res.status(404).json({ error: 'Store not found' });
+
+  const valid = await bcrypt.compare(currentPassword, store.password);
+  if (!valid)
+    return res.status(400).json({ error: 'Current password is incorrect' });
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await storeDB.updatePassword(store.email, hashedPassword);
+
+  res.json({ success: true, message: 'Password changed successfully!' });
 });
 
 // ─── ME ───────────────────────────────────────────────────

@@ -88,7 +88,8 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`,
     `ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1`,
     `ALTER TABLE stores ADD COLUMN catalog_last_updated TEXT DEFAULT ''`,
-    `ALTER TABLE products ADD COLUMN woo_id INTEGER DEFAULT NULL`
+    `ALTER TABLE products ADD COLUMN woo_id INTEGER DEFAULT NULL`,
+    `ALTER TABLE stores ADD COLUMN google_id TEXT DEFAULT NULL`
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch(e) {}
@@ -100,11 +101,11 @@ async function initDB() {
 // ─── STORE FUNCTIONS ──────────────────────────────────────
 const storeDB = {
 
-  create: async (storeId, name, email, hashedPassword) => {
+  create: async (storeId, name, email, hashedPassword, googleId = null) => {
     return await client.execute({
-      sql: `INSERT INTO stores (store_id, name, email, password)
-            VALUES (?, ?, ?, ?)`,
-      args: [storeId, name, email, hashedPassword]
+      sql: `INSERT INTO stores (store_id, name, email, password, google_id)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: [storeId, name, email, hashedPassword, googleId]
     });
   },
 

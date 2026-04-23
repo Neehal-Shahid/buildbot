@@ -530,9 +530,14 @@
   function renderError(msg, limitReached) {
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-error">
-        <div class="bb-ei">${limitReached ? '⏳' : '😔'}</div>
-        <p>Sorry, we couldn't generate a recommendation right now.</p>
-        <p style="font-size:11px;color:#666;margin-top:8px;">
+        <div class="bb-ei">${limitReached ? '⏳' : '🤖💤'}</div>
+        <p style="font-weight: 700; color: #fff; margin-bottom: 8px;">
+          ${limitReached ? 'Monthly Limit Reached' : 'Oops!'}
+        </p>
+        <p style="font-size:13px; color:#ccc;">
+          ${msg || "We couldn't generate a recommendation right now."}
+        </p>
+        <p style="font-size:11px;color:#888;margin-top:12px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
           Please try again later or contact the store directly.
         </p>
       </div>

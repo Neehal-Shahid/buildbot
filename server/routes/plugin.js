@@ -226,14 +226,15 @@ router.post('/plugin/sync', async (req, res) => {
       if (!p.name || p.name === 'Unknown Product') { skipped++; continue; }
 
       await client.execute({
-        sql:  `INSERT INTO products (store_id, name, category, price, description, in_stock)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [store.store_id, p.name, p.category, p.price, p.description, p.in_stock]
+        sql:  `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [store.store_id, p.name, p.category, p.price, p.description, p.in_stock, p.woo_id]
       });
       synced++;
     }
 
     await storeDB.updateWooStatus(store.store_id, storeUrl || '', synced);
+    await storeDB.touchCatalog(store.store_id);
 
     res.json({
       success: true,
@@ -260,22 +261,33 @@ router.post('/plugin/product/update', async (req, res) => {
     const p = mapProduct(product);
     if (p.price <= 0) return res.json({ success: true, message: 'Skipped (no price)' });
 
-    const existing = await client.execute({
-      sql:  'SELECT id FROM products WHERE store_id = ? AND name = ?',
-      args: [store.store_id, p.name]
-    });
+    let existing;
+    if (p.woo_id) {
+      existing = await client.execute({
+        sql:  'SELECT id FROM products WHERE store_id = ? AND woo_id = ?',
+        args: [store.store_id, p.woo_id]
+      });
+    }
 
-    if (existing.rows.length > 0) {
+    // Fallback to matching by name if woo_id not found (for backwards compatibility)
+    if (!existing || existing.rows.length === 0) {
+      existing = await client.execute({
+        sql:  'SELECT id FROM products WHERE store_id = ? AND name = ?',
+        args: [store.store_id, p.name]
+      });
+    }
+
+    if (existing && existing.rows.length > 0) {
       await client.execute({
-        sql:  `UPDATE products SET category=?, price=?, description=?, in_stock=?
-               WHERE store_id=? AND name=?`,
-        args: [p.category, p.price, p.description, p.in_stock, store.store_id, p.name]
+        sql:  `UPDATE products SET name=?, category=?, price=?, description=?, in_stock=?, woo_id=?
+               WHERE id=?`,
+        args: [p.name, p.category, p.price, p.description, p.in_stock, p.woo_id, existing.rows[0].id]
       });
     } else {
       await client.execute({
-        sql:  `INSERT INTO products (store_id, name, category, price, description, in_stock)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [store.store_id, p.name, p.category, p.price, p.description, p.in_stock]
+        sql:  `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [store.store_id, p.name, p.category, p.price, p.description, p.in_stock, p.woo_id]
       });
     }
 
@@ -283,6 +295,7 @@ router.post('/plugin/product/update', async (req, res) => {
       sql:  'UPDATE stores SET woo_last_sync = ? WHERE store_id = ?',
       args: [new Date().toISOString(), store.store_id]
     });
+    await storeDB.touchCatalog(store.store_id);
 
     res.json({ success: true, message: 'Product updated!' });
 
@@ -296,14 +309,22 @@ router.post('/plugin/product/delete', async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
 
-  const { productName } = req.body;
-  if (!productName) return res.status(400).json({ error: 'productName is required' });
+  const { productName, wooId } = req.body;
+  if (!productName && !wooId) return res.status(400).json({ error: 'productName or wooId is required' });
 
   try {
-    await client.execute({
-      sql:  'DELETE FROM products WHERE store_id = ? AND name = ?',
-      args: [store.store_id, productName]
-    });
+    if (wooId) {
+      await client.execute({
+        sql:  'DELETE FROM products WHERE store_id = ? AND woo_id = ?',
+        args: [store.store_id, wooId]
+      });
+    } else {
+      await client.execute({
+        sql:  'DELETE FROM products WHERE store_id = ? AND name = ?',
+        args: [store.store_id, productName]
+      });
+    }
+    await storeDB.touchCatalog(store.store_id);
     res.json({ success: true, message: 'Product removed!' });
   } catch(err) {
     res.status(500).json({ success: false, error: err.message });

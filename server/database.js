@@ -86,7 +86,9 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
     `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`,
     `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`,
-    `ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1`
+    `ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1`,
+    `ALTER TABLE stores ADD COLUMN catalog_last_updated TEXT DEFAULT ''`,
+    `ALTER TABLE products ADD COLUMN woo_id INTEGER DEFAULT NULL`
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch(e) {}
@@ -209,6 +211,13 @@ const storeDB = {
       args: [storeId]
     });
     return res.rows[0] || null;
+  },
+
+  touchCatalog: async (storeId) => {
+    return await client.execute({
+      sql: "UPDATE stores SET catalog_last_updated = datetime('now') WHERE store_id = ?",
+      args: [storeId]
+    });
   }
 };
 
@@ -266,6 +275,31 @@ const analyticsDB = {
              VALUES (?, ?, ?, ?, ?)`,
       args: [storeId, budget, purpose, extras, JSON.stringify(result)]
     });
+  },
+
+  getCachedRecommendation: async (storeId, budget, purpose, extras) => {
+    const storeRes = await client.execute({
+      sql: 'SELECT catalog_last_updated FROM stores WHERE store_id = ?',
+      args: [storeId]
+    });
+    const lastUpdated = storeRes.rows[0]?.catalog_last_updated || '';
+
+    let timeCondition = '';
+    let args = [storeId, budget, purpose, extras];
+
+    if (lastUpdated) {
+       timeCondition = 'AND created_at >= ?';
+       args.push(lastUpdated);
+    }
+
+    const res = await client.execute({
+      sql:  `SELECT result FROM recommendations 
+             WHERE store_id = ? AND budget = ? AND purpose = ? AND extras = ? 
+             ${timeCondition}
+             ORDER BY created_at DESC LIMIT 1`,
+      args: args
+    });
+    return res.rows[0] ? JSON.parse(res.rows[0].result) : null;
   },
 
   getStats: async (storeId) => {

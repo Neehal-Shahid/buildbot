@@ -24,6 +24,7 @@ router.post('/upload', authMiddleware, upload.single('catalog'), async (req, res
     if (!products.length)
       return res.status(400).json({ error: 'CSV is empty or invalid' });
     const count = await productDB.bulkInsert(storeId, products);
+    await storeDB.touchCatalog(storeId);
     res.json({
       success: true,
       message: `${count} products uploaded successfully!`,
@@ -67,6 +68,7 @@ router.post('/product', authMiddleware, async (req, res) => {
              VALUES (?, ?, ?, ?, ?)`,
       args: [req.store.storeId, name, category, parseFloat(price), description || '']
     });
+    await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true, message: 'Product added!' });
   } catch(err) {
     res.status(500).json({ error: err.message });
@@ -85,6 +87,7 @@ router.put('/product/:id', authMiddleware, async (req, res) => {
       args: [name, category, parseFloat(price), description || '',
              req.params.id, req.store.storeId]
     });
+    await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true, message: 'Product updated!' });
   } catch(err) {
     res.status(500).json({ error: err.message });
@@ -99,6 +102,7 @@ router.put('/product/:id/stock', authMiddleware, async (req, res) => {
       sql:  'UPDATE products SET in_stock=? WHERE id=? AND store_id=?',
       args: [inStock ? 1 : 0, req.params.id, req.store.storeId]
     });
+    await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true });
   } catch(err) {
     res.status(500).json({ error: err.message });
@@ -112,6 +116,7 @@ router.delete('/product/:id', authMiddleware, async (req, res) => {
       sql:  'DELETE FROM products WHERE id=? AND store_id=?',
       args: [req.params.id, req.store.storeId]
     });
+    await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true, message: 'Product deleted!' });
   } catch(err) {
     res.status(500).json({ error: err.message });

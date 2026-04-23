@@ -490,7 +490,7 @@ function buildbot_get_admin_js() {
     var knob   = document.getElementById('bb-toggle-knob');
     var notice = document.getElementById('bb-toggle-notice');
 
-    if (slider) slider.style.background = enabled ? '#7c6af7' : '#cbd5e1';
+    if (slider) slider.style.background = enabled ? '#7c3aed' : '#cbd5e1';
     if (knob)   knob.style.left         = enabled ? '28px'   : '4px';
     if (notice) {
       notice.textContent   = enabled ? 'Enabling widget...' : 'Disabling widget...';
@@ -533,46 +533,46 @@ function buildbot_admin_styles() {
   if (!$screen || $screen->id !== 'toplevel_page_buildbot') return;
   ?>
   <style>
-    #buildbot-wrap{max-width:720px;margin:30px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
-    .bb-header{background:linear-gradient(135deg,#7c6af7,#5b4fe0);border-radius:16px;padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;gap:16px;}
-    .bb-header-icon{font-size:40px;}
-    .bb-header h1{color:#fff!important;font-size:24px!important;margin:0 0 4px!important;padding:0!important;border:none!important;}
-    .bb-header p{color:rgba(255,255,255,.75);margin:0;font-size:14px;}
-    .bb-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-    .bb-card h2{font-size:16px!important;margin:0 0 6px!important;padding:0!important;border:none!important;color:#1a1d27;}
-    .bb-card p{color:#64748b;font-size:13px;margin:0 0 16px;}
-    .bb-status{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px;}
-    .bb-status.connected{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
-    .bb-status.disconnected{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
-    .bb-field{margin-bottom:16px;}
-    .bb-field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:6px;}
-    .bb-field input{width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#1a1d27;background:#f8fafc;box-sizing:border-box;transition:border-color .2s;}
-    .bb-field input:focus{border-color:#7c6af7;outline:none;background:#fff;}
-    .bb-field .bb-hint{font-size:11px;color:#94a3b8;margin-top:4px;}
-    .bb-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none;}
-    .bb-btn-primary{background:#7c6af7;color:#fff;}
-    .bb-btn-primary:hover{background:#5b4fe0;color:#fff;}
-    .bb-btn-secondary{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
-    .bb-btn-secondary:hover{background:#e2e8f0;}
-    .bb-btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
-    .bb-btn-danger:hover{background:#fee2e2;}
-    .bb-btn:disabled{opacity:.5;cursor:not-allowed;}
-    .bb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
-    .bb-stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;}
-    .bb-stat-value{font-size:24px;font-weight:700;color:#7c6af7;margin-bottom:2px;}
-    .bb-stat-label{font-size:11px;color:#94a3b8;}
-    .bb-divider{height:1px;background:#e2e8f0;margin:20px 0;}
-    .bb-notice{padding:12px 16px;border-radius:8px;font-size:13px;margin-top:12px;display:none;}
-    .bb-notice.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;}
-    .bb-notice.error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;}
-    .bb-notice.info{background:#eff6ff;border:1px solid #bfdbfe;color:#2563eb;}
-    .bb-notice.warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
-    .bb-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;}
-    .bb-cat-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px;}
-    .bb-cat-count{background:#7c6af7;color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;}
-    .bb-warning-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#92400e;}
-    .bb-footer{text-align:center;color:#94a3b8;font-size:12px;margin-top:8px;}
-    .bb-footer a{color:#7c6af7;text-decoration:none;}
+    #buildbot-wrap{max-width:800px;margin:30px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;}
+    .bb-header{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:20px;padding:32px 40px;margin-bottom:28px;display:flex;align-items:center;gap:20px;box-shadow:0 10px 25px -5px rgba(124,58,237,0.3);}
+    .bb-header-icon{font-size:48px;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.1));}
+    .bb-header h1{color:#fff!important;font-size:28px!important;font-weight:800!important;margin:0 0 6px!important;padding:0!important;border:none!important;letter-spacing:-0.5px;}
+    .bb-header p{color:rgba(255,255,255,.8);margin:0;font-size:15px;font-weight:500;}
+    .bb-card{background:#fff;border:1px solid #f1f5f9;border-radius:16px;padding:32px;margin-bottom:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02),0 10px 15px -3px rgba(0,0,0,0.03);transition:transform .2s;}
+    .bb-card h2{font-size:18px!important;font-weight:700!important;margin:0 0 8px!important;padding:0!important;border:none!important;color:#0f172a;}
+    .bb-card p{color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;}
+    .bb-status{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:24px;font-size:13px;font-weight:600;margin-bottom:20px;}
+    .bb-status.connected{background:#f0fdfa;color:#0d9488;border:1px solid #ccfbf1;}
+    .bb-status.disconnected{background:#fef2f2;color:#dc2626;border:1px solid #fee2e2;}
+    .bb-field{margin-bottom:20px;}
+    .bb-field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#475569;margin-bottom:8px;}
+    .bb-field input{width:100%;padding:12px 16px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:500;color:#0f172a;background:#f8fafc;box-sizing:border-box;transition:all .2s;}
+    .bb-field input:focus{border-color:#7c3aed;background:#fff;box-shadow:0 0 0 4px rgba(124,58,237,0.1);outline:none;}
+    .bb-field .bb-hint{font-size:12px;color:#94a3b8;margin-top:6px;}
+    .bb-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none;}
+    .bb-btn-primary{background:#7c3aed;color:#fff;box-shadow:0 4px 6px -1px rgba(124,58,237,0.2);}
+    .bb-btn-primary:hover{background:#6d28d9;transform:translateY(-1px);box-shadow:0 6px 12px -2px rgba(124,58,237,0.3);color:#fff;}
+    .bb-btn-secondary{background:#f8fafc;color:#475569;border:1px solid #e2e8f0;}
+    .bb-btn-secondary:hover{background:#f1f5f9;color:#0f172a;}
+    .bb-btn-danger{background:#fff;color:#dc2626;border:1px solid #fecaca;}
+    .bb-btn-danger:hover{background:#fef2f2;}
+    .bb-btn:disabled{opacity:.6;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+    .bb-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+    .bb-stat{background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:16px;text-align:center;}
+    .bb-stat-value{font-size:28px;font-weight:800;color:#7c3aed;margin-bottom:4px;letter-spacing:-0.5px;}
+    .bb-stat-label{font-size:12px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+    .bb-notice{padding:14px 20px;border-radius:10px;font-size:14px;margin-top:16px;display:none;font-weight:500;}
+    .bb-notice.success{background:#f0fdfa;border:1px solid #ccfbf1;color:#0f766e;}
+    .bb-notice.error{background:#fef2f2;border:1px solid #fee2e2;color:#b91c1c;}
+    .bb-notice.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;}
+    .bb-notice.warning{background:#fffbeb;border:1px solid #fef08a;color:#a16207;}
+    .bb-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px;}
+    .bb-cat-item{background:#f8fafc;border:1px solid #f1f5f9;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:500;}
+    .bb-cat-count{background:#7c3aed;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+    .bb-warning-box{background:#fefce8;border:1px solid #fef08a;border-left:4px solid #eab308;border-radius:10px;padding:16px 20px;margin-bottom:24px;font-size:14px;color:#854d0e;line-height:1.6;}
+    .bb-footer{text-align:center;color:#94a3b8;font-size:13px;margin-top:16px;}
+    .bb-footer a{color:#7c3aed;text-decoration:none;font-weight:500;}
+    .bb-footer a:hover{text-decoration:underline;}
     @media(max-width:600px){.bb-stats{grid-template-columns:1fr;}.bb-cat-grid{grid-template-columns:1fr;}}
   </style>
   <?php
@@ -688,7 +688,7 @@ function buildbot_admin_page() {
             onchange="buildbotToggleWidget(this.checked)"
             style="opacity:0;width:0;height:0;">
           <span id="bb-toggle-slider" style="position:absolute;cursor:pointer;inset:0;
-            background:<?php echo $widget_enabled ? '#7c6af7' : '#cbd5e1'; ?>;
+            background:<?php echo $widget_enabled ? '#7c3aed' : '#cbd5e1'; ?>;
             border-radius:34px;transition:.3s;">
             <span style="position:absolute;content:'';height:20px;width:20px;
               left:<?php echo $widget_enabled ? '28px' : '4px'; ?>;bottom:4px;
@@ -913,7 +913,7 @@ function buildbot_hook_product_delete($post_id) {
   if (!$product) return;
   wp_remote_post(BUILDBOT_API . '/plugin/product/delete', [
     'headers'  => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
-    'body'     => json_encode(['productName' => $product->get_name()]),
+    'body'     => json_encode(['productName' => $product->get_name(), 'wooId' => $post_id]),
     'timeout'  => 10,
     'blocking' => false
   ]);

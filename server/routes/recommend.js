@@ -5,7 +5,22 @@ const Anthropic = require('@anthropic-ai/sdk');
 const router = express.Router();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Simple In-Memory IP Rate Limiter (15 requests per hour per IP)
+const ipRequests = new Map();
+setInterval(() => ipRequests.clear(), 60 * 60 * 1000);
+
 router.post('/recommend', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const currentRequests = ipRequests.get(ip) || 0;
+  
+  if (currentRequests >= 15) {
+    return res.status(429).json({
+      error: 'Our AI is currently taking a rest. Please try again later or contact the store.',
+      customerMessage: true,
+      limitReached: false
+    });
+  }
+  
   const { budget, purpose, extras, storeId } = req.body;
 
   if (!budget || !purpose || !storeId)
@@ -39,10 +54,37 @@ router.post('/recommend', async (req, res) => {
   if (!products.length)
     return res.status(404).json({ error: 'No products in catalog' });
 
+  // Filter out products that are more expensive than the entire budget
+  const maxPrice = parseFloat(budget);
+  const filteredProducts = products.filter(p => parseFloat(p.price) <= maxPrice);
+
+  if (!filteredProducts.length)
+    return res.status(404).json({ error: 'No affordable products in catalog' });
+
   const currency    = store.currency || 'PKR';
-  const productList = products.map((p, i) =>
-    `${i+1}. Name: ${p.name}, Category: ${p.category}, Price: ${p.price} ${currency}, ${p.description}`
+  // Removed p.description to save 80% token usage per request
+  const productList = filteredProducts.map((p, i) =>
+    `${i+1}. Name: ${p.name}, Category: ${p.category}, Price: ${p.price} ${currency}`
   ).join('\n');
+
+  // Check for cached recommendation first (0 API cost)
+  const cachedRec = await analyticsDB.getCachedRecommendation(storeId, budget, purpose, extras || '');
+  if (cachedRec) {
+    // We still log it so analytics are accurate, but it costs 0 credits
+    await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', cachedRec);
+    return res.json({
+      success: true,
+      recommendation: cachedRec,
+      currency,
+      usage: {
+        used:      limitCheck.used + 1,
+        limit:     limitCheck.limit,
+        remaining: limitCheck.remaining - 1,
+        period:    limitCheck.period
+      },
+      cached: true
+    });
+  }
 
   // TEST MODE — returns fake data without using API credits
   // Remove TEST_MODE variable from Railway when done testing
@@ -141,7 +183,7 @@ router.post('/recommend', async (req, res) => {
 
   try {
     const message = await anthropic.messages.create({
-      model:      'claude-opus-4-5',
+      model:      'claude-3-5-haiku-20241022',
       max_tokens: 1500,
       messages:   [{ role: 'user', content: prompt }]
     });
@@ -165,9 +207,12 @@ router.post('/recommend', async (req, res) => {
       }
     });
 
+    // Only count successful requests towards the IP limit
+    ipRequests.set(ip, currentRequests + 1);
+
   } catch (err) {
     console.error('Recommend error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.' });
   }
 });
 

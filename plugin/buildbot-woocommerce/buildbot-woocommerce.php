@@ -600,12 +600,17 @@ function buildbot_admin_page() {
   var buildbotNonce = '<?php echo wp_create_nonce("buildbot_nonce"); ?>';
 
   // Use var (not const/let) so functions are hoisted and globally accessible
-  function showNotice(msg, type) {
-    const el = document.getElementById('bb-notice');
+  window.showNotice = function(msg, type) {
+    console.log('BuildBot Notice [' + type + ']:', msg);
+    var el = document.getElementById('bb-notice');
+    if (!el) {
+      console.warn('BuildBot: bb-notice element not found');
+      return;
+    }
     el.textContent   = msg;
     el.className     = 'bb-notice ' + type;
     el.style.display = 'block';
-    if (type === 'success') setTimeout(() => el.style.display = 'none', 6000);
+    if (type === 'success') setTimeout(function(){ el.style.display = 'none'; }, 6000);
   }
 
   window.buildbotConnect = async function() {

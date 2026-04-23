@@ -332,7 +332,7 @@ function buildbot_enqueue_admin_scripts($hook) {
 
 function buildbot_get_admin_js() {
   return <<<'JSEOF'
-  window.showNotice = function(msg, type) {
+  window.buildbotShowNotice = function(msg, type) {
     console.log('BuildBot [' + type + ']:', msg);
     var el = document.getElementById('bb-notice');
     if (!el) { console.warn('BuildBot: no #bb-notice element'); return; }
@@ -347,16 +347,16 @@ function buildbot_get_admin_js() {
     var secret  = document.getElementById('bb-secret-key').value.trim();
     var btn     = document.getElementById('bb-connect-btn');
 
-    if (!storeId) { window.showNotice('Please enter your Store ID.', 'error'); return; }
-    if (!secret)  { window.showNotice('Please enter your Secret Key.', 'error'); return; }
+    if (!storeId) { window.buildbotShowNotice('Please enter your Store ID.', 'error'); return; }
+    if (!secret)  { window.buildbotShowNotice('Please enter your Secret Key.', 'error'); return; }
     if (secret.indexOf('bb_live_') !== 0) {
-      window.showNotice('Invalid Secret Key. It should start with bb_live_', 'error');
+      window.buildbotShowNotice('Invalid Secret Key. It should start with bb_live_', 'error');
       return;
     }
 
     btn.disabled    = true;
     btn.textContent = 'Testing connection...';
-    window.showNotice('Testing connection to BuildBot...', 'info');
+    window.buildbotShowNotice('Testing connection to BuildBot...', 'info');
 
     try {
       var pingRes = await fetch(BB_API + '/plugin/ping', {
@@ -370,13 +370,13 @@ function buildbot_get_admin_js() {
       var pingData = await pingRes.json();
 
       if (!pingData.success) {
-        window.showNotice('Connection failed: ' + (pingData.error || 'Check Store ID and Secret Key'), 'error');
+        window.buildbotShowNotice('Connection failed: ' + (pingData.error || 'Check Store ID and Secret Key'), 'error');
         btn.disabled    = false;
         btn.textContent = 'Connect & Sync Products';
         return;
       }
 
-      window.showNotice('Connected to ' + pingData.storeName + '! Saving settings...', 'info');
+      window.buildbotShowNotice('Connected to ' + pingData.storeName + '! Saving settings...', 'info');
       btn.textContent = 'Syncing products...';
 
       var saveRes = await fetch(ajaxurl, {
@@ -395,7 +395,7 @@ function buildbot_get_admin_js() {
       await window.buildbotDoSync(storeId, secret);
 
     } catch(err) {
-      window.showNotice('Error: ' + err.message, 'error');
+      window.buildbotShowNotice('Error: ' + err.message, 'error');
       btn.disabled    = false;
       btn.textContent = 'Connect & Sync Products';
     }
@@ -412,7 +412,7 @@ function buildbot_get_admin_js() {
 
   window.buildbotDoSync = async function(storeId, secret) {
     try {
-      window.showNotice('Getting your WooCommerce products...', 'info');
+      window.buildbotShowNotice('Getting your WooCommerce products...', 'info');
 
       var prodRes = await fetch(ajaxurl, {
         method: 'POST',
@@ -426,17 +426,17 @@ function buildbot_get_admin_js() {
       console.log('Products response:', prodData);
 
       if (!prodData.success) {
-        window.showNotice('Could not get products: ' + (prodData.data ? prodData.data.error : 'Unknown error'), 'error');
+        window.buildbotShowNotice('Could not get products: ' + (prodData.data ? prodData.data.error : 'Unknown error'), 'error');
         return;
       }
 
       var products = prodData.data.products;
       if (!products || products.length === 0) {
-        window.showNotice('No published products found in WooCommerce. Please add products first.', 'warning');
+        window.buildbotShowNotice('No published products found in WooCommerce. Please add products first.', 'warning');
         return;
       }
 
-      window.showNotice('Sending ' + products.length + ' products to BuildBot...', 'info');
+      window.buildbotShowNotice('Sending ' + products.length + ' products to BuildBot...', 'info');
 
       var syncRes = await fetch(BB_API + '/plugin/sync', {
         method:  'POST',
@@ -464,14 +464,14 @@ function buildbot_get_admin_js() {
             nonce:         buildbotNonce
           })
         });
-        window.showNotice(syncData.synced + ' products synced! Reloading...', 'success');
+        window.buildbotShowNotice(syncData.synced + ' products synced! Reloading...', 'success');
         setTimeout(function(){ location.reload(); }, 2000);
       } else {
-        window.showNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
+        window.buildbotShowNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
       }
 
     } catch(err) {
-      window.showNotice('Error: ' + err.message, 'error');
+      window.buildbotShowNotice('Error: ' + err.message, 'error');
     }
   };
 

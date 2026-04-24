@@ -13,6 +13,13 @@ client.execute('PRAGMA foreign_keys = ON').catch(() => {});
 async function initDB() {
   await client.execute('PRAGMA foreign_keys = ON');
   await client.batch([
+    `CREATE TABLE IF NOT EXISTS admins (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      email      TEXT UNIQUE NOT NULL,
+      password   TEXT NOT NULL,
+      name       TEXT DEFAULT 'Admin',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
     `CREATE TABLE IF NOT EXISTS stores (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       store_id    TEXT UNIQUE NOT NULL,
@@ -93,6 +100,24 @@ async function initDB() {
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch(e) {}
+  }
+
+  // Seed admin if none exists
+  try {
+    const adminRes = await client.execute('SELECT COUNT(*) as c FROM admins');
+    if (adminRes.rows[0].c === 0) {
+      const bcrypt = require('bcryptjs');
+      const adminEmail = process.env.ADMIN_EMAIL || 'workwithneehal@gmail.com';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const hashed = await bcrypt.hash(adminPassword, 10);
+      await client.execute({
+        sql: 'INSERT INTO admins (email, password) VALUES (?, ?)',
+        args: [adminEmail, hashed]
+      });
+      console.log('Admin account seeded from .env');
+    }
+  } catch(e) {
+    console.error('Error seeding admin account:', e);
   }
 
   console.log('Turso database connected and tables ready!');
@@ -218,6 +243,39 @@ const storeDB = {
     return await client.execute({
       sql: "UPDATE stores SET catalog_last_updated = datetime('now') WHERE store_id = ?",
       args: [storeId]
+    });
+  }
+};
+
+// ─── ADMIN FUNCTIONS ──────────────────────────────────────
+const adminDB = {
+  findByEmail: async (email) => {
+    const res = await client.execute({
+      sql: 'SELECT * FROM admins WHERE email = ?',
+      args: [email]
+    });
+    return res.rows[0] || null;
+  },
+
+  findById: async (id) => {
+    const res = await client.execute({
+      sql: 'SELECT * FROM admins WHERE id = ?',
+      args: [id]
+    });
+    return res.rows[0] || null;
+  },
+
+  updatePassword: async (email, hashedPassword) => {
+    return await client.execute({
+      sql: 'UPDATE admins SET password = ? WHERE email = ?',
+      args: [hashedPassword, email]
+    });
+  },
+
+  updateProfile: async (id, name, email) => {
+    return await client.execute({
+      sql: 'UPDATE admins SET name = ?, email = ? WHERE id = ?',
+      args: [name, email, id]
     });
   }
 };
@@ -546,4 +604,4 @@ const widgetDB = {
 
 };
 
-module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB, widgetDB };
+module.exports = { client, initDB, storeDB, productDB, analyticsDB, paymentDB, tokenDB, verifyDB, widgetDB, adminDB };

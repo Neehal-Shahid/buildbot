@@ -77,6 +77,9 @@
       width:100%;padding:11px 14px;background:#0f1117;border:1px solid var(--border);
       border-radius:8px;color:#fff;font-size:13px;outline:none;transition:border .2s;}
     input:focus,select:focus{border-color:var(--primary);}
+    .pwd-wrap{position:relative;display:flex;align-items:center;}
+    .pwd-toggle{position:absolute;right:12px;cursor:pointer;opacity:0.6;font-size:16px;transition:opacity 0.2s;}
+    .pwd-toggle:hover{opacity:1;}
 
     /* BUTTONS */
     .btn{padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;
@@ -121,7 +124,7 @@
 <!-- LOGIN -->
 <div id="admin-login">
   <div class="login-wrap">
-    <div class="login-box">
+    <div class="login-box" id="login-form-box">
       <h2>⚡ BuildBot Admin</h2>
       <p>Login to manage your platform.</p>
       <div class="form-group">
@@ -129,11 +132,50 @@
         <input type="email" id="adm-email" placeholder="admin@buildbot.pk"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" id="adm-password" placeholder="Your admin password"/>
+        <label class="form-label" style="display:flex;justify-content:space-between;">
+          Password
+          <a onclick="toggleForgot()" style="color:var(--primary);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;">Forgot Password?</a>
+        </label>
+        <div class="pwd-wrap">
+          <input type="password" id="adm-password" placeholder="Your admin password"/>
+          <span class="pwd-toggle" onclick="togglePassword('adm-password', this)">👁️</span>
+        </div>
       </div>
       <button class="btn btn-primary btn-full" onclick="adminLogin()">Login to Admin Panel</button>
       <div class="alert" id="adm-login-alert"></div>
+    </div>
+
+    <!-- FORGOT PASSWORD BOX -->
+    <div class="login-box" id="forgot-form-box" style="display:none;">
+      <h2>Reset Password</h2>
+      <p>Enter your admin email to receive a reset link.</p>
+      <div class="form-group">
+        <label class="form-label">Admin Email</label>
+        <input type="email" id="forgot-email" placeholder="admin@buildbot.pk"/>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="adminForgotPassword()">Send Reset Link</button>
+      <div style="text-align:center;margin-top:16px;font-size:12px;">
+        <a onclick="toggleForgot()" style="color:var(--muted);cursor:pointer;">Back to Login</a>
+      </div>
+      <div class="alert" id="forgot-alert"></div>
+    </div>
+
+    <!-- RESET PASSWORD BOX -->
+    <div class="login-box" id="reset-form-box" style="display:none;">
+      <h2>Set New Password</h2>
+      <p>Enter your new admin password below.</p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div class="pwd-wrap">
+          <input type="password" id="reset-password" placeholder="Min 8 chars, uppercase, number, symbol"/>
+          <span class="pwd-toggle" onclick="togglePassword('reset-password', this)">👁️</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="adminResetPassword()">Update Password</button>
+      <div style="text-align:center;margin-top:16px;font-size:12px;">
+        <a href="admin.html" style="color:var(--muted);text-decoration:none;">Back to Login</a>
+      </div>
+      <div class="alert" id="reset-alert"></div>
     </div>
   </div>
 </div>
@@ -165,6 +207,9 @@
       </div>
       <div class="sb-item" onclick="showTab('analytics')" id="atab-analytics">
         <span class="ic">📈</span> Platform Stats
+      </div>
+      <div class="sb-item" onclick="showTab('settings')" id="atab-settings">
+        <span class="ic">⚙️</span> Settings
       </div>
     </div>
 
@@ -313,6 +358,50 @@
       </div>
 
     </div>
+
+      <!-- SETTINGS -->
+      <div id="tab-settings" style="display:none;">
+        <div class="section-title">Admin Settings</div>
+        <div class="section-sub">Manage your admin profile and security.</div>
+        
+        <div class="two-col">
+          <div class="card">
+            <h2>Profile Settings</h2>
+            <div class="form-group">
+              <label class="form-label">Admin Name</label>
+              <input type="text" id="prof-name" placeholder="Your Name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Admin Email</label>
+              <input type="email" id="prof-email" placeholder="admin@buildbot.pk" />
+            </div>
+            <button class="btn btn-primary" onclick="saveAdminProfile()">Save Profile</button>
+            <div class="alert" id="prof-alert"></div>
+          </div>
+          
+          <div class="card">
+            <h2>Change Password</h2>
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <div class="pwd-wrap">
+                <input type="password" id="cp-current" placeholder="Current password" />
+                <span class="pwd-toggle" onclick="togglePassword('cp-current', this)">👁️</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <div class="pwd-wrap">
+                <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol" />
+                <span class="pwd-toggle" onclick="togglePassword('cp-new', this)">👁️</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveAdminPassword()">Change Password</button>
+            <div class="alert" id="cp-alert"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -366,8 +455,81 @@ let pendingAction = null;
 
 // ─── INIT ─────────────────────────────────────────────
 window.onload = () => {
-  if (adminToken) enterAdmin();
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get('reset_token');
+  
+  if (resetToken) {
+    document.getElementById('login-form-box').style.display = 'none';
+    document.getElementById('reset-form-box').style.display = 'block';
+    window.resetTokenVal = resetToken;
+  } else if (adminToken) {
+    enterAdmin();
+  }
 };
+
+function togglePassword(inputId, icon) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.textContent = '🔒';
+  } else {
+    input.type = 'password';
+    icon.textContent = '👁️';
+  }
+}
+
+function toggleForgot() {
+  const loginBox = document.getElementById('login-form-box');
+  const forgotBox = document.getElementById('forgot-form-box');
+  if (loginBox.style.display === 'none') {
+    loginBox.style.display = 'block';
+    forgotBox.style.display = 'none';
+  } else {
+    loginBox.style.display = 'none';
+    forgotBox.style.display = 'block';
+  }
+}
+
+async function adminForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return showAlert('forgot-alert', 'Email is required', 'error');
+  try {
+    const res = await fetch(`${API}/admin/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showAlert('forgot-alert', data.message, 'success');
+    } else {
+      showAlert('forgot-alert', data.error, 'error');
+    }
+  } catch {
+    showAlert('forgot-alert', 'Server error', 'error');
+  }
+}
+
+async function adminResetPassword() {
+  const password = document.getElementById('reset-password').value;
+  if (!password) return showAlert('reset-alert', 'Password is required', 'error');
+  try {
+    const res = await fetch(`${API}/admin/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: window.resetTokenVal, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showAlert('reset-alert', 'Password reset! You can now login.', 'success');
+      setTimeout(() => window.location.href = 'admin.html', 2000);
+    } else {
+      showAlert('reset-alert', data.error, 'error');
+    }
+  } catch {
+    showAlert('reset-alert', 'Server error', 'error');
+  }
+}
 
 // ─── LOGIN ────────────────────────────────────────────
 async function adminLogin() {
@@ -408,7 +570,7 @@ function enterAdmin() {
 
 // ─── TABS ─────────────────────────────────────────────
 function showTab(name) {
-  ['overview','stores','payments','analytics'].forEach(t => {
+  ['overview','stores','payments','analytics','settings'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display   = 'none';
     document.getElementById(`atab-${t}`).classList.remove('active');
   });
@@ -419,6 +581,65 @@ function showTab(name) {
   if (name === 'stores')    loadStores();
   if (name === 'payments')  loadPayments();
   if (name === 'analytics') loadPlatformAnalytics();
+  if (name === 'settings')  loadAdminSettings();
+}
+
+async function loadAdminSettings() {
+  try {
+    const res = await fetch(`${API}/admin/me`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (data.success && data.admin) {
+      document.getElementById('prof-name').value = data.admin.name || '';
+      document.getElementById('prof-email').value = data.admin.email || '';
+    }
+  } catch (e) { }
+}
+
+async function saveAdminProfile() {
+  const name = document.getElementById('prof-name').value.trim();
+  const email = document.getElementById('prof-email').value.trim();
+  try {
+    const res = await fetch(`${API}/admin/profile`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ name, email })
+    });
+    const data = await res.json();
+    if (data.success) showAlert('prof-alert', 'Profile saved successfully!', 'success');
+    else showAlert('prof-alert', data.error, 'error');
+  } catch (e) {
+    showAlert('prof-alert', 'Server error', 'error');
+  }
+}
+
+async function saveAdminPassword() {
+  const currentPassword = document.getElementById('cp-current').value;
+  const newPassword = document.getElementById('cp-new').value;
+  try {
+    const res = await fetch(`${API}/admin/password`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showAlert('cp-alert', 'Password changed successfully!', 'success');
+      document.getElementById('cp-current').value = '';
+      document.getElementById('cp-new').value = '';
+    } else {
+      showAlert('cp-alert', data.error, 'error');
+    }
+  } catch (e) {
+    showAlert('cp-alert', 'Server error', 'error');
+  }
 }
 
 // ─── OVERVIEW ─────────────────────────────────────────

@@ -157,6 +157,25 @@ function passwordResetEmail(storeName, email, token) {
   };
 }
 
+function adminPasswordResetEmail(name, email, token) {
+  return {
+    to: email,
+    subject: '🔑 Reset your BuildBot Admin password',
+    html: `
+      <div style="font-family:'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0f1117;color:#e0e0e0;border-radius:16px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#7c6af7,#5b4fe0);padding:32px;text-align:center;">
+          <h1 style="color:#fff;font-size:28px;margin:0;">⚡ BuildBot Admin</h1>
+        </div>
+        <div style="padding:32px;">
+          <h2 style="color:#fff;">Reset your admin password 🔑</h2>
+          <p style="color:#888;line-height:1.7;">Hi ${name}, click the button below to reset your admin password. This link expires in 1 hour.</p>
+          <a href="${APP_URL}/admin.html?reset_token=${token}" style="display:inline-block;background:#7c6af7;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">🔑 Reset Password</a>
+          <p style="color:#666;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email. Your password won't change.</p>
+        </div>
+      </div>`
+  };
+}
+
 module.exports = {
   sendEmail,
   welcomeEmail,
@@ -164,5 +183,6 @@ module.exports = {
   paymentApprovedEmail,
   paymentRejectedEmail,
   trialEndingEmail,
-  passwordResetEmail
+  passwordResetEmail,
+  adminPasswordResetEmail
 };

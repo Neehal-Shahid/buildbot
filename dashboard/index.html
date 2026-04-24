@@ -1637,9 +1637,7 @@
                 Checking widget status...
               </div>
               <div style="display:flex;gap:10px;">
-                <button class="btn btn-primary btn-sm" onclick="manualSync()">
-                  🔄 Sync Now
-                </button>
+                <p style="font-size:12px;color:var(--muted);padding:8px 0;">To run a manual sync, go to your WordPress Admin panel > WooCommerce > BuildBot and click Sync.</p>
                 <button class="btn btn-sm" onclick="disconnectWoo()"
                   style="background:#3a1a1a;color:#e74c3c;border:1px solid rgba(231,76,60,.3);">
                   Disconnect
@@ -1746,6 +1744,13 @@
 
             </div><!-- end woo-setup-view -->
           </div><!-- end woo-section -->
+
+          <!-- Danger Zone -->
+          <div class="card" style="border-color:#3a1a1a;">
+            <h2 style="color:#e74c3c;">Danger Zone</h2>
+            <p style="margin-bottom:20px;">Permanently delete your account and all associated data. This action cannot be undone.</p>
+            <button class="btn btn-danger" onclick="deleteAccount(this)">Delete Account</button>
+          </div>
         </div>
 
       </div><!-- end main -->
@@ -2553,6 +2558,7 @@
     }
 
     async function doUpload() {
+      if (!confirm('Warning: This will overwrite all existing products. Proceed?')) return;
       const file = document.getElementById('csv-upload').files[0];
       if (!file) return;
 
@@ -2654,21 +2660,6 @@
           body: JSON.stringify({ brandColor, currency })
         });
         const data = await res.json();
-
-        // Also save widget bg via widget-settings
-        const res2 = await fetch(`${API}/widget-settings`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            widgetTitle: document.getElementById('widget-title-input').value || 'BuildBot',
-            welcomeMsg: document.getElementById('welcome-msg-input').value || 'Tell me your budget and what you need.',
-            buttonText: document.getElementById('button-text-input').value || 'Get Started',
-            widgetBg
-          })
-        });
 
         if (data.success) {
           currentStore.brandColor = brandColor;
@@ -2854,10 +2845,6 @@
       });
     }
 
-    async function manualSync() {
-      showAlert('woo-sync-alert', '🔄 Manual sync triggered. Products will update shortly.', 'info');
-    }
-
     async function disconnectWoo() {
       if (!confirm('Disconnect WooCommerce? Your synced products will remain but auto-sync will stop.')) return;
       try {
@@ -2883,6 +2870,38 @@
         'https://buildbot-production.up.railway.app/buildbot-woocommerce.zip',
         '_blank'
       );
+    }
+
+    async function deleteAccount(btn) {
+      if (!confirm('Are you absolutely sure you want to delete your account? This will permanently delete your store, products, and all data.')) return;
+      
+      const originalText = btn.textContent;
+      btn.textContent = 'Deleting...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API}/account`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          localStorage.removeItem('bb_token');
+          localStorage.removeItem('bb_store');
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('Cannot connect to server.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
     }
 
     function timeAgo(isoString) {

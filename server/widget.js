@@ -56,206 +56,30 @@
   // ─── STYLES ───────────────────────────────────────────────
   function injectStyles() {
     const btnTextColor  = getContrastColor(BRAND_COLOR);
-    const bgRgba        = hexToRgba(WIDGET_BG, 0.85);
     const borderRgba    = hexToRgba(BRAND_COLOR, 0.2);
+
+    // Dynamic Variables
     const s = document.createElement('style');
     s.textContent = `
-      #bb-launcher {
-        position:fixed;bottom:28px;right:28px;width:60px;height:60px;
-        background:${BRAND_COLOR};border-radius:50%;cursor:pointer;
-        display:flex;align-items:center;justify-content:center;
-        box-shadow:0 8px 32px ${hexToRgba(BRAND_COLOR,0.5)};
-        z-index:999999;transition:transform .2s,box-shadow .2s;
-        border:none;font-size:26px;
-      }
-      #bb-launcher:hover{
-        transform:scale(1.1);
-        box-shadow:0 12px 40px ${hexToRgba(BRAND_COLOR,0.7)};
-      }
-      #bb-panel {
-        position:fixed;bottom:100px;right:28px;width:370px;max-height:620px;
-        background:${bgRgba};
-        backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-        border:1px solid ${borderRgba};
-        border-radius:20px;
-        box-shadow:0 20px 60px rgba(0,0,0,.5),
-                   inset 0 1px 0 ${hexToRgba(BRAND_COLOR,0.15)};
-        z-index:999998;display:none;flex-direction:column;overflow:hidden;
-        font-family:'Segoe UI',sans-serif;
-      }
-      #bb-panel.open{display:flex;animation:bb-slide-up .3s ease;}
-      @keyframes bb-slide-up{
-        from{opacity:0;transform:translateY(20px);}
-        to{opacity:1;transform:translateY(0);}
-      }
-      #bb-header {
-        background:${hexToRgba(BRAND_COLOR,0.9)};
-        backdrop-filter:blur(10px);
-        padding:16px 20px;
-        display:flex;align-items:center;justify-content:space-between;
-        flex-shrink:0;border-bottom:1px solid ${hexToRgba(BRAND_COLOR,0.3)};
-      }
-      .bb-title{color:${getContrastColor(BRAND_COLOR)};font-weight:700;font-size:15px;}
-      .bb-sub{color:${hexToRgba(getContrastColor(BRAND_COLOR),0.7)};font-size:11px;margin-top:2px;}
-      #bb-close {
-        background:${hexToRgba(getContrastColor(BRAND_COLOR),0.15)};
-        border:none;color:${getContrastColor(BRAND_COLOR)};
-        width:28px;height:28px;border-radius:50%;cursor:pointer;
-        font-size:14px;display:flex;align-items:center;justify-content:center;
-        transition:background .2s;
-      }
-      #bb-close:hover{background:${hexToRgba(getContrastColor(BRAND_COLOR),0.25)};}
-      #bb-progress{
-        display:flex;gap:4px;padding:10px 20px;
-        background:${hexToRgba(WIDGET_BG,0.5)};
-        flex-shrink:0;border-bottom:1px solid ${borderRgba};
-      }
-      .bb-prog-step{
-        flex:1;height:3px;border-radius:2px;
-        background:${hexToRgba(BRAND_COLOR,0.2)};transition:background .3s;
-      }
-      .bb-prog-step.done{background:${BRAND_COLOR};}
-      #bb-body{padding:20px;overflow-y:auto;flex:1;color:#e0e0e0;}
-      #bb-body::-webkit-scrollbar{width:4px;}
-      #bb-body::-webkit-scrollbar-track{background:transparent;}
-      #bb-body::-webkit-scrollbar-thumb{background:${hexToRgba(BRAND_COLOR,0.3)};border-radius:2px;}
-      .bb-screen{display:none;} .bb-screen.active{display:block;}
-      .bb-label{
-        font-size:11px;color:${hexToRgba('#ffffff',0.5)};
-        margin-bottom:6px;font-weight:700;
-        text-transform:uppercase;letter-spacing:.5px;
-      }
-      .bb-input{
-        width:100%;padding:11px 14px;
-        background:${hexToRgba(WIDGET_BG,0.6)};
-        backdrop-filter:blur(10px);
-        border:1px solid ${borderRgba};
-        border-radius:10px;color:#fff;font-size:13px;
-        margin-bottom:14px;outline:none;
-        box-sizing:border-box;transition:border .2s,box-shadow .2s;
-      }
-      .bb-input:focus{
-        border-color:${BRAND_COLOR};
-        box-shadow:0 0 0 3px ${hexToRgba(BRAND_COLOR,0.15)};
-      }
-      .bb-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
-      .bb-chip{
-        padding:7px 14px;border-radius:20px;
-        border:1px solid ${borderRgba};
-        background:${hexToRgba(WIDGET_BG,0.5)};
-        backdrop-filter:blur(5px);
-        color:#ccc;font-size:12px;cursor:pointer;transition:all .2s;
-      }
-      .bb-chip:hover{border-color:${BRAND_COLOR};color:${BRAND_COLOR};}
-      .bb-chip.sel{
-        background:${BRAND_COLOR};border-color:${BRAND_COLOR};
-        color:${btnTextColor};
-        box-shadow:0 4px 12px ${hexToRgba(BRAND_COLOR,0.4)};
-      }
-      .bb-btn{
-        width:100%;padding:13px;background:${BRAND_COLOR};
-        color:${btnTextColor};border:none;border-radius:10px;
-        font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;
-        transition:all .2s;letter-spacing:.3px;
-        box-shadow:0 4px 16px ${hexToRgba(BRAND_COLOR,0.4)};
-      }
-      .bb-btn:hover{
-        opacity:.9;transform:translateY(-1px);
-        box-shadow:0 8px 24px ${hexToRgba(BRAND_COLOR,0.5)};
-      }
-      .bb-btn:active{transform:translateY(0);}
-      .bb-back{
-        background:none;border:none;
-        color:${hexToRgba('#ffffff',0.4)};
-        font-size:12px;cursor:pointer;
-        margin-bottom:16px;padding:0;
-        display:flex;align-items:center;gap:4px;transition:color .2s;
-      }
-      .bb-back:hover{color:#fff;}
-      .bb-loading{text-align:center;padding:40px 0;color:#888;font-size:13px;}
-      .bb-spinner{
-        width:40px;height:40px;
-        border:3px solid ${hexToRgba(BRAND_COLOR,0.2)};
-        border-top-color:${BRAND_COLOR};border-radius:50%;
-        animation:bb-spin .8s linear infinite;margin:0 auto 16px;
-      }
-      @keyframes bb-spin{to{transform:rotate(360deg);}}
-      .bb-build-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px;}
-      .bb-summary{font-size:12px;color:#999;margin-bottom:16px;line-height:1.6;}
-      .bb-part{
-        background:${hexToRgba(WIDGET_BG,0.6)};
-        backdrop-filter:blur(10px);
-        border:1px solid ${borderRgba};
-        border-radius:10px;padding:12px 14px;margin-bottom:8px;
-        transition:border-color .2s;
-      }
-      .bb-part:hover{border-color:${hexToRgba(BRAND_COLOR,0.4)};}
-      .bb-part-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
-      .bb-part-name{font-size:13px;color:#fff;font-weight:500;}
-      .bb-part-price{font-size:13px;color:${BRAND_COLOR};font-weight:700;}
-      .bb-part-cat{
-        font-size:10px;color:#888;
-        background:${hexToRgba(BRAND_COLOR,0.1)};
-        padding:2px 8px;border-radius:4px;
-        display:inline-block;margin-bottom:4px;
-      }
-      .bb-part-reason{font-size:11px;color:#666;}
-      .bb-total{
-        background:${hexToRgba('#2ecc71',0.1)};
-        border:1px solid rgba(46,204,113,.3);
-        border-radius:10px;padding:14px;
-        display:flex;justify-content:space-between;
-        align-items:center;margin:12px 0;
-      }
-      .bb-total-label{font-size:13px;color:#888;}
-      .bb-total-price{font-size:20px;font-weight:700;color:#2ecc71;}
-      .bb-over{background:rgba(231,76,60,.1);border-color:rgba(231,76,60,.3);}
-      .bb-over .bb-total-price{color:#e74c3c;}
-      .bb-tips{
-        background:${hexToRgba(BRAND_COLOR,0.08)};
-        border-left:3px solid ${BRAND_COLOR};
-        padding:10px 14px;font-size:12px;color:#888;
-        border-radius:0 8px 8px 0;margin-bottom:14px;line-height:1.5;
-      }
-      .bb-restart{
-        width:100%;padding:11px;background:transparent;
-        color:${BRAND_COLOR};
-        border:1px solid ${hexToRgba(BRAND_COLOR,0.4)};
-        border-radius:10px;font-size:13px;cursor:pointer;transition:all .2s;
-      }
-      .bb-restart:hover{
-        background:${hexToRgba(BRAND_COLOR,0.1)};
-        border-color:${BRAND_COLOR};
-      }
-      .bb-welcome-icon{font-size:48px;text-align:center;margin-bottom:12px;}
-      .bb-welcome-title{
-        font-size:18px;font-weight:700;color:#fff;
-        text-align:center;margin-bottom:8px;
-      }
-      .bb-welcome-text{
-        font-size:13px;color:#999;text-align:center;
-        line-height:1.7;margin-bottom:24px;
-      }
-      .bb-error{text-align:center;padding:24px 0;}
-      .bb-error .bb-ei{font-size:40px;margin-bottom:12px;}
-      .bb-error p{font-size:13px;color:#e74c3c;}
-      .bb-powered{
-        text-align:center;font-size:10px;
-        color:${hexToRgba('#ffffff',0.2)};
-        padding:8px;border-top:1px solid ${borderRgba};
-        flex-shrink:0;
-      }
-      .bb-powered a{color:${hexToRgba('#ffffff',0.3)};text-decoration:none;}
-      .bb-powered a:hover{color:${BRAND_COLOR};}
-      .bb-budget-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
-      .bb-currency{
-        background:${hexToRgba(WIDGET_BG,0.6)};
-        border:1px solid ${borderRgba};
-        border-radius:10px;padding:11px 12px;
-        color:#888;font-size:13px;white-space:nowrap;
+      #bb-launcher, #bb-panel {
+        --bb-brand: ${BRAND_COLOR};
+        --bb-bg: ${WIDGET_BG};
+        --bb-btn-text: ${btnTextColor};
+        --bb-border: ${borderRgba};
       }
     `;
     document.head.appendChild(s);
+
+    // Load External CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = API.replace('/api', '/widget.css');
+    document.head.appendChild(link);
+
+    // Load html2pdf for PDF generation
+    const scriptTag = document.createElement('script');
+    scriptTag.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    document.head.appendChild(scriptTag);
   }
 
   // ─── HTML ─────────────────────────────────────────────────
@@ -263,17 +87,24 @@
     const launcher  = document.createElement('button');
     launcher.id     = 'bb-launcher';
     launcher.title  = 'Build your PC';
-    launcher.innerHTML = '⚡';
+    launcher.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
     const panel = document.createElement('div');
     panel.id    = 'bb-panel';
     panel.innerHTML = `
       <div id="bb-header">
-        <div>
-          <div class="bb-title">⚡ ${WIDGET_TITLE}</div>
-          <div class="bb-sub">AI PC Build Recommender</div>
+        <div class="bb-title-row">
+          <div class="bb-title-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div>
+            <div class="bb-title">${WIDGET_TITLE}</div>
+            <div class="bb-sub">AI PC Build Recommender</div>
+          </div>
         </div>
-        <button id="bb-close">✕</button>
+        <button id="bb-close" title="Close">
+          <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
       <div id="bb-progress">
@@ -284,10 +115,11 @@
       </div>
 
       <div id="bb-body">
-
         <!-- S1: Welcome -->
         <div class="bb-screen active" id="bb-s1">
-          <div class="bb-welcome-icon">🖥️</div>
+          <div class="bb-welcome-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          </div>
           <div class="bb-welcome-title">Build Your Perfect PC</div>
           <div class="bb-welcome-text">${WELCOME_MSG}</div>
           <button class="bb-btn" id="bb-start-btn">${BUTTON_TEXT} →</button>
@@ -295,12 +127,14 @@
 
         <!-- S2: Budget -->
         <div class="bb-screen" id="bb-s2">
-          <button class="bb-back" id="bb-back-s2">← Back</button>
+          <button class="bb-back" id="bb-back-s2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back
+          </button>
           <div class="bb-label">What's your budget?</div>
           <div class="bb-budget-row">
             <div class="bb-currency" id="bb-curr-label">${CURRENCY}</div>
-            <input class="bb-input" id="bb-budget" type="number"
-              placeholder="e.g. 80000" style="margin:0;flex:1;"/>
+            <input class="bb-input" id="bb-budget" type="number" placeholder="e.g. 80000" style="margin:0;flex:1;"/>
           </div>
           <div class="bb-label">Quick select</div>
           <div class="bb-chips" id="bb-budget-chips">
@@ -314,7 +148,10 @@
 
         <!-- S3: Purpose -->
         <div class="bb-screen" id="bb-s3">
-          <button class="bb-back" id="bb-back-s3">← Back</button>
+          <button class="bb-back" id="bb-back-s3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back
+          </button>
           <div class="bb-label">What will you use it for?</div>
           <div class="bb-chips" id="bb-purposes">
             <div class="bb-chip">🏢 Office Work</div>
@@ -331,7 +168,10 @@
 
         <!-- S4: Extras -->
         <div class="bb-screen" id="bb-s4">
-          <button class="bb-back" id="bb-back-s4">← Back</button>
+          <button class="bb-back" id="bb-back-s4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back
+          </button>
           <div class="bb-label">Any extras? (optional)</div>
           <div class="bb-chips" id="bb-extras">
             <div class="bb-chip">🖥️ Monitor</div>
@@ -342,21 +182,37 @@
           </div>
           <div class="bb-label" style="margin-top:4px;">Or type something</div>
           <input class="bb-input" id="bb-extras-text" placeholder="e.g. WiFi card..."/>
-          <button class="bb-btn" id="bb-build-btn">⚡ Build My PC</button>
+          <button class="bb-btn" id="bb-build-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Build My PC
+          </button>
         </div>
 
         <!-- S5: Loading -->
         <div class="bb-screen" id="bb-s5">
           <div class="bb-loading">
-            <div class="bb-spinner"></div>
-            <div>Analyzing your needs and<br/>finding the best parts...</div>
+            <div class="bb-loader-container">
+              <div class="bb-loader-dot"></div>
+              <div class="bb-loader-dot"></div>
+              <div class="bb-loader-dot"></div>
+            </div>
+            <div class="bb-loader-text">Analyzing needs & finding parts...</div>
           </div>
         </div>
 
         <!-- S6: Results -->
         <div class="bb-screen" id="bb-s6">
           <div id="bb-results"></div>
-          <button class="bb-restart" id="bb-restart-btn">🔄 Start Over</button>
+          <div class="bb-actions">
+            <button class="bb-restart" id="bb-restart-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+              Start Over
+            </button>
+            <button class="bb-download" id="bb-download-btn" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              PDF
+            </button>
+          </div>
         </div>
 
       </div>
@@ -376,8 +232,14 @@
     let selectedExtras  = [];
     const $ = id => document.getElementById(id);
 
-    $('bb-launcher').onclick = () => $('bb-panel').classList.toggle('open');
-    $('bb-close').onclick    = () => $('bb-panel').classList.remove('open');
+    $('bb-launcher').onclick = () => {
+      $('bb-panel').classList.toggle('open');
+      $('bb-launcher').classList.toggle('open');
+    };
+    $('bb-close').onclick    = () => {
+      $('bb-panel').classList.remove('open');
+      $('bb-launcher').classList.remove('open');
+    };
 
     function setProgress(step) {
       for (let i = 1; i <= 4; i++)
@@ -475,6 +337,56 @@
       document.querySelectorAll('.bb-chip').forEach(c => c.classList.remove('sel'));
       goTo('s6','s1',0);
     };
+
+    $('bb-download-btn').onclick = async () => {
+      const btn = $('bb-download-btn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⏳ Generating...';
+      btn.style.opacity = '0.7';
+
+      try {
+        if (!window.html2pdf) {
+           console.error("html2pdf library not loaded yet.");
+           btn.innerHTML = originalText;
+           btn.style.opacity = '1';
+           return;
+        }
+        
+        // Create a printable container dynamically
+        const printContainer = document.createElement('div');
+        printContainer.className = 'bb-pdf-container';
+        printContainer.innerHTML = $('bb-results').innerHTML;
+        
+        // Append temporarily to body so it gets styles, but hide it
+        printContainer.style.position = 'absolute';
+        printContainer.style.left = '-9999px';
+        document.body.appendChild(printContainer);
+
+        const opt = {
+          margin:       0.5,
+          filename:     'BuildBot_Recommendation.pdf',
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true },
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        await window.html2pdf().set(opt).from(printContainer).save();
+        
+        document.body.removeChild(printContainer);
+
+        btn.innerHTML = '✅ Downloaded';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+        }, 2000);
+
+      } catch (e) {
+        console.error("PDF Gen Error:", e);
+        btn.innerHTML = '❌ Error';
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+      } finally {
+        btn.style.opacity = '1';
+      }
+    };
   }
 
   // ─── RENDER RESULTS ───────────────────────────────────────
@@ -486,26 +398,29 @@
       const totalPrice = p.totalPrice || (p.price * qty);
       return `
         <div class="bb-part">
-          <div class="bb-part-cat">${p.category}${qty > 1 ? ` <span style="color:#f39c12;">×${qty}</span>` : ''}</div>
           <div class="bb-part-top">
             <div class="bb-part-name">${p.name}</div>
             <div class="bb-part-price">${currency} ${Number(totalPrice).toLocaleString()}</div>
           </div>
-          ${qty > 1 ? `<div style="font-size:11px;color:#666;margin-bottom:3px;">${currency} ${Number(p.price).toLocaleString()} × ${qty} units</div>` : ''}
+          <div class="bb-part-cat">${p.category}${qty > 1 ? ` <span style="color:#f39c12;">×${qty}</span>` : ''}</div>
+          ${qty > 1 ? `<div style="font-size:11px;color:#64748b;margin-bottom:4px;">${currency} ${Number(p.price).toLocaleString()} × ${qty} units</div>` : ''}
           <div class="bb-part-reason">${p.reason}</div>
         </div>
       `;
     }).join('');
   
     const missingHtml = r.missingCategories && r.missingCategories.length
-      ? `<div style="background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.3);
-          border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#f39c12;">
+      ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+          border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#f59e0b;">
           ⚠️ Not available in this store: ${r.missingCategories.join(', ')}
          </div>`
       : '';
   
     const budgetAdviceHtml = r.budgetAdvice
-      ? `<div class="bb-tips">💰 ${r.budgetAdvice}</div>`
+      ? `<div class="bb-tips">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+           ${r.budgetAdvice}
+         </div>`
       : '';
   
     document.getElementById('bb-results').innerHTML = `
@@ -514,34 +429,38 @@
       ${missingHtml}
       ${partsHtml}
       <div class="bb-total ${over ? 'bb-over' : ''}">
-        <div class="bb-total-label">${over ? '⚠️ Over budget' : '✅ Total Cost'}</div>
+        <div class="bb-total-label">${over ? '⚠️ Over budget' : 'Total Cost'}</div>
         <div class="bb-total-price">${currency} ${Number(r.totalPrice).toLocaleString()}</div>
       </div>
       ${r.budgetRemaining > 0
-        ? `<div style="font-size:12px;color:#2ecc71;text-align:right;margin-top:-8px;margin-bottom:8px;">
+        ? `<div style="font-size:13px;color:#2ecc71;text-align:right;margin-top:-12px;margin-bottom:12px;font-weight:600;">
              Remaining: ${currency} ${Number(r.budgetRemaining).toLocaleString()}
            </div>`
         : ''}
-      <div class="bb-tips">💡 ${r.tips}</div>
+      <div class="bb-tips">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        ${r.tips}
+      </div>
       ${budgetAdviceHtml}
     `;
+
+    document.getElementById('bb-download-btn').style.display = 'flex';
   }
 
   function renderError(msg, limitReached) {
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-error">
-        <div class="bb-ei">${limitReached ? '⏳' : '🤖💤'}</div>
-        <p style="font-weight: 700; color: #fff; margin-bottom: 8px;">
-          ${limitReached ? 'Monthly Limit Reached' : 'Oops!'}
-        </p>
-        <p style="font-size:13px; color:#ccc;">
-          ${msg || "We couldn't generate a recommendation right now."}
-        </p>
-        <p style="font-size:11px;color:#888;margin-top:12px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          ${limitReached ? '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>' : '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>'}
+        </svg>
+        <div class="bb-error-title">${limitReached ? 'Monthly Limit Reached' : 'Oops!'}</div>
+        <div class="bb-error-msg">${msg || "We couldn't generate a recommendation right now."}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:16px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
           Please try again later or contact the store directly.
-        </p>
+        </div>
       </div>
     `;
+    document.getElementById('bb-download-btn').style.display = 'none';
   }
 
   initWidget();

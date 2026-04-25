@@ -28,10 +28,16 @@ app.use('/api', paymentRoute);
 app.use('/api', adminRoute);
 app.use('/api', pluginRoute);
 
-// Serve widget
+// Serve widget script
 app.get('/widget.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.sendFile(path.join(__dirname, 'widget.js'));
+});
+
+// Serve widget styles
+app.get('/widget.css', (req, res) => {
+  res.setHeader('Content-Type', 'text/css');
+  res.sendFile(path.join(__dirname, 'widget.css'));
 });
 
 // Serve WooCommerce plugin zip

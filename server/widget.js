@@ -87,24 +87,17 @@
     const launcher  = document.createElement('button');
     launcher.id     = 'bb-launcher';
     launcher.title  = 'Build your PC';
-    launcher.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    launcher.innerHTML = '⚡';
 
     const panel = document.createElement('div');
     panel.id    = 'bb-panel';
     panel.innerHTML = `
       <div id="bb-header">
-        <div class="bb-title-row">
-          <div class="bb-title-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          </div>
-          <div>
-            <div class="bb-title">${WIDGET_TITLE}</div>
-            <div class="bb-sub">AI PC Build Recommender</div>
-          </div>
+        <div>
+          <div class="bb-title">⚡ ${WIDGET_TITLE}</div>
+          <div class="bb-sub">AI PC Build Recommender</div>
         </div>
-        <button id="bb-close" title="Close">
-          <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
+        <button id="bb-close">✕</button>
       </div>
 
       <div id="bb-progress">
@@ -117,9 +110,7 @@
       <div id="bb-body">
         <!-- S1: Welcome -->
         <div class="bb-screen active" id="bb-s1">
-          <div class="bb-welcome-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-          </div>
+          <div class="bb-welcome-icon">🖥️</div>
           <div class="bb-welcome-title">Build Your Perfect PC</div>
           <div class="bb-welcome-text">${WELCOME_MSG}</div>
           <button class="bb-btn" id="bb-start-btn">${BUTTON_TEXT} →</button>
@@ -127,10 +118,7 @@
 
         <!-- S2: Budget -->
         <div class="bb-screen" id="bb-s2">
-          <button class="bb-back" id="bb-back-s2">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Back
-          </button>
+          <button class="bb-back" id="bb-back-s2">← Back</button>
           <div class="bb-label">What's your budget?</div>
           <div class="bb-budget-row">
             <div class="bb-currency" id="bb-curr-label">${CURRENCY}</div>
@@ -148,10 +136,7 @@
 
         <!-- S3: Purpose -->
         <div class="bb-screen" id="bb-s3">
-          <button class="bb-back" id="bb-back-s3">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Back
-          </button>
+          <button class="bb-back" id="bb-back-s3">← Back</button>
           <div class="bb-label">What will you use it for?</div>
           <div class="bb-chips" id="bb-purposes">
             <div class="bb-chip">🏢 Office Work</div>
@@ -168,10 +153,7 @@
 
         <!-- S4: Extras -->
         <div class="bb-screen" id="bb-s4">
-          <button class="bb-back" id="bb-back-s4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            Back
-          </button>
+          <button class="bb-back" id="bb-back-s4">← Back</button>
           <div class="bb-label">Any extras? (optional)</div>
           <div class="bb-chips" id="bb-extras">
             <div class="bb-chip">🖥️ Monitor</div>
@@ -182,10 +164,7 @@
           </div>
           <div class="bb-label" style="margin-top:4px;">Or type something</div>
           <input class="bb-input" id="bb-extras-text" placeholder="e.g. WiFi card..."/>
-          <button class="bb-btn" id="bb-build-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            Build My PC
-          </button>
+          <button class="bb-btn" id="bb-build-btn">⚡ Build My PC</button>
         </div>
 
         <!-- S5: Loading -->
@@ -204,14 +183,8 @@
         <div class="bb-screen" id="bb-s6">
           <div id="bb-results"></div>
           <div class="bb-actions">
-            <button class="bb-restart" id="bb-restart-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-              Start Over
-            </button>
-            <button class="bb-download" id="bb-download-btn" style="display:none;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              PDF
-            </button>
+            <button class="bb-restart" id="bb-restart-btn">🔄 Start Over</button>
+            <button class="bb-download" id="bb-download-btn" style="display:none;">📄 Download PDF</button>
           </div>
         </div>
 
@@ -352,15 +325,22 @@
            return;
         }
         
-        // Create a printable container dynamically
-        const printContainer = document.createElement('div');
-        printContainer.className = 'bb-pdf-container';
-        printContainer.innerHTML = $('bb-results').innerHTML;
-        
-        // Append temporarily to body so it gets styles, but hide it
-        printContainer.style.position = 'absolute';
-        printContainer.style.left = '-9999px';
-        document.body.appendChild(printContainer);
+        // Use an inline HTML string with styles for html2pdf to ensure it is not blank
+        const resultsHtml = $('bb-results').innerHTML;
+        const pdfContent = document.createElement('div');
+        pdfContent.innerHTML = `
+          <div style="padding: 40px; font-family: 'Montserrat', sans-serif; color: #000; width: 800px; background: #fff;">
+            <style>
+              * { color: #000 !important; }
+              .bb-part { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #f9f9f9; }
+              .bb-total { border: 2px solid #2ecc71; padding: 20px; border-radius: 8px; margin-top: 20px; background: #f0fdf4; }
+              .bb-tips { margin-top: 20px; padding: 15px; border-left: 4px solid #7c6af7; background: #f8f9fa; }
+              .bb-part-cat { font-size: 11px; background: #eee; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
+              .bb-part-top { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; }
+            </style>
+            ${resultsHtml}
+          </div>
+        `;
 
         const opt = {
           margin:       0.5,
@@ -370,9 +350,7 @@
           jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
-        await window.html2pdf().set(opt).from(printContainer).save();
-        
-        document.body.removeChild(printContainer);
+        await window.html2pdf().set(opt).from(pdfContent).save();
 
         btn.innerHTML = '✅ Downloaded';
         setTimeout(() => {
@@ -398,29 +376,26 @@
       const totalPrice = p.totalPrice || (p.price * qty);
       return `
         <div class="bb-part">
+          <div class="bb-part-cat">${p.category}${qty > 1 ? ` <span style="color:#f39c12;">×${qty}</span>` : ''}</div>
           <div class="bb-part-top">
             <div class="bb-part-name">${p.name}</div>
             <div class="bb-part-price">${currency} ${Number(totalPrice).toLocaleString()}</div>
           </div>
-          <div class="bb-part-cat">${p.category}${qty > 1 ? ` <span style="color:#f39c12;">×${qty}</span>` : ''}</div>
-          ${qty > 1 ? `<div style="font-size:11px;color:#64748b;margin-bottom:4px;">${currency} ${Number(p.price).toLocaleString()} × ${qty} units</div>` : ''}
+          ${qty > 1 ? `<div style="font-size:11px;color:#666;margin-bottom:3px;">${currency} ${Number(p.price).toLocaleString()} × ${qty} units</div>` : ''}
           <div class="bb-part-reason">${p.reason}</div>
         </div>
       `;
     }).join('');
   
     const missingHtml = r.missingCategories && r.missingCategories.length
-      ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
-          border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#f59e0b;">
+      ? `<div style="background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.3);
+          border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#f39c12;">
           ⚠️ Not available in this store: ${r.missingCategories.join(', ')}
          </div>`
       : '';
   
     const budgetAdviceHtml = r.budgetAdvice
-      ? `<div class="bb-tips">
-           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-           ${r.budgetAdvice}
-         </div>`
+      ? `<div class="bb-tips">💰 ${r.budgetAdvice}</div>`
       : '';
   
     document.getElementById('bb-results').innerHTML = `
@@ -429,18 +404,15 @@
       ${missingHtml}
       ${partsHtml}
       <div class="bb-total ${over ? 'bb-over' : ''}">
-        <div class="bb-total-label">${over ? '⚠️ Over budget' : 'Total Cost'}</div>
+        <div class="bb-total-label">${over ? '⚠️ Over budget' : '✅ Total Cost'}</div>
         <div class="bb-total-price">${currency} ${Number(r.totalPrice).toLocaleString()}</div>
       </div>
       ${r.budgetRemaining > 0
-        ? `<div style="font-size:13px;color:#2ecc71;text-align:right;margin-top:-12px;margin-bottom:12px;font-weight:600;">
+        ? `<div style="font-size:12px;color:#2ecc71;text-align:right;margin-top:-8px;margin-bottom:8px;">
              Remaining: ${currency} ${Number(r.budgetRemaining).toLocaleString()}
            </div>`
         : ''}
-      <div class="bb-tips">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-        ${r.tips}
-      </div>
+      <div class="bb-tips">💡 ${r.tips}</div>
       ${budgetAdviceHtml}
     `;
 
@@ -450,14 +422,16 @@
   function renderError(msg, limitReached) {
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-error">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          ${limitReached ? '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>' : '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>'}
-        </svg>
-        <div class="bb-error-title">${limitReached ? 'Monthly Limit Reached' : 'Oops!'}</div>
-        <div class="bb-error-msg">${msg || "We couldn't generate a recommendation right now."}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:16px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
+        <div class="bb-ei">${limitReached ? '⏳' : '🤖💤'}</div>
+        <p style="font-weight: 700; color: #fff; margin-bottom: 8px;">
+          ${limitReached ? 'Monthly Limit Reached' : 'Oops!'}
+        </p>
+        <p style="font-size:13px; color:#ccc;">
+          ${msg || "We couldn't generate a recommendation right now."}
+        </p>
+        <p style="font-size:11px;color:#888;margin-top:12px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
           Please try again later or contact the store directly.
-        </div>
+        </p>
       </div>
     `;
     document.getElementById('bb-download-btn').style.display = 'none';

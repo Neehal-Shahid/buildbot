@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BuildBot – AI PC Build Recommender</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -840,11 +841,1329 @@
       cursor: pointer;
       opacity: 0.6;
       font-size: 16px;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, color 0.2s;
+      color: var(--text-secondary);
+      user-select: none;
     }
 
     .pwd-toggle:hover {
       opacity: 1;
+      color: var(--text-primary);
+    }
+    /* ── LANDING REDESIGN OVERRIDES ── */
+    :root {
+      --bg-deep: #0a0b0f;
+      --bg-card: #111218;
+      --bg-elevated: #16181f;
+      --border: #1e2030;
+      --border-light: #252839;
+      --accent: #6c5ce7;
+      --accent-glow: rgba(108, 92, 231, 0.15);
+      --accent-hover: #7d6df0;
+      --gold: #c9a84c;
+      --gold-light: rgba(201, 168, 76, 0.1);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8b8fa8;
+      --text-dim: #4a4d62;
+      --success: #00c48c;
+      --danger: #f05252;
+    }
+
+    body,
+    p,
+    li,
+    label,
+    input,
+    textarea,
+    select,
+    button {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+    }
+
+    #main-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 20px 60px;
+      background: rgba(10, 11, 15, 0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+    }
+
+    #main-nav .nav-logo {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    #main-nav .nav-links {
+      gap: 10px;
+      align-items: center;
+    }
+
+    #main-nav .nav-link {
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      color: var(--text-secondary);
+      background: transparent;
+      border-radius: 100px;
+      padding: 10px 16px;
+      transition: all 0.2s ease;
+    }
+
+    #main-nav .nav-link:hover {
+      color: var(--text-primary);
+      background: transparent;
+    }
+
+    #main-nav .nav-link.btn.btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 100px;
+      padding: 10px 24px !important;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: none;
+      transition: all 0.2s ease;
+    }
+
+    #main-nav .nav-link.btn.btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    #page-landing {
+      background: var(--bg-deep);
+      color: var(--text-primary);
+    }
+
+    body.landing-mode {
+      overflow-y: auto;
+    }
+
+    body.auth-locked {
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #page-signup.active,
+    #page-login.active,
+    #page-forgot.active {
+      height: calc(100vh - 72px);
+      overflow: hidden;
+    }
+
+    #page-signup .auth-wrap,
+    #page-login .auth-wrap,
+    #page-forgot .auth-wrap {
+      min-height: 100%;
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .landing-progress {
+      position: fixed;
+      right: 14px;
+      top: 120px;
+      bottom: 30px;
+      width: 8px;
+      border-radius: 100px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      z-index: 130;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateX(14px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: none;
+    }
+
+    body.landing-mode .landing-progress {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .landing-progress-fill {
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(180deg, var(--gold), var(--accent));
+      border-radius: inherit;
+      box-shadow: 0 0 14px rgba(108, 92, 231, 0.4);
+      transition: height 0.12s linear;
+    }
+
+    #page-landing section,
+    #page-landing footer {
+      padding: 100px 20px;
+    }
+
+    .landing-wrap {
+      overflow: hidden;
+      position: relative;
+    }
+
+    .landing-wrap::before,
+    .landing-wrap::after {
+      content: '';
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+      opacity: 0.35;
+      z-index: 0;
+      animation: orbDrift 14s ease-in-out infinite;
+    }
+
+    .landing-wrap::before {
+      background: rgba(108, 92, 231, 0.22);
+      top: -160px;
+      left: -120px;
+    }
+
+    .landing-wrap::after {
+      background: rgba(201, 168, 76, 0.12);
+      right: -130px;
+      top: 680px;
+      animation-delay: -7s;
+    }
+
+    .landing-wrap section,
+    .landing-wrap footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(28px) scale(0.985);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+      will-change: opacity, transform;
+    }
+
+    [data-reveal].revealed {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .hero-section {
+      text-align: center;
+      padding: 140px 20px 100px !important;
+    }
+
+    .hero-eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border-light);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 12px;
+      margin-bottom: 28px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .hero-h1 {
+      font-size: clamp(40px, 5vw, 68px);
+      line-height: 1.1;
+      max-width: 700px;
+      margin: 0 auto;
+      color: var(--text-primary);
+      animation: fadeUp 0.5s ease 0.1s both;
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      line-height: 1.75;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 28px auto 44px;
+      animation: fadeUp 0.5s ease 0.2s both;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp 0.5s ease 0.3s both;
+    }
+
+    .landing-btn {
+      border-radius: 100px;
+      border: 1px solid var(--border-light);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 15px 36px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .landing-btn.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .landing-btn.primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .landing-btn.secondary:hover {
+      color: var(--text-primary);
+      border-color: var(--border-light);
+    }
+
+    .hero-trust {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .hero-mockup {
+      max-width: 700px;
+      margin: 60px auto 0;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg-card);
+      padding: 24px;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border);
+      animation: fadeUp 0.6s ease 0.4s both;
+      transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+      transform-style: preserve-3d;
+    }
+
+    .hero-mockup:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-light);
+      box-shadow: 0 50px 90px rgba(0, 0, 0, 0.58), 0 0 0 1px var(--border-light);
+    }
+
+    .chat-shell {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #0e1016;
+      overflow: hidden;
+    }
+
+    .chat-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #141722;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .chat-body {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 88%;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .msg.user {
+      margin-left: auto;
+      background: #1f2332;
+      color: var(--text-primary);
+    }
+
+    .msg.ai {
+      background: #151925;
+      color: var(--text-secondary);
+    }
+
+    .mini-build {
+      background: #10131c;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .mini-build h4 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+
+    .mini-build .row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 3px 0;
+    }
+
+    .social-proof {
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 60px !important;
+    }
+
+    .social-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .social-line {
+      height: 1px;
+      background: var(--border);
+      flex: 1;
+    }
+
+    .social-text {
+      white-space: nowrap;
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .section-label {
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-size: 11px;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 38px;
+      color: var(--text-primary);
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .section-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .how-steps {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      position: relative;
+    }
+
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 34px;
+      left: 7%;
+      right: 7%;
+      border-top: 1px solid var(--border-light);
+      z-index: 0;
+    }
+
+    .step {
+      position: relative;
+      z-index: 1;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 14px;
+      background: linear-gradient(var(--bg-deep), var(--bg-deep)) padding-box, linear-gradient(145deg, rgba(108, 92, 231, 0.35), rgba(255, 255, 255, 0.03)) border-box;
+      transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .step:hover {
+      transform: translateY(-4px);
+      background: linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box, linear-gradient(145deg, rgba(108, 92, 231, 0.55), rgba(201, 168, 76, 0.25)) border-box;
+    }
+
+    .step-num {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 72px;
+      font-weight: 900;
+      color: var(--border-light);
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    .step h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+
+    .step p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .features-section {
+      background: var(--bg-elevated);
+    }
+
+    .features-grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 36px 32px;
+      transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      inset: -100% 20% auto;
+      height: 120%;
+      background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.09) 50%, transparent 100%);
+      transform: rotate(8deg);
+      transition: transform 0.6s ease;
+      pointer-events: none;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-light);
+      background: var(--bg-elevated);
+      transform: translateY(-5px);
+    }
+
+    .feature-card:hover::after {
+      transform: translateY(110%) rotate(8deg);
+    }
+
+    .feature-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 16px;
+      color: var(--text-primary);
+    }
+
+    .impact-strip {
+      background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(17, 18, 24, 0.7));
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .impact-grid {
+      max-width: 1020px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .impact-card {
+      border: 1px solid var(--border);
+      background: rgba(17, 18, 24, 0.82);
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .impact-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--border-light);
+    }
+
+    .impact-value {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 34px;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .impact-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-top: 8px;
+    }
+
+    .demo-layout {
+      max-width: 1040px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    .demo-copy h3 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+    }
+
+    .demo-copy p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .check-list {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .check-list li::before {
+      content: '✓';
+      color: var(--success);
+      margin-right: 10px;
+      font-weight: 700;
+    }
+
+    .widget-panel {
+      max-width: 360px;
+      margin-left: auto;
+      background: #1a1d27;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transform-style: preserve-3d;
+    }
+
+    .widget-panel:hover {
+      transform: translateY(-6px) rotate(-0.2deg);
+      box-shadow: 0 50px 95px rgba(0, 0, 0, 0.68);
+    }
+
+    .widget-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .widget-header strong {
+      color: var(--text-primary);
+    }
+
+    .widget-body {
+      padding: 14px;
+    }
+
+    .progress {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .progress span {
+      height: 4px;
+      border-radius: 4px;
+      background: var(--border);
+      display: block;
+    }
+
+    .progress span.active {
+      background: var(--accent);
+    }
+
+    .build-card {
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      background: #11141d;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .build-card h4 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+
+    .build-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .build-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 5px 0;
+    }
+
+    .build-table td:last-child {
+      text-align: right;
+      color: var(--text-primary);
+    }
+
+    .build-total {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .widget-tips {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .powered {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .pricing-section {
+      background: var(--bg-elevated);
+    }
+
+    .pricing-grid {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .price-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 28px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .price-card::before {
+      content: '';
+      position: absolute;
+      inset: -50% auto auto -30%;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(108, 92, 231, 0.16), transparent 70%);
+      pointer-events: none;
+      transform: translateY(-10px);
+    }
+
+    .price-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-light);
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .price-card.featured {
+      border-color: var(--accent);
+    }
+
+    .price-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .price-plan {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+    }
+
+    .price-amount {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 40px;
+      color: var(--text-primary);
+      margin-top: 12px;
+    }
+
+    .price-amount span {
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .price-divider {
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    .price-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px;
+      display: grid;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .price-features li::before {
+      content: '✓';
+      color: var(--success);
+      margin-right: 8px;
+      font-weight: 700;
+    }
+
+    .price-btn {
+      width: 100%;
+      border-radius: 100px;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .price-btn.outline {
+      border: 1px solid var(--border-light);
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    .price-btn.solid {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .price-foot {
+      margin-top: 22px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .faq-list {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+      transition: border-color 0.2s ease;
+    }
+
+    .faq-item:hover {
+      border-color: var(--border-light);
+    }
+
+    .faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .faq-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .faq-item summary::after {
+      content: '+';
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+
+    .faq-item[open] summary::after {
+      content: '-';
+    }
+
+    .faq-item p {
+      padding-top: 12px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .use-cases {
+      background: var(--bg-elevated);
+    }
+
+    .use-cases-grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .use-case-card {
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      border-radius: 14px;
+      padding: 24px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+
+    .use-case-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(108, 92, 231, 0.16), transparent 42%);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+    }
+
+    .use-case-card:hover {
+      border-color: var(--border-light);
+      transform: translateY(-5px);
+    }
+
+    .use-case-card:hover::after {
+      opacity: 1;
+    }
+
+    .use-case-kicker {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .use-case-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .use-case-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .integrations-row {
+      max-width: 980px;
+      margin: 26px auto 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .integration-pill {
+      border: 1px solid var(--border);
+      background: rgba(17, 18, 24, 0.7);
+      border-radius: 100px;
+      text-align: center;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .final-cta {
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .final-cta h2 {
+      font-size: clamp(32px, 4vw, 52px);
+      max-width: 760px;
+      margin: 0 auto;
+      line-height: 1.15;
+      color: var(--text-primary);
+    }
+
+    .final-cta p {
+      max-width: 440px;
+      margin: 18px auto 30px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .final-cta .tiny {
+      margin-top: 14px;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    #page-signup .auth-wrap,
+    #page-login .auth-wrap {
+      background:
+        radial-gradient(circle at 15% 10%, rgba(108, 92, 231, 0.13), transparent 35%),
+        radial-gradient(circle at 85% 85%, rgba(201, 168, 76, 0.08), transparent 30%),
+        var(--bg-deep);
+    }
+
+    #page-signup .auth-box,
+    #page-login .auth-box {
+      position: relative;
+      max-width: 520px;
+      border-radius: 22px;
+      background: linear-gradient(165deg, rgba(22, 24, 31, 0.94), rgba(17, 18, 24, 0.94));
+      border: 1px solid var(--border-light);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      animation: fadeUp 0.45s ease both;
+      overflow: hidden;
+    }
+
+    #page-signup .auth-box::before,
+    #page-login .auth-box::before {
+      content: '';
+      position: absolute;
+      left: -15%;
+      right: -15%;
+      top: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.9), rgba(201, 168, 76, 0.7), transparent);
+      animation: lineSweep 3.8s linear infinite;
+    }
+
+    #page-signup .auth-box h2,
+    #page-login .auth-box h2 {
+      font-size: 30px;
+      margin-bottom: 8px;
+      letter-spacing: -0.2px;
+    }
+
+    #page-signup .auth-box p,
+    #page-login .auth-box p {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 22px;
+    }
+
+    #page-signup .auth-tagline,
+    #page-login .auth-tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: var(--gold-light);
+      border: 1px solid rgba(201, 168, 76, 0.28);
+      border-radius: 100px;
+      padding: 6px 12px;
+      margin-bottom: 14px;
+    }
+
+    #page-signup .auth-benefits,
+    #page-login .auth-benefits {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 0 0 18px;
+      list-style: none;
+      padding: 0;
+    }
+
+    #page-signup .auth-benefits li,
+    #page-login .auth-benefits li {
+      font-size: 11px;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 9px;
+      text-align: center;
+      padding: 7px 8px;
+    }
+
+    #page-signup .divider,
+    #page-login .divider {
+      color: var(--text-dim);
+      letter-spacing: 0.6px;
+    }
+
+    #page-signup .btn.btn-primary.btn-full,
+    #page-login .btn.btn-primary.btn-full {
+      border-radius: 100px;
+      padding: 13px 20px;
+      font-size: 14px;
+      background: linear-gradient(90deg, var(--accent), #7a6df0);
+      box-shadow: 0 12px 30px rgba(108, 92, 231, 0.26);
+      transition: all 0.2s ease;
+    }
+
+    #page-signup .btn.btn-primary.btn-full:hover,
+    #page-login .btn.btn-primary.btn-full:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 34px rgba(108, 92, 231, 0.34);
+    }
+
+    #page-signup input,
+    #page-login input {
+      border-radius: 10px;
+      border-color: var(--border);
+      background: #0e1016;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    #page-signup input:focus,
+    #page-login input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.12);
+    }
+
+    #page-signup .auth-switch,
+    #page-login .auth-switch {
+      margin-top: 16px;
+    }
+
+    @keyframes orbDrift {
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      50% {
+        transform: translate(18px, -18px);
+      }
+    }
+
+    @keyframes lineSweep {
+      0% {
+        transform: translateX(-25%);
+      }
+
+      100% {
+        transform: translateX(25%);
+      }
+    }
+
+    .landing-footer {
+      background: var(--bg-deep);
+      border-top: 1px solid var(--border);
+      padding: 40px 60px !important;
+    }
+
+    .footer-top {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .footer-brand {
+      font-size: 18px;
+      color: var(--accent);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .footer-copy,
+    .footer-made,
+    .footer-right a,
+    .footer-bottom {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .footer-made {
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .footer-right a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s ease;
+      cursor: pointer;
+    }
+
+    .footer-right a:hover {
+      color: var(--text-primary);
+    }
+
+    .footer-bottom {
+      max-width: 1120px;
+      margin: 32px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media(max-width:768px) {
+      #main-nav {
+        padding: 16px 24px;
+      }
+
+      #main-nav .nav-links {
+        gap: 4px;
+      }
+
+      #main-nav .nav-link {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+
+      #main-nav .nav-link:nth-child(2),
+      #main-nav .nav-link:nth-child(3) {
+        display: none;
+      }
+
+      #main-nav .nav-link.btn.btn-primary {
+        padding: 10px 14px !important;
+      }
+
+      .hero-h1 {
+        font-size: 36px;
+      }
+
+      .social-proof,
+      .landing-footer {
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+      }
+
+      .social-line {
+        display: none;
+      }
+
+      .social-text {
+        white-space: normal;
+      }
+
+      .how-steps,
+      .features-grid,
+      .demo-layout,
+      .pricing-grid,
+      .impact-grid,
+      .use-cases-grid,
+      .integrations-row {
+        grid-template-columns: 1fr;
+      }
+
+      .how-steps::before {
+        display: none;
+      }
+
+      .pricing-grid .price-card.featured {
+        order: -1;
+      }
+
+      .widget-panel {
+        margin: 0 auto;
+      }
+
+      .footer-top {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .footer-right {
+        justify-content: center;
+      }
+
+      #page-signup .auth-box,
+      #page-login .auth-box {
+        padding: 30px 22px;
+      }
+
+      #page-signup .auth-benefits,
+      #page-login .auth-benefits {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
   <script src="config.js"></script>
@@ -860,9 +2179,12 @@
     <div class="nav-logo" onclick="showPage('landing')">⚡ BuildBot</div>
     <div class="nav-links" id="nav-links">
       <div class="nav-link" onclick="showPage('landing')">Home</div>
-      <div class="nav-link" onclick="showPage('login')">Login</div>
-      <div class="nav-link btn-primary btn" onclick="showPage('signup')" style="padding:8px 16px;">Start Free Trial
+      <div class="nav-link" onclick="scrollToLandingSection('how-it-works');">Features
       </div>
+      <div class="nav-link" onclick="scrollToLandingSection('pricing');">Pricing
+      </div>
+      <div class="nav-link" onclick="showPage('login')">Login</div>
+      <div class="nav-link btn-primary btn" onclick="showPage('signup')">Start Free Trial</div>
     </div>
     <div class="nav-user" id="nav-user" style="display:none"></div>
   </nav>
@@ -871,92 +2193,337 @@
      LANDING PAGE
 ═══════════════════════════════════════════════ -->
   <div class="page active" id="page-landing">
-    <div class="hero">
-      <h1>Turn Visitors Into<br /><span>PC Buyers</span></h1>
-      <p>Add an AI-powered PC build recommender to your store in 60 seconds. Customers enter their budget — your store's
-        products get recommended.</p>
-      <div class="hero-btns">
-        <button class="btn btn-primary" style="padding:14px 32px;font-size:15px;" onclick="showPage('signup')">Start
-          14-Day Free Trial</button>
-        <button class="btn btn-outline" style="padding:14px 32px;font-size:15px;"
-          onclick="showPage('login')">Login</button>
-      </div>
-      <p style="margin-top:16px;font-size:12px;color:var(--muted);">No credit card required • 14 days free • Cancel
-        anytime</p>
+    <div class="landing-progress" aria-hidden="true">
+      <div class="landing-progress-fill" id="landing-progress-fill"></div>
     </div>
+    <div class="landing-wrap">
+      <section class="hero-section" data-reveal>
+        <div class="hero-eyebrow">⚡ Now with WooCommerce Auto-Sync</div>
+        <h1 class="hero-h1">Your PC Store. Open 24/7.<br />AI That Sells While You Sleep.</h1>
+        <p class="hero-sub">BuildBot reads your product catalog and recommends complete, compatible
+          PC builds to your customers — instantly, for any budget, in PKR.
+          One line of code. No developer needed.</p>
+        <div class="hero-ctas">
+          <button class="landing-btn primary" onclick="showPage('signup')">Start Free Trial — 14 Days Free</button>
+          <button class="landing-btn secondary" onclick="scrollToLandingSection('how-it-works');">See How It Works
+            →</button>
+        </div>
+        <div class="hero-trust">No credit card required  ·  14 days free  ·  Cancel anytime</div>
+        <div class="hero-mockup">
+          <div class="chat-shell">
+            <div class="chat-head"><span>⚡ BuildBot</span><span>X</span></div>
+            <div class="chat-body">
+              <div class="msg user">Gaming build, budget Rs 80,000</div>
+              <div class="msg ai">Got it. Here is a compatible build from your catalog.
+                <div class="mini-build">
+                  <h4>Balanced 1080p Gaming</h4>
+                  <div class="row"><span>CPU</span><span>Ryzen 5 7600</span></div>
+                  <div class="row"><span>GPU</span><span>Radeon RX 7600</span></div>
+                  <div class="row"><span>RAM</span><span>16GB DDR5</span></div>
+                  <div class="row"><span>Storage</span><span>1TB NVMe SSD</span></div>
+                  <div class="row"><span>Motherboard</span><span>B650M</span></div>
+                  <div class="row"><span>Total</span><span>Rs 79,800</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    <div class="features">
-      <div class="feature">
-        <div class="fi">🤖</div>
-        <h3>AI-Powered Recommendations</h3>
-        <p>Claude AI reads your product catalog and suggests the perfect build based on budget and purpose.</p>
-      </div>
-      <div class="feature">
-        <div class="fi">⚡</div>
-        <h3>One Line Install</h3>
-        <p>Paste one script tag on your website. The widget appears instantly — no developer needed.</p>
-      </div>
-      <div class="feature">
-        <div class="fi">📊</div>
-        <h3>Built-In Analytics</h3>
-        <p>See how many builds were suggested, what budgets customers have, and what they need most.</p>
-      </div>
-      <div class="feature">
-        <div class="fi">🎨</div>
-        <h3>Your Brand Colors</h3>
-        <p>Customize the widget color to match your store. Looks native, not like a third-party tool.</p>
-      </div>
-      <div class="feature">
-        <div class="fi">📦</div>
-        <h3>Your Products Only</h3>
-        <p>Upload your catalog via CSV. The AI only recommends parts you actually sell.</p>
-      </div>
-      <div class="feature">
-        <div class="fi">🇵🇰</div>
-        <h3>Made for Pakistan</h3>
-        <p>PKR currency, local payment methods (JazzCash & EasyPaisa), built for local PC stores.</p>
-      </div>
-    </div>
+      <section class="social-proof" data-reveal>
+        <div class="social-inner">
+          <span class="social-line"></span>
+          <p class="social-text">Trusted by PC stores in Lahore · Karachi · Islamabad · Rawalpindi</p>
+          <span class="social-line"></span>
+        </div>
+      </section>
 
-    <div class="pricing">
-      <h2>Simple Pricing</h2>
-      <p class="sub">Start free for 14 days. No card needed.</p>
-      <div class="plans-grid">
-        <div class="plan-card">
-          <div class="plan-name">Starter</div>
-          <div class="plan-price">Rs 2,999 <span>/mo</span></div>
-          <ul class="plan-features">
-            <li>500 recommendations/month</li>
-            <li>CSV product upload</li>
-            <li>Basic analytics</li>
-            <li>Email support</li>
-          </ul>
-          <button class="btn btn-outline btn-full" onclick="showPage('signup')">Get Started</button>
+      <section id="how-it-works" data-reveal>
+        <div class="section-label">HOW IT WORKS</div>
+        <h2 class="section-title">From Setup to Sales in 60 Seconds</h2>
+        <p class="section-subtitle">Three steps. No developer. No complexity.</p>
+        <div class="how-steps">
+          <article class="step">
+            <div class="step-num">01</div>
+            <h3>Upload Your Catalog</h3>
+            <p>Export your products as a CSV, or connect your WooCommerce store. BuildBot learns exactly what you sell
+              and at what price.</p>
+          </article>
+          <article class="step">
+            <div class="step-num">02</div>
+            <h3>Paste One Line of Code</h3>
+            <p>Copy your unique embed snippet and paste it before &lt;/body&gt; on your website. The AI widget appears
+              instantly.</p>
+          </article>
+          <article class="step">
+            <div class="step-num">03</div>
+            <h3>Watch Builds Get Recommended</h3>
+            <p>Customers enter their budget and purpose. BuildBot recommends compatible builds using only your products,
+              in PKR, 24/7.</p>
+          </article>
         </div>
-        <div class="plan-card featured">
-          <div class="plan-badge">MOST POPULAR</div>
-          <div class="plan-name">Growth</div>
-          <div class="plan-price">Rs 6,999 <span>/mo</span></div>
-          <ul class="plan-features">
-            <li>2,000 recommendations/month</li>
-            <li>Custom brand color</li>
-            <li>Full analytics</li>
-            <li>Priority support</li>
-          </ul>
-          <button class="btn btn-primary btn-full" onclick="showPage('signup')">Get Started</button>
+      </section>
+
+      <section class="features-section" data-reveal>
+        <div class="section-label">WHAT YOU GET</div>
+        <h2 class="section-title">Everything a PC Store Needs. Nothing It Doesn't.</h2>
+        <div class="features-grid">
+          <article class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>AI That Knows Your Inventory</h3>
+            <p>Builds are generated using only products you actually stock. No hallucinated parts, no out-of-stock
+              items.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>One-Line Installation</h3>
+            <p>Paste a single script tag and you're live. No developer, no plugin conflicts, no configuration.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Real-Time Analytics</h3>
+            <p>See how many builds were suggested, what budgets your customers have, what they actually want to build.
+            </p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">🎨</div>
+            <h3>Matches Your Brand</h3>
+            <p>Set your store's color. The widget looks native — not like a third-party tool bolted on.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">🔌</div>
+            <h3>WooCommerce Auto-Sync</h3>
+            <p>Connect once. Your products sync automatically, every 6 hours. Stock changes update in real-time.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">🇵🇰</div>
+            <h3>Built for Pakistan</h3>
+            <p>PKR pricing, JazzCash & EasyPaisa payments, built by someone who understands the local market.</p>
+          </article>
         </div>
-        <div class="plan-card">
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">Rs 14,999 <span>/mo</span></div>
-          <ul class="plan-features">
-            <li>Unlimited recommendations</li>
-            <li>White-label widget</li>
-            <li>Advanced analytics</li>
-            <li>WhatsApp support</li>
-          </ul>
-          <button class="btn btn-outline btn-full" onclick="showPage('signup')">Get Started</button>
+      </section>
+
+      <section class="impact-strip" data-reveal>
+        <div class="section-label">STORE IMPACT</div>
+        <h2 class="section-title">Results That Feel Like Extra Staff</h2>
+        <p class="section-subtitle">BuildBot handles repetitive pre-sales queries so your team can close serious buyers faster.</p>
+        <div class="impact-grid">
+          <article class="impact-card">
+            <div class="impact-value">24/7</div>
+            <div class="impact-label">Always-on recommendations, even outside business hours.</div>
+          </article>
+          <article class="impact-card">
+            <div class="impact-value">&lt;3s</div>
+            <div class="impact-label">Average response time from budget input to full build suggestion.</div>
+          </article>
+          <article class="impact-card">
+            <div class="impact-value">100%</div>
+            <div class="impact-label">Inventory-aware outputs so customers only see parts you actually sell.</div>
+          </article>
+          <article class="impact-card">
+            <div class="impact-value">PKR</div>
+            <div class="impact-label">Native local pricing language customers trust instantly.</div>
+          </article>
         </div>
-      </div>
+      </section>
+
+      <section data-reveal>
+        <div class="section-label">SEE IT IN ACTION</div>
+        <h2 class="section-title">What Your Customers See</h2>
+        <div class="demo-layout">
+          <div class="demo-copy">
+            <h3>An AI sales assistant that works without you.</h3>
+            <p>A floating chat bubble sits on your website. When a customer clicks it, they tell BuildBot their budget
+              and what they want to build. In seconds, they get a complete, compatible build recommendation using only
+              what you sell — with prices in PKR.</p>
+            <ul class="check-list">
+              <li>Works on any website or WooCommerce store</li>
+              <li>Responds in under 3 seconds</li>
+              <li>Available 24/7, even when you're closed</li>
+              <li>Recommends compatible parts only</li>
+            </ul>
+          </div>
+          <div class="widget-panel">
+            <div class="widget-header"><span><strong>⚡ BuildBot</strong> · TechZone Lahore</span><span>X</span></div>
+            <div class="widget-body">
+              <div class="progress"><span></span><span></span><span class="active"></span></div>
+              <div class="build-card">
+                <h4>Performance Gaming Build</h4>
+                <table class="build-table">
+                  <tr>
+                    <td>CPU</td>
+                    <td>Ryzen 5 7600</td>
+                  </tr>
+                  <tr>
+                    <td>GPU</td>
+                    <td>RX 7600 8GB</td>
+                  </tr>
+                  <tr>
+                    <td>RAM</td>
+                    <td>16GB DDR5</td>
+                  </tr>
+                  <tr>
+                    <td>Storage</td>
+                    <td>1TB NVMe SSD</td>
+                  </tr>
+                  <tr>
+                    <td>PSU</td>
+                    <td>650W 80+ Bronze</td>
+                  </tr>
+                  <tr>
+                    <td>Case</td>
+                    <td>Mid Tower Airflow</td>
+                  </tr>
+                </table>
+                <div class="build-total"><span>Total</span><span>Rs 124,900</span></div>
+              </div>
+              <p class="widget-tips">Tip: Upgrade to 32GB RAM later for video editing. Current build is perfect for
+                1080p high settings gaming.</p>
+              <div class="powered">Powered by BuildBot</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="use-cases" data-reveal>
+        <div class="section-label">WHERE IT WINS</div>
+        <h2 class="section-title">Built for Real Store Workflows</h2>
+        <p class="section-subtitle">From first click to purchase confidence, BuildBot removes buying friction at every stage.</p>
+        <div class="use-cases-grid">
+          <article class="use-case-card">
+            <div class="use-case-kicker">For new buyers</div>
+            <h3>Budget to Build, Instantly</h3>
+            <p>First-time customers stop guessing. They get a compatible build recommendation in seconds without waiting for WhatsApp replies.</p>
+          </article>
+          <article class="use-case-card">
+            <div class="use-case-kicker">For busy teams</div>
+            <h3>Less Repetition, Better Closings</h3>
+            <p>Your staff spends less time answering the same budget questions and more time handling high-intent buyers ready to checkout.</p>
+          </article>
+          <article class="use-case-card">
+            <div class="use-case-kicker">For growth stores</div>
+            <h3>Scales Without Hiring Pressure</h3>
+            <p>As traffic grows, BuildBot keeps responses consistent and fast so your conversion quality does not drop during peak demand.</p>
+          </article>
+        </div>
+        <div class="integrations-row">
+          <div class="integration-pill">WooCommerce Sync</div>
+          <div class="integration-pill">CSV Catalog Import</div>
+          <div class="integration-pill">Brand Color Matching</div>
+          <div class="integration-pill">Live Recommendation Analytics</div>
+        </div>
+      </section>
+
+      <section class="pricing-section" id="pricing" data-reveal>
+        <div class="section-label">PRICING</div>
+        <h2 class="section-title">Start Free. Scale When You're Ready.</h2>
+        <p class="section-subtitle">14-day free trial on all plans. Pay via JazzCash or EasyPaisa. No card needed.</p>
+        <div class="pricing-grid">
+          <article class="price-card">
+            <div class="price-plan">Starter</div>
+            <div class="price-amount">Rs 2,999 <span>/mo</span></div>
+            <div class="price-divider"></div>
+            <ul class="price-features">
+              <li>500 recommendations/month</li>
+              <li>CSV product upload</li>
+              <li>Basic analytics</li>
+              <li>Brand color customization</li>
+              <li>Email support</li>
+            </ul>
+            <button class="price-btn outline" onclick="showPage('signup')">Start Free Trial</button>
+          </article>
+          <article class="price-card featured">
+            <div class="price-badge">MOST POPULAR</div>
+            <div class="price-plan">Growth</div>
+            <div class="price-amount">Rs 6,999 <span>/mo</span></div>
+            <div class="price-divider"></div>
+            <ul class="price-features">
+              <li>2,000 recommendations/month</li>
+              <li>WooCommerce auto-sync</li>
+              <li>Full analytics dashboard</li>
+              <li>Custom widget text & branding</li>
+              <li>Priority support</li>
+            </ul>
+            <button class="price-btn solid" onclick="showPage('signup')">Start Free Trial</button>
+          </article>
+          <article class="price-card">
+            <div class="price-plan">Pro</div>
+            <div class="price-amount">Rs 14,999 <span>/mo</span></div>
+            <div class="price-divider"></div>
+            <ul class="price-features">
+              <li>Unlimited recommendations</li>
+              <li>White-label (no BuildBot branding)</li>
+              <li>Advanced analytics</li>
+              <li>Dedicated WhatsApp support</li>
+              <li>Early access to new features</li>
+            </ul>
+            <button class="price-btn outline" onclick="showPage('signup')">Start Free Trial</button>
+          </article>
+        </div>
+        <div class="price-foot">All plans include a 14-day free trial · Pay via JazzCash (0300-XXXXXXX) or EasyPaisa
+          (0333-XXXXXXX) · Activated within 24 hours</div>
+      </section>
+
+      <section data-reveal>
+        <div class="section-label">FAQ</div>
+        <h2 class="section-title">Questions Answered</h2>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Do I need a developer to install BuildBot?</summary>
+            <p>No. You get a single line of code to paste on your website. If you can add a Facebook Pixel or Google
+              Analytics, you can add BuildBot.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What if I don't have a website — only a WooCommerce store?</summary>
+            <p>BuildBot has a WordPress plugin that connects directly to WooCommerce. Your products sync automatically,
+              and the widget appears on your store with one click.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Does the AI recommend products from other stores?</summary>
+            <p>Never. BuildBot only recommends products from your catalog that are marked in-stock. Your customers stay
+              on your store.</p>
+          </details>
+          <details class="faq-item">
+            <summary>How do I pay?</summary>
+            <p>We accept JazzCash and EasyPaisa. After sending payment, you submit your transaction ID in the dashboard.
+              We manually verify and activate your plan within 24 hours.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What happens after my 14-day trial?</summary>
+            <p>Your widget will stop generating recommendations until you subscribe to a paid plan. All your settings,
+              products, and data are saved. You pick up exactly where you left off.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta" data-reveal>
+        <h2>Your Competitors' Customers<br />Are Already Asking BuildBot.</h2>
+        <p>Start your 14-day free trial today. No credit card. No commitment.
+          Just a smarter PC store.</p>
+        <button class="landing-btn primary" style="padding:16px 44px;font-size:16px;" onclick="showPage('signup')">Start
+          My Free Trial →</button>
+        <div class="tiny">Takes less than 2 minutes to set up.</div>
+      </section>
+
+      <footer class="landing-footer" data-reveal>
+        <div class="footer-top">
+          <div>
+            <div class="footer-brand">⚡ BuildBot</div>
+            <div class="footer-copy">AI-powered PC build recommendations for Pakistani stores.</div>
+            <div class="footer-made">Made in Pakistan 🇵🇰</div>
+          </div>
+          <div class="footer-right">
+            <a onclick="scrollToLandingSection('how-it-works');">Features</a>
+            <span style="color: var(--text-dim);">·</span>
+            <a onclick="scrollToLandingSection('pricing');">Pricing</a>
+            <span style="color: var(--text-dim);">·</span>
+            <a onclick="showPage('login')">Login</a>
+            <span style="color: var(--text-dim);">·</span>
+            <a onclick="showPage('signup')">Start Free Trial</a>
+          </div>
+        </div>
+        <div class="footer-bottom">© 2025 BuildBot · All rights reserved</div>
+      </footer>
     </div>
   </div>
 
@@ -966,8 +2533,14 @@
   <div class="page" id="page-signup">
     <div class="auth-wrap">
       <div class="auth-box">
+        <div class="auth-tagline">Premium Onboarding</div>
         <h2>Create Your Account</h2>
         <p>Start your 14-day free trial. No credit card needed.</p>
+        <ul class="auth-benefits">
+          <li>14-day free trial</li>
+          <li>1-minute setup</li>
+          <li>Cancel anytime</li>
+        </ul>
 
         <div id="g_id_onload" data-client_id="343388814382-ksp0ou4kgv5kalo75vo467f9dhpbef1t.apps.googleusercontent.com"
           data-context="signup" data-ux_mode="popup" data-callback="handleGoogleCredentialResponse"
@@ -1014,8 +2587,14 @@
   <div class="page" id="page-login">
     <div class="auth-wrap">
       <div class="auth-box">
+        <div class="auth-tagline">Welcome Back</div>
         <h2>Welcome Back</h2>
         <p>Login to your BuildBot dashboard.</p>
+        <ul class="auth-benefits">
+          <li>Live analytics</li>
+          <li>Catalog sync</li>
+          <li>24/7 AI sales</li>
+        </ul>
 
         <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_black"
           data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
@@ -1901,33 +3480,62 @@
 
 
       // Color picker sync
-      document.getElementById('brand-color').addEventListener('input', (e) => {
-        document.getElementById('brand-color-hex').value = e.target.value;
-        document.getElementById('widget-preview-btn').style.background = e.target.value;
+      document.getElementById('brand-color')?.addEventListener('input', (e) => {
+        const hex = document.getElementById('brand-color-hex');
+        const previewBtn = document.getElementById('widget-preview-btn');
+        if (hex) hex.value = e.target.value;
+        if (previewBtn) previewBtn.style.background = e.target.value;
       });
-      document.getElementById('brand-color-hex').addEventListener('input', (e) => {
-        document.getElementById('brand-color').value = e.target.value;
-        document.getElementById('widget-preview-btn').style.background = e.target.value;
+      document.getElementById('brand-color-hex')?.addEventListener('input', (e) => {
+        const picker = document.getElementById('brand-color');
+        const previewBtn = document.getElementById('widget-preview-btn');
+        if (picker) picker.value = e.target.value;
+        if (previewBtn) previewBtn.style.background = e.target.value;
       });
 
-      document.getElementById('widget-bg-color').addEventListener('input', (e) => {
-        document.getElementById('widget-bg-hex').value = e.target.value;
+      document.getElementById('widget-bg-color')?.addEventListener('input', (e) => {
+        const widgetHex = document.getElementById('widget-bg-hex');
+        if (widgetHex) widgetHex.value = e.target.value;
         updateWidgetPreview();
       });
-      document.getElementById('widget-bg-hex').addEventListener('input', (e) => {
-        document.getElementById('widget-bg-color').value = e.target.value;
+      document.getElementById('widget-bg-hex')?.addEventListener('input', (e) => {
+        const widgetColor = document.getElementById('widget-bg-color');
+        if (widgetColor) widgetColor.value = e.target.value;
         updateWidgetPreview();
       });
       // Live widget text preview
       document.getElementById('widget-title-input')?.addEventListener('input', updateWidgetPreview);
       document.getElementById('welcome-msg-input')?.addEventListener('input', updateWidgetPreview);
       document.getElementById('button-text-input')?.addEventListener('input', updateWidgetPreview);
+
+      document.addEventListener('scroll', updateLandingProgress, { passive: true });
+      window.addEventListener('resize', updateLandingProgress, { passive: true });
+      initInteractiveEffects();
+      updateLandingProgress();
     };
 
     // ─── PAGE ROUTING ─────────────────────────────────────────
     function showPage(name) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
+      document.body.classList.toggle('landing-mode', name === 'landing');
+      document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot');
+      if (name === 'landing') {
+        initScrollAnimations();
+        initInteractiveEffects();
+      }
+      updateLandingProgress();
+    }
+
+    function scrollToLandingSection(sectionId) {
+      if (!sectionId) return;
+      if (!document.getElementById('page-landing')?.classList.contains('active')) {
+        showPage('landing');
+      }
+      requestAnimationFrame(() => {
+        const section = document.getElementById(sectionId);
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
 
     // ─── AUTH ─────────────────────────────────────────────────
@@ -1968,13 +3576,76 @@
     // ─── TOGGLE PASSWORD ────────────────────────────────────────
     function togglePassword(inputId, icon) {
       const input = document.getElementById(inputId);
+      if (!input || !icon) return;
       if (input.type === 'password') {
         input.type = 'text';
         icon.textContent = '🙈';
+        icon.setAttribute('aria-label', 'Hide password');
+        icon.setAttribute('title', 'Hide password');
       } else {
         input.type = 'password';
         icon.textContent = '👁️';
+        icon.setAttribute('aria-label', 'Show password');
+        icon.setAttribute('title', 'Show password');
       }
+    }
+
+    function initScrollAnimations() {
+      const items = document.querySelectorAll('#page-landing [data-reveal]');
+      if (!items.length) return;
+      if (!('IntersectionObserver' in window)) {
+        items.forEach((el) => el.classList.add('revealed'));
+        return;
+      }
+      if (window._bbLandingObserver) {
+        items.forEach((el) => window._bbLandingObserver.observe(el));
+        return;
+      }
+      window._bbLandingObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.14, rootMargin: '0px 0px -40px 0px' });
+      items.forEach((el) => window._bbLandingObserver.observe(el));
+    }
+
+    function updateLandingProgress() {
+      const fill = document.getElementById('landing-progress-fill');
+      const isLanding = document.getElementById('page-landing')?.classList.contains('active');
+      if (!fill || !isLanding) {
+        if (fill) fill.style.height = '0%';
+        return;
+      }
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+      const viewport = window.innerHeight;
+      const total = document.documentElement.scrollHeight - viewport;
+      const progress = total > 0 ? Math.min(100, Math.max(0, (scrollTop / total) * 100)) : 0;
+      fill.style.height = `${progress}%`;
+    }
+
+    function initInteractiveEffects() {
+      const targets = document.querySelectorAll('#page-landing .hero-mockup, #page-landing .widget-panel');
+      targets.forEach((target) => {
+        if (target.dataset.tiltBound === '1') return;
+        target.dataset.tiltBound = '1';
+
+        target.addEventListener('mousemove', (event) => {
+          if (!document.getElementById('page-landing')?.classList.contains('active')) return;
+          const rect = target.getBoundingClientRect();
+          const px = (event.clientX - rect.left) / rect.width;
+          const py = (event.clientY - rect.top) / rect.height;
+          const rotateY = (px - 0.5) * 8;
+          const rotateX = (0.5 - py) * 8;
+          target.style.transform = `translateY(-4px) perspective(950px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+        });
+
+        target.addEventListener('mouseleave', () => {
+          target.style.transform = '';
+        });
+      });
     }
 
     // ─── CHANGE PASSWORD ────────────────────────────────────────
@@ -2182,7 +3853,6 @@
       if (name === 'analytics') loadAnalytics();
       if (name === 'products') loadProducts();
       if (name === 'billing') loadPaymentHistory();
-      if (name === 'settings') loadWidgetSettings();
       if (name === 'settings') {
         loadWidgetSettings();
         loadWooStatus();

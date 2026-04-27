@@ -19,6 +19,7 @@
     .success{color:#2ecc71;}
     .error{color:#e74c3c;}
   </style>
+  <script src="config.js"></script>
 </head>
 <body>
 <div class="box" id="box">
@@ -27,7 +28,7 @@
   <p>Please wait a moment.</p>
 </div>
 <script>
-const API = 'https://buildbot-production.up.railway.app/api';
+const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
 
 async function verify() {
   const token = new URLSearchParams(window.location.search).get('token');

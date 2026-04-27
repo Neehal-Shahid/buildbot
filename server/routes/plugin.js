@@ -1,8 +1,10 @@
 const express = require('express');
 const crypto  = require('crypto');
 const { storeDB, productDB, client } = require('../database');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'buildbot-secret';
 
 // ─── AUTHENTICATE PLUGIN REQUEST ──────────────────────────
 async function authenticatePlugin(req, res) {
@@ -140,7 +142,7 @@ router.post('/plugin/generate-key', async (req, res) => {
 
   try {
     const jwt     = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const secret  = 'bb_live_' + crypto.randomBytes(16).toString('hex');
     await storeDB.updatePluginKey(decoded.storeId, secret);
     res.json({ success: true, secret });
@@ -156,7 +158,7 @@ router.get('/plugin/status', async (req, res) => {
 
   try {
     const jwt     = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const info    = await storeDB.getPluginKey(decoded.storeId);
 
     if (!info) return res.status(404).json({ error: 'Store not found' });
@@ -172,6 +174,25 @@ router.get('/plugin/status', async (req, res) => {
       widgetEnabled: info.widget_enabled  !== 0
     });
   } catch(err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// ─── DISCONNECT WOOCOMMERCE (dashboard-authenticated) ─────
+router.post('/plugin/disconnect', async (req, res) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    await client.execute({
+      sql: `UPDATE stores
+            SET woo_connected = 0, woo_url = '', woo_last_sync = '', woo_product_count = 0
+            WHERE store_id = ?`,
+      args: [decoded.storeId]
+    });
+    res.json({ success: true, message: 'WooCommerce disconnected.' });
+  } catch (err) {
     res.status(401).json({ error: 'Invalid token' });
   }
 });

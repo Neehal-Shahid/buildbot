@@ -562,6 +562,16 @@ function adminLogout() {
   document.getElementById('admin-login').style.display = 'block';
 }
 
+function handleAdminAuthError(data) {
+  const msg = (data && (data.error || data.message) || '').toLowerCase();
+  if (msg.includes('token') || msg.includes('unauthorized') || msg.includes('invalid')) {
+    showAlert('adm-login-alert', 'Session expired. Please login again.', 'error');
+    adminLogout();
+    return true;
+  }
+  return false;
+}
+
 function enterAdmin() {
   document.getElementById('admin-login').style.display = 'none';
   document.getElementById('admin-app').style.display   = 'block';
@@ -590,6 +600,7 @@ async function loadAdminSettings() {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
     if (data.success && data.admin) {
       document.getElementById('prof-name').value = data.admin.name || '';
       document.getElementById('prof-email').value = data.admin.email || '';
@@ -649,6 +660,7 @@ async function loadOverview() {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
     if (!data.success) return;
 
     const { stores, totalRecs, revenue, pending } = data;
@@ -668,31 +680,35 @@ async function loadOverview() {
       document.getElementById('ov-pending-table').innerHTML =
         pending.map(p => `
           <tr>
-            <td>${p.name}</td>
+            <td>${safeText(p.name)}</td>
             <td><span class="badge badge-primary">${p.plan}</span></td>
             <td>Rs ${Number(p.amount).toLocaleString()}</td>
-            <td>${p.method}</td>
-            <td style="font-family:monospace;">${p.transaction_ref}</td>
+            <td>${safeText(p.method)}</td>
+            <td style="font-family:monospace;">${safeText(p.transaction_ref)}</td>
             <td>
               <button class="btn btn-success btn-sm"
-                onclick="openApprove(${p.id},'${p.store_id}','${p.plan}','${p.name}',${p.amount})">
+                onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
                 ✅ Approve
               </button>
             </td>
           </tr>`).join('');
+    } else {
+      document.getElementById('pending-badge').style.display = 'none';
+      document.getElementById('pending-alert-card').style.display = 'none';
+      document.getElementById('ov-pending-table').innerHTML = '';
     }
 
     // Recent stores
     document.getElementById('ov-stores-table').innerHTML =
       stores.slice(0, 8).map(s => `
         <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${s.email}</td>
+          <td><strong>${safeText(s.name)}</strong></td>
+          <td>${safeText(s.email)}</td>
           <td>${planBadge(s.plan)}</td>
           <td>${new Date(s.created_at).toLocaleDateString()}</td>
           <td>
             <button class="btn btn-sm" style="background:#2a2d3e;color:#fff;"
-              onclick="openDisable('${s.store_id}','${s.name}')">
+              onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
               ⛔ Disable
             </button>
           </td>
@@ -708,6 +724,7 @@ async function loadStores() {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
     if (!data.success) return;
     allStoresData = data.stores;
     renderStores(allStoresData);
@@ -718,9 +735,9 @@ function renderStores(stores) {
   document.getElementById('stores-table').innerHTML =
     stores.map(s => `
       <tr>
-        <td><strong>${s.name}</strong></td>
-        <td style="font-family:monospace;font-size:11px;color:var(--muted);">${s.store_id}</td>
-        <td>${s.email}</td>
+        <td><strong>${safeText(s.name)}</strong></td>
+        <td style="font-family:monospace;font-size:11px;color:var(--muted);">${safeText(s.store_id)}</td>
+        <td>${safeText(s.email)}</td>
         <td>${planBadge(s.plan)}</td>
         <td><span class="badge ${s.plan_status==='active'?'badge-success':'badge-danger'}">
           ${s.plan_status}</span></td>
@@ -729,18 +746,19 @@ function renderStores(stores) {
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
         <td style="display:flex;gap:6px;">
           <button class="btn btn-success btn-sm"
-            onclick="activateStore('${s.store_id}','${s.plan}')">✅ Activate</button>
+            onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')">✅ Activate</button>
           <button class="btn btn-danger btn-sm"
-            onclick="openDisable('${s.store_id}','${s.name}')">⛔ Disable</button>
+            onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">⛔ Disable</button>
             <button class="btn btn-danger btn-sm" style="background:#5a1a1a;"
-  onclick="openDelete('${s.store_id}','${s.name}')">🗑️ Delete</button>
+  onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">🗑️ Delete</button>
         </td>
       </tr>`).join('');
 }
 function openDelete(storeId, name) {
   pendingAction = { storeId };
+  const decodedName = decodeURIComponent(name || '');
   document.getElementById('delete-details').innerHTML =
-    `🏪 Store: <strong>${name}</strong> (${storeId})`;
+    `🏪 Store: <strong>${safeText(decodedName)}</strong> (${safeText(storeId)})`;
   document.getElementById('delete-modal').classList.add('open');
 }
 
@@ -777,6 +795,7 @@ async function loadPayments() {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
     if (!data.success) return;
 
     const pending = data.payments.filter(p => p.status === 'pending');
@@ -786,16 +805,16 @@ async function loadPayments() {
       pending.length
         ? pending.map(p => `
             <tr>
-              <td><strong>${p.name}</strong></td>
-              <td>${p.email}</td>
+              <td><strong>${safeText(p.name)}</strong></td>
+              <td>${safeText(p.email)}</td>
               <td>${planBadge(p.plan)}</td>
               <td>Rs ${Number(p.amount).toLocaleString()}</td>
-              <td>${p.method}</td>
-              <td style="font-family:monospace;font-size:11px;">${p.transaction_ref}</td>
+              <td>${safeText(p.method)}</td>
+              <td style="font-family:monospace;font-size:11px;">${safeText(p.transaction_ref)}</td>
               <td>${new Date(p.created_at).toLocaleDateString()}</td>
               <td style="display:flex;gap:6px;">
                 <button class="btn btn-success btn-sm"
-                  onclick="openApprove(${p.id},'${p.store_id}','${p.plan}','${p.name}',${p.amount})">
+                  onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
                   ✅ Approve
                 </button>
                 <button class="btn btn-danger btn-sm"
@@ -810,11 +829,11 @@ async function loadPayments() {
     document.getElementById('all-payments-table').innerHTML =
       all.map(p => `
         <tr>
-          <td>${p.name}</td>
+          <td>${safeText(p.name)}</td>
           <td>${planBadge(p.plan)}</td>
           <td>Rs ${Number(p.amount).toLocaleString()}</td>
-          <td>${p.method}</td>
-          <td style="font-family:monospace;font-size:11px;">${p.transaction_ref}</td>
+          <td>${safeText(p.method)}</td>
+          <td style="font-family:monospace;font-size:11px;">${safeText(p.transaction_ref)}</td>
           <td><span class="badge ${
             p.status==='approved'?'badge-success':
             p.status==='pending'?'badge-warning':'badge-danger'}">
@@ -832,6 +851,7 @@ async function loadPlatformAnalytics() {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
     if (!data.success) return;
 
     const { stores, totalRecs, revenue } = data;
@@ -849,7 +869,7 @@ async function loadPlatformAnalytics() {
     document.getElementById('top-stores-table').innerHTML =
       sorted.slice(0, 8).map(s => `
         <tr>
-          <td><strong>${s.name}</strong></td>
+          <td><strong>${safeText(s.name)}</strong></td>
           <td>${s.rec_count || 0}</td>
           <td>${planBadge(s.plan)}</td>
         </tr>`).join('');
@@ -876,9 +896,10 @@ async function loadPlatformAnalytics() {
 // ─── APPROVE MODAL ────────────────────────────────────
 function openApprove(id, storeId, plan, name, amount) {
   pendingAction = { id, storeId, plan };
+  const decodedName = decodeURIComponent(name || '');
   document.getElementById('approve-details').innerHTML = `
-    <div>🏪 Store: <strong>${name}</strong></div>
-    <div>📋 Plan: <strong>${plan}</strong></div>
+    <div>🏪 Store: <strong>${safeText(decodedName)}</strong></div>
+    <div>📋 Plan: <strong>${safeText(plan)}</strong></div>
     <div>💰 Amount: <strong>Rs ${Number(amount).toLocaleString()}</strong></div>
   `;
   document.getElementById('approve-modal').classList.add('open');
@@ -907,8 +928,9 @@ async function confirmApprove() {
 // ─── DISABLE MODAL ────────────────────────────────────
 function openDisable(storeId, name) {
   pendingAction = { storeId };
+  const decodedName = decodeURIComponent(name || '');
   document.getElementById('disable-details').innerHTML =
-    `🏪 Store: <strong>${name}</strong> (${storeId})`;
+    `🏪 Store: <strong>${safeText(decodedName)}</strong> (${safeText(storeId)})`;
   document.getElementById('disable-modal').classList.add('open');
 }
 
@@ -967,6 +989,15 @@ function planBadge(plan) {
     pro:     'badge-warning'
   };
   return `<span class="badge ${map[plan]||'badge-muted'}">${plan}</span>`;
+}
+
+function safeText(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function showAlert(id, msg, type) {

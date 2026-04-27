@@ -97,3 +97,62 @@ Scope: `dashboard/index.html`
 - No third-party libraries were installed; all effects are native CSS/JS.
 - This keeps bundle/runtime stable and avoids dependency regressions.
 
+## Deep Debugging Pass (Dashboard + Admin + API)
+
+### Fixed in this pass
+
+1. **False 500s after successful product mutations**
+   - File: `server/routes/upload.js`
+   - Cause: `storeDB` used but not imported.
+   - Fix: Added `storeDB` import.
+
+2. **Woo disconnect broken in dashboard**
+   - Files: `dashboard/index.html`, `server/routes/plugin.js`
+   - Cause: frontend attempted browser-side SQL via undefined `client`.
+   - Fix: Added authenticated backend endpoint `POST /api/plugin/disconnect` and updated frontend to call it.
+
+3. **Google auth redirect crash**
+   - File: `dashboard/index.html`
+   - Cause: called undefined `initApp()`.
+   - Fix: switched to `enterApp()`.
+
+4. **Session reliability issue after login**
+   - File: `dashboard/index.html`
+   - Cause: app rendered in `enterApp()` even when `/me` failed.
+   - Fix: converted to strict `async/await`; only enter app on successful `/me`, otherwise force re-login.
+
+5. **Overbroad localStorage clearing**
+   - File: `dashboard/index.html`
+   - Cause: `localStorage.clear()` removed unrelated data.
+   - Fix: replaced with targeted key removals (`bb_token`, `bb_store`).
+
+6. **Corrupt localStorage parse crash risk**
+   - File: `dashboard/index.html`
+   - Fix: added safe parser `readStoreFromStorage()` with fallback cleanup.
+
+7. **Admin reset token expiry mismatch**
+   - File: `server/database.js`
+   - Cause: `admin_reset` treated as 24h token.
+   - Fix: `admin_reset` now expires in 1 hour (same as reset).
+
+8. **Email verification not enforced on login**
+   - File: `server/routes/auth.js`
+   - Fix: added `verifyDB.isVerified(email)` gate in `/login` with clear user-facing error.
+
+9. **Admin UI XSS/inline JS break risk**
+   - File: `dashboard/admin.html`
+   - Cause: unescaped dynamic values interpolated into inline `onclick` and HTML.
+   - Fix: added `safeText()` and URI-encoding/decoding for names in action handlers.
+
+10. **Pending-payment alert stale state**
+    - File: `dashboard/admin.html`
+    - Fix: explicit `else` branch now hides badge/card and clears pending rows when none remain.
+
+11. **Config inconsistency for verify/reset pages**
+    - Files: `dashboard/verify.html`, `dashboard/reset-password.html`
+    - Fix: both now load `config.js` and use `window.BB_API`.
+
+12. **Recommend API weak budget validation**
+    - File: `server/routes/recommend.js`
+    - Fix: strict numeric budget validation + normalized numeric usage in cache/logging/prompt.
+

@@ -2,7 +2,7 @@ const express = require('express');
 const multer  = require('multer');
 const csv     = require('csv-parser');
 const { Readable } = require('stream');
-const { productDB, client } = require('../database');
+const { productDB, storeDB, client } = require('../database');
 const { authMiddleware }    = require('./auth');
 
 const router = express.Router();

@@ -525,8 +525,8 @@ const tokenDB = {
       sql:  'DELETE FROM tokens WHERE email = ? AND type = ?',
       args: [email, type]
     });
-    // Save new token (expires in 1 hour for reset, 24 hours for verify)
-    const hours = type === 'reset' ? 1 : 24;
+    // Save new token (expires in 1 hour for reset flows, 24 hours for verify)
+    const hours = (type === 'reset' || type === 'admin_reset') ? 1 : 24;
     await client.execute({
       sql:  `INSERT INTO tokens (email, token, type, expires_at)
              VALUES (?, ?, ?, datetime('now', '+${hours} hours'))`,

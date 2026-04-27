@@ -26,6 +26,14 @@ router.post('/recommend', async (req, res) => {
   if (!budget || !purpose || !storeId)
     return res.status(400).json({ error: 'budget, purpose and storeId required' });
 
+  const parsedBudget = Number(budget);
+  if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
+    return res.status(400).json({
+      error: 'Please enter a valid budget amount.',
+      customerMessage: true
+    });
+  }
+
   // Check store exists
   const store = await storeDB.findById(storeId);
   if (!store)
@@ -55,7 +63,7 @@ router.post('/recommend', async (req, res) => {
     return res.status(404).json({ error: 'No products in catalog' });
 
   // Filter out products that are more expensive than the entire budget
-  const maxPrice = parseFloat(budget);
+  const maxPrice = parsedBudget;
   const filteredProducts = products.filter(p => parseFloat(p.price) <= maxPrice);
 
   if (!filteredProducts.length)
@@ -68,10 +76,10 @@ router.post('/recommend', async (req, res) => {
   ).join('\n');
 
   // Check for cached recommendation first (0 API cost)
-  const cachedRec = await analyticsDB.getCachedRecommendation(storeId, budget, purpose, extras || '');
+  const cachedRec = await analyticsDB.getCachedRecommendation(storeId, parsedBudget, purpose, extras || '');
   if (cachedRec) {
     // We still log it so analytics are accurate, but it costs 0 credits
-    await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', cachedRec);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', cachedRec);
     return res.json({
       success: true,
       recommendation: cachedRec,
@@ -91,7 +99,7 @@ router.post('/recommend', async (req, res) => {
   if (process.env.TEST_MODE === 'true') {
     const fakeRecommendation = {
       buildName: 'Test Budget Build',
-      totalPrice: parseInt(budget) * 0.9,
+      totalPrice: Math.round(parsedBudget * 0.9),
       withinBudget: true,
       parts: [
         { category: 'CPU',     name: 'Test CPU',        price: 20000, reason: 'Good for ' + purpose },
@@ -101,7 +109,7 @@ router.post('/recommend', async (req, res) => {
       summary: 'This is a test build. AI is disabled to save API credits.',
       tips: 'Remove TEST_MODE from Railway variables when done testing limits.'
     };
-    await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', fakeRecommendation);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', fakeRecommendation);
     return res.json({
       success: true,
       recommendation: fakeRecommendation,
@@ -119,7 +127,7 @@ router.post('/recommend', async (req, res) => {
   const prompt = `You are an expert PC build advisor for a Pakistani PC parts store.
 
   CUSTOMER REQUIREMENTS:
-  - Budget: ${budget} ${currency}
+  - Budget: ${parsedBudget} ${currency}
   - Purpose: ${purpose}
   - Extras requested: ${extras || 'None'}
   
@@ -193,7 +201,7 @@ router.post('/recommend', async (req, res) => {
       return res.status(500).json({ error: 'AI response invalid' });
 
     const recommendation = JSON.parse(jsonMatch[0]);
-    await analyticsDB.logRecommendation(storeId, budget, purpose, extras || '', recommendation);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', recommendation);
 
     res.json({
       success: true,

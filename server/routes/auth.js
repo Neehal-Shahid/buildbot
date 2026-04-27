@@ -127,6 +127,13 @@ router.post('/login', async (req, res) => {
   if (!valid)
     return res.status(400).json({ error: 'Incorrect password' });
 
+  const isVerified = await verifyDB.isVerified(email);
+  if (!isVerified) {
+    return res.status(403).json({
+      error: 'Please verify your email before logging in. Check your inbox for the verification link.'
+    });
+  }
+
   const token = jwt.sign(
     { storeId: store.store_id, email: store.email, name: store.name },
     JWT_SECRET, { expiresIn: '7d' }

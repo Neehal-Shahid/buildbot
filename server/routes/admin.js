@@ -2,10 +2,41 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { storeDB, paymentDB, analyticsDB, productDB, client, adminDB, tokenDB } = require('../database');
+const { storeDB, paymentDB, analyticsDB, client, adminDB, tokenDB } = require('../database');
 
 const router = express.Router();
-const JWT_SECRET   = process.env.JWT_SECRET;
+const JWT_SECRET   = process.env.JWT_SECRET || 'buildbot-secret';
+
+async function enrichStoresWithCounts(stores) {
+  if (!stores.length) return stores;
+  const ids = stores.map(s => s.store_id);
+  const placeholders = ids.map(() => '?').join(',');
+
+  const productCounts = await client.execute({
+    sql: `SELECT store_id, COUNT(*) AS count
+          FROM products
+          WHERE store_id IN (${placeholders})
+          GROUP BY store_id`,
+    args: ids
+  });
+
+  const recCounts = await client.execute({
+    sql: `SELECT store_id, COUNT(*) AS count
+          FROM recommendations
+          WHERE store_id IN (${placeholders})
+          GROUP BY store_id`,
+    args: ids
+  });
+
+  const pMap = new Map(productCounts.rows.map(r => [r.store_id, Number(r.count || 0)]));
+  const rMap = new Map(recCounts.rows.map(r => [r.store_id, Number(r.count || 0)]));
+
+  for (const store of stores) {
+    store.product_count = pMap.get(store.store_id) || 0;
+    store.rec_count = rMap.get(store.store_id) || 0;
+  }
+  return stores;
+}
 
 function adminAuth(req, res, next) {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -34,30 +65,18 @@ router.post('/admin/login', async (req, res) => {
 });
 
 router.get('/admin/overview', adminAuth, async (req, res) => {
-  const stores    = await storeDB.getAll();
+  const storesRaw = await storeDB.getAll();
+  const stores    = await enrichStoresWithCounts(storesRaw);
   const totalRecs = await analyticsDB.getTotalRecs();
   const revenue   = await paymentDB.getRevenue();
   const pending   = await paymentDB.getPending();
-
-  // Add product and rec counts per store
-  for (const store of stores) {
-    const pc = await productDB.getCount(store.store_id);
-    const rc = await analyticsDB.getStats(store.store_id);
-    store.product_count = pc.count;
-    store.rec_count     = rc.total.count;
-  }
 
   res.json({ success: true, stores, totalRecs, revenue, pending });
 });
 
 router.get('/admin/stores', adminAuth, async (req, res) => {
-  const stores = await storeDB.getAll();
-  for (const store of stores) {
-    const pc = await productDB.getCount(store.store_id);
-    const rc = await analyticsDB.getStats(store.store_id);
-    store.product_count = pc.count;
-    store.rec_count     = rc.total.count;
-  }
+  const storesRaw = await storeDB.getAll();
+  const stores = await enrichStoresWithCounts(storesRaw);
   res.json({ success: true, stores });
 });
 
@@ -102,16 +121,13 @@ router.post('/admin/disable-store', adminAuth, async (req, res) => {
 });
 
 router.post('/admin/delete-store', adminAuth, async (req, res) => {
-  const { storeId } = req.body;
+  const storeId = String(req.body.storeId || '').trim();
   if (!storeId) return res.status(400).json({ error: 'storeId required' });
 
   try {
-    // Delete all related data in correct order
-    await client.execute({ sql: 'DELETE FROM recommendations WHERE store_id = ?', args: [storeId] });
-    await client.execute({ sql: 'DELETE FROM payments WHERE store_id = ?', args: [storeId] });
-    await client.execute({ sql: 'DELETE FROM products WHERE store_id = ?', args: [storeId] });
-    await client.execute({ sql: 'DELETE FROM tokens WHERE email = (SELECT email FROM stores WHERE store_id = ?)', args: [storeId] });
-    await client.execute({ sql: 'DELETE FROM stores WHERE store_id = ?', args: [storeId] });
+    const store = await storeDB.findById(storeId);
+    if (!store) return res.status(404).json({ error: 'Store not found' });
+    await storeDB.deleteStoreAndData(storeId);
 
     res.json({ success: true, message: 'Store and all related data deleted.' });
   } catch (err) {

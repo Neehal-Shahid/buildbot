@@ -244,6 +244,25 @@ const storeDB = {
       sql: "UPDATE stores SET catalog_last_updated = datetime('now') WHERE store_id = ?",
       args: [storeId]
     });
+  },
+
+  deleteStoreAndData: async (storeId) => {
+    const storeRes = await client.execute({
+      sql: 'SELECT email FROM stores WHERE store_id = ?',
+      args: [storeId]
+    });
+    const storeEmail = storeRes.rows[0]?.email || null;
+
+    await client.batch([
+      { sql: 'DELETE FROM recommendations WHERE store_id = ?', args: [storeId] },
+      { sql: 'DELETE FROM payments WHERE store_id = ?', args: [storeId] },
+      { sql: 'DELETE FROM products WHERE store_id = ?', args: [storeId] },
+      { sql: 'DELETE FROM trial_emails_sent WHERE store_id = ?', args: [storeId] },
+      ...(storeEmail ? [{ sql: 'DELETE FROM tokens WHERE email = ?', args: [storeEmail] }] : []),
+      { sql: 'DELETE FROM stores WHERE store_id = ?', args: [storeId] }
+    ], 'write');
+
+    return true;
   }
 };
 

@@ -156,3 +156,35 @@ Scope: `dashboard/index.html`
     - File: `server/routes/recommend.js`
     - Fix: strict numeric budget validation + normalized numeric usage in cache/logging/prompt.
 
+## Deep Debugging Pass 2 (Database + Delete Reliability)
+
+### Database/backend issues fixed
+
+1. **Non-deterministic cascade behavior on store delete paths**
+   - Root issue: not all delete flows used explicit cleanup (some depended on FK cascade behavior).
+   - Fix:
+     - Added `storeDB.deleteStoreAndData(storeId)` in `server/database.js`.
+     - It performs ordered cleanup of recommendations, payments, products, trial email records, tokens, then store row using a single batch write.
+     - Wired both:
+       - `POST /admin/delete-store` (admin path)
+       - `DELETE /account` (store-owner self-delete path)
+
+2. **Admin delete-store robustness**
+   - File: `server/routes/admin.js`
+   - Fixes:
+     - `storeId` now trimmed/validated.
+     - Returns `404` when store does not exist.
+     - Uses shared DB cleanup method instead of duplicated ad-hoc queries.
+
+3. **Admin performance bottleneck on overview/stores**
+   - File: `server/routes/admin.js`
+   - Root issue: N+1 query loops per store for product/recommendation counts.
+   - Fix:
+     - Added `enrichStoresWithCounts()` with grouped count queries over all store IDs.
+     - Applied in both `/admin/overview` and `/admin/stores`.
+   - Result: reduced DB round-trips and improved admin page load reliability.
+
+4. **Admin JWT secret fallback inconsistency**
+   - File: `server/routes/admin.js`
+   - Fix: `JWT_SECRET` now has fallback (`buildbot-secret`) to avoid runtime failures in local/misconfigured environments.
+

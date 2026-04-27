@@ -365,13 +365,7 @@ router.put('/widget-settings', authMiddleware, async (req, res) => {
 // ─── DELETE ACCOUNT ───────────────────────────────────────
 router.delete('/account', authMiddleware, async (req, res) => {
   try {
-    const { client } = require('../database');
-    // Because of ON DELETE CASCADE in SQLite, this will also delete
-    // the store's products, recommendations, and payments.
-    await client.execute({
-      sql: 'DELETE FROM stores WHERE store_id = ?',
-      args: [req.store.storeId]
-    });
+    await storeDB.deleteStoreAndData(req.store.storeId);
     res.json({ success: true, message: 'Account deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Could not delete account: ' + err.message });

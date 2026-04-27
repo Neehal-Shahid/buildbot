@@ -213,4 +213,87 @@ router.get('/admin/me', adminAuth, async (req, res) => {
   res.json({ success: true, admin: { name: admin.name, email: admin.email } });
 });
 
+// ─── DB INTEGRITY AUDIT (admin only) ──────────────────────
+router.get('/admin/db-audit', adminAuth, async (req, res) => {
+  try {
+    const tables = ['stores', 'products', 'recommendations', 'payments', 'tokens', 'trial_emails_sent'];
+    const counts = {};
+    for (const t of tables) {
+      const r = await client.execute(`SELECT COUNT(*) AS c FROM ${t}`);
+      counts[t] = Number(r.rows[0]?.c || 0);
+    }
+
+    // Orphans (rows referencing missing stores)
+    const orphanProducts = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM products p
+      LEFT JOIN stores s ON s.store_id = p.store_id
+      WHERE s.store_id IS NULL
+    `);
+    const orphanRecs = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM recommendations r
+      LEFT JOIN stores s ON s.store_id = r.store_id
+      WHERE s.store_id IS NULL
+    `);
+    const orphanPayments = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM payments p
+      LEFT JOIN stores s ON s.store_id = p.store_id
+      WHERE s.store_id IS NULL
+    `);
+    const orphanTrials = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM trial_emails_sent t
+      LEFT JOIN stores s ON s.store_id = t.store_id
+      WHERE s.store_id IS NULL
+    `);
+
+    // Tokens health
+    const expiredTokens = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM tokens
+      WHERE expires_at <= datetime('now')
+    `);
+    const usedTokens = await client.execute(`
+      SELECT COUNT(*) AS c
+      FROM tokens
+      WHERE used = 1
+    `);
+
+    // Per-store mismatches (quick spot checks)
+    const topStoresByOrphans = await client.execute(`
+      SELECT p.store_id, COUNT(*) AS c
+      FROM products p
+      LEFT JOIN stores s ON s.store_id = p.store_id
+      WHERE s.store_id IS NULL
+      GROUP BY p.store_id
+      ORDER BY c DESC
+      LIMIT 10
+    `);
+
+    res.json({
+      success: true,
+      counts,
+      orphans: {
+        products: Number(orphanProducts.rows[0]?.c || 0),
+        recommendations: Number(orphanRecs.rows[0]?.c || 0),
+        payments: Number(orphanPayments.rows[0]?.c || 0),
+        trialEmailsSent: Number(orphanTrials.rows[0]?.c || 0),
+        orphanProductsTop: topStoresByOrphans.rows
+      },
+      tokens: {
+        expired: Number(expiredTokens.rows[0]?.c || 0),
+        used: Number(usedTokens.rows[0]?.c || 0)
+      },
+      notes: [
+        'Orphan counts > 0 indicate non-cascaded deletes or manual DB edits.',
+        'Expired/used tokens can be periodically cleaned up without affecting app behavior.'
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

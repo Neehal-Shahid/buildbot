@@ -32,7 +32,9 @@
     /* LAYOUT */
     .layout{display:flex;min-height:calc(100vh - 57px);}
     .sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);
-      padding:20px 12px;flex-shrink:0;}
+      padding:20px 12px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;}
+    .sb-sep{margin:14px 10px 8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:rgba(255,255,255,.38);user-select:none;}
     .sb-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:8px;
       cursor:pointer;font-size:13px;color:var(--muted);transition:all .2s;margin-bottom:4px;}
     .sb-item:hover{background:#2a2d3e;color:var(--text);}
@@ -196,6 +198,7 @@
 
   <div class="layout">
     <div class="sidebar">
+      <div class="sb-sep">Platform</div>
       <div class="sb-item active" onclick="showTab('overview')" id="atab-overview">
         <span class="ic">📊</span> Overview
       </div>
@@ -208,8 +211,12 @@
       <div class="sb-item" onclick="showTab('analytics')" id="atab-analytics">
         <span class="ic">📈</span> Platform Stats
       </div>
+      <div class="sb-sep">Admin</div>
       <div class="sb-item" onclick="showTab('settings')" id="atab-settings">
         <span class="ic">⚙️</span> Settings
+      </div>
+      <div class="sb-item" onclick="showTab('dbhealth')" id="atab-dbhealth">
+        <span class="ic">🧬</span> DB Health
       </div>
     </div>
 
@@ -401,6 +408,24 @@
         </div>
       </div>
 
+      <!-- DB HEALTH -->
+      <div id="tab-dbhealth" style="display:none;">
+        <div class="section-title">Database Health</div>
+        <div class="section-sub">Quick integrity report for Turso tables (orphans, token hygiene, totals).</div>
+
+        <div class="card">
+          <h2>
+            Integrity Audit
+            <button class="btn btn-sm btn-primary" onclick="runDbAudit()">Run audit</button>
+          </h2>
+          <div id="db-audit-meta" style="font-size:12px;color:var(--muted);margin-bottom:12px;display:none;"></div>
+          <div id="db-audit-out" style="font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+            font-size:12px;line-height:1.6;background:#0f1117;border:1px solid var(--border);border-radius:12px;padding:14px;white-space:pre-wrap;word-break:break-word;min-height:120px;">
+Click “Run audit” to generate a report.
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -580,7 +605,7 @@ function enterAdmin() {
 
 // ─── TABS ─────────────────────────────────────────────
 function showTab(name) {
-  ['overview','stores','payments','analytics','settings'].forEach(t => {
+  ['overview','stores','payments','analytics','settings','dbhealth'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display   = 'none';
     document.getElementById(`atab-${t}`).classList.remove('active');
   });
@@ -592,6 +617,52 @@ function showTab(name) {
   if (name === 'payments')  loadPayments();
   if (name === 'analytics') loadPlatformAnalytics();
   if (name === 'settings')  loadAdminSettings();
+}
+
+async function runDbAudit() {
+  const out = document.getElementById('db-audit-out');
+  const meta = document.getElementById('db-audit-meta');
+  if (meta) { meta.style.display = 'block'; meta.textContent = 'Running…'; }
+  if (out) out.textContent = 'Running DB integrity audit…';
+
+  try {
+    const res = await fetch(`${API}/admin/db-audit`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
+    if (!data.success) throw new Error(data.error || 'Audit failed');
+
+    const ts = new Date().toLocaleString();
+    if (meta) meta.textContent = `Last run: ${ts}`;
+
+    const lines = [];
+    lines.push('COUNTS');
+    for (const [k, v] of Object.entries(data.counts || {})) lines.push(`- ${k}: ${v}`);
+    lines.push('');
+    lines.push('ORPHANS (should be 0)');
+    lines.push(`- products: ${data.orphans?.products ?? 0}`);
+    lines.push(`- recommendations: ${data.orphans?.recommendations ?? 0}`);
+    lines.push(`- payments: ${data.orphans?.payments ?? 0}`);
+    lines.push(`- trial_emails_sent: ${data.orphans?.trialEmailsSent ?? 0}`);
+    if ((data.orphans?.orphanProductsTop || []).length) {
+      lines.push('');
+      lines.push('Top orphan product store_ids:');
+      for (const row of data.orphans.orphanProductsTop) lines.push(`- ${row.store_id}: ${row.c}`);
+    }
+    lines.push('');
+    lines.push('TOKENS');
+    lines.push(`- expired: ${data.tokens?.expired ?? 0}`);
+    lines.push(`- used: ${data.tokens?.used ?? 0}`);
+    lines.push('');
+    lines.push('NOTES');
+    for (const n of (data.notes || [])) lines.push(`- ${n}`);
+
+    if (out) out.textContent = lines.join('\n');
+  } catch (err) {
+    if (meta) meta.textContent = 'Failed';
+    if (out) out.textContent = `Audit failed: ${err.message}`;
+  }
 }
 
 async function loadAdminSettings() {

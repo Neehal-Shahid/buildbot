@@ -100,6 +100,18 @@
       border-right: 1px solid var(--border);
       padding: 24px 12px;
       flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-sep {
+      margin: 14px 10px 8px;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.38);
+      user-select: none;
     }
 
     .sidebar-item {
@@ -131,6 +143,10 @@
       text-align: center;
     }
 
+    .sidebar-item.sidebar-logout {
+      margin-top: auto;
+    }
+
     .main {
       flex: 1;
       padding: 36px;
@@ -145,6 +161,33 @@
       padding: 28px;
       margin-bottom: 24px;
     }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+    }
+
+    .card-subtle {
+      font-size: 12px;
+      color: rgba(255,255,255,.45);
+      margin-top: 6px;
+    }
+
+    .empty-state {
+      padding: 44px 24px;
+      text-align: center;
+      color: rgba(255,255,255,.55);
+    }
+    .empty-state .es-ic { font-size: 34px; margin-bottom: 10px; }
+    .empty-state .es-title { font-size: 14px; color: rgba(255,255,255,.75); }
+    .empty-state .es-sub { font-size: 12px; color: rgba(255,255,255,.45); margin-top: 6px; }
 
     .card h2 {
       font-size: 17px;
@@ -2875,6 +2918,7 @@
 
       <!-- Sidebar -->
       <div class="sidebar">
+        <div class="sidebar-sep">Workspace</div>
         <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
           <span class="icon">🏠</span> Dashboard
         </div>
@@ -2884,13 +2928,14 @@
         <div class="sidebar-item" onclick="showTab('analytics')" id="tab-analytics">
           <span class="icon">📊</span> Analytics
         </div>
+        <div class="sidebar-sep">Account</div>
         <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
           <span class="icon">💳</span> Billing
         </div>
         <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
           <span class="icon">⚙️</span> Settings
         </div>
-        <div class="sidebar-item" onclick="doLogout()" style="margin-top:auto;position:absolute;bottom:24px;">
+        <div class="sidebar-item sidebar-logout" onclick="doLogout()">
           <span class="icon">🚪</span> Logout
         </div>
       </div>
@@ -4237,11 +4282,20 @@
     // ─── ANALYTICS ────────────────────────────────────────────
     async function loadAnalytics() {
       try {
+        const purposeEl = document.getElementById('purpose-chart');
+        const dailyEl = document.getElementById('daily-chart');
+        if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
+        if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
+
         const res = await fetch(`${API}/analytics`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        if (!data.success) return;
+        if (!data.success) {
+          if (purposeEl) purposeEl.innerHTML = `<p style="color:#e74c3c;font-size:13px;">Could not load analytics.</p>`;
+          if (dailyEl) dailyEl.innerHTML = `<p style="color:#e74c3c;font-size:13px;">Could not load analytics.</p>`;
+          return;
+        }
 
         const { stats, productCount } = data;
 
@@ -4286,6 +4340,9 @@
           <div class="chart-count">${p.count}</div>
         </div>`).join('');
         }
+        if (!stats.byPurpose || stats.byPurpose.length === 0) {
+          document.getElementById('purpose-chart').innerHTML = `<p style="color:var(--muted);font-size:13px;">No data yet.</p>`;
+        }
 
         // Daily chart
         if (stats.daily && stats.daily.length) {
@@ -4299,6 +4356,9 @@
           <div class="chart-count">${d.count}</div>
         </div>`).join('');
         }
+        if (!stats.daily || stats.daily.length === 0) {
+          document.getElementById('daily-chart').innerHTML = `<p style="color:var(--muted);font-size:13px;">No data yet.</p>`;
+        }
 
         // Recent table
         if (stats.recent && stats.recent.length) {
@@ -4311,7 +4371,13 @@
         </tr>`).join('');
         }
 
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+        const purposeEl = document.getElementById('purpose-chart');
+        const dailyEl = document.getElementById('daily-chart');
+        if (purposeEl) purposeEl.innerHTML = `<p style="color:#e74c3c;font-size:13px;">Could not load analytics.</p>`;
+        if (dailyEl) dailyEl.innerHTML = `<p style="color:#e74c3c;font-size:13px;">Could not load analytics.</p>`;
+      }
     }
 
     // ─── PRODUCTS ─────────────────────────────────────────────
@@ -4353,11 +4419,11 @@
       const tbody = document.getElementById('products-table');
       if (!products.length) {
         tbody.innerHTML = `
-      <tr><td colspan="5" style="padding:48px;text-align:center;">
-        <div style="font-size:32px;margin-bottom:12px;">📦</div>
-        <div style="color:#555;font-size:14px;">No products found.</div>
-        <div style="color:#444;font-size:12px;margin-top:6px;">
-          Upload a CSV or add products manually.
+      <tr><td colspan="5">
+        <div class="empty-state">
+          <div class="es-ic">📦</div>
+          <div class="es-title">No products found</div>
+          <div class="es-sub">Upload a CSV or add products manually.</div>
         </div>
       </td></tr>`;
         return;
@@ -4671,13 +4737,21 @@
     }
 
     async function loadPaymentHistory() {
+      const tbody = document.getElementById('payment-history');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:18px;">
+            Loading…
+          </td></tr>
+        `;
+      }
       try {
         const res = await fetch(`${API}/payment/history`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
         if (data.payments && data.payments.length) {
-          document.getElementById('payment-history').innerHTML = data.payments.map(p => `
+          tbody.innerHTML = data.payments.map(p => `
         <tr>
           <td>${p.plan}</td>
           <td>Rs ${Number(p.amount).toLocaleString()}</td>
@@ -4685,8 +4759,26 @@
           <td><span class="badge ${p.status === 'approved' ? 'badge-success' : p.status === 'pending' ? 'badge-warning' : 'badge-danger'}">${p.status}</span></td>
           <td>${new Date(p.created_at).toLocaleDateString()}</td>
         </tr>`).join('');
+        } else if (tbody) {
+          tbody.innerHTML = `
+            <tr><td colspan="5">
+              <div class="empty-state">
+                <div class="es-ic">💳</div>
+                <div class="es-title">No payments yet</div>
+                <div class="es-sub">Your submissions will appear here once you request a plan upgrade.</div>
+              </div>
+            </td></tr>
+          `;
         }
-      } catch (e) { }
+      } catch (e) {
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr><td colspan="5" style="color:#e74c3c;text-align:center;padding:18px;">
+              Could not load payment history.
+            </td></tr>
+          `;
+        }
+      }
     }
 
     // ─── SETTINGS ─────────────────────────────────────────────
@@ -4799,6 +4891,8 @@
           document.getElementById('widget-bg-color').value = s.widget_bg || '#1a1d27';
           document.getElementById('widget-bg-hex').value = s.widget_bg || '#1a1d27';
           updateWidgetPreview();
+        } else {
+          showAlert('widget-settings-alert', '❌ Could not load widget settings.', 'error');
         }
       } catch (e) { }
     }
@@ -4845,6 +4939,12 @@
               : '⛔ Widget is disabled — enable it from WordPress';
             widgetStatus.style.color = data.widgetEnabled ? '#2ecc71' : '#e74c3c';
           }
+        } else {
+          // Ensure setup view is visible when not connected
+          const connectedView = document.getElementById('woo-connected-view');
+          const setupView = document.getElementById('woo-setup-view');
+          if (connectedView) connectedView.style.display = 'none';
+          if (setupView) setupView.style.display = 'block';
         }
       } catch (e) { console.error(e); }
     }

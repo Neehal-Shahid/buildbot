@@ -188,3 +188,52 @@ Scope: `dashboard/index.html`
    - File: `server/routes/admin.js`
    - Fix: `JWT_SECRET` now has fallback (`buildbot-secret`) to avoid runtime failures in local/misconfigured environments.
 
+## Deep Debugging Pass 3 (DB Audit + Plugin Reliability)
+
+### Added
+
+1. **Admin DB integrity audit endpoint**
+   - File: `server/routes/admin.js`
+   - Endpoint: `GET /admin/db-audit` (admin-token required)
+   - Output: table counts + orphan checks + token hygiene counters
+
+2. **Admin “DB Health” UI**
+   - File: `dashboard/admin.html`
+   - Added a `DB Health` tab to run the audit and render a readable report.
+
+### Fixed
+
+1. **WooCommerce plugin disconnect cleanup**
+   - Files: `plugin/buildbot-woocommerce/buildbot-woocommerce.php`, `plugin/buildbot-woocommerce.php`
+   - Disconnect now resets stale “connected state” stats (last sync, counts, category stats) so the WP admin UI stays consistent.
+
+2. **WooCommerce product delete hook reliability**
+   - Files: `plugin/buildbot-woocommerce/buildbot-woocommerce.php`, `plugin/buildbot-woocommerce.php`
+   - `wp_trash_post` can fire when `wc_get_product()` returns null; we now fall back to the WP post title so delete events still reach the backend.
+
+3. **Plugin auto-update version mismatch**
+   - File: `server/plugin-update.json`
+   - Issue: manifest version was ahead of the shipped plugin version (`BUILDBOT_VERSION`), causing WordPress to always prompt an update.
+   - Fix: aligned manifest `"version"` to `1.5.0` to match the current plugin files.
+
+## UX Pass (Admin + Dashboard)
+
+### Improvements
+
+1. **Dashboard sidebar cleanup**
+   - File: `dashboard/index.html`
+   - Sidebar is now a proper flex column (no absolute-positioned logout) with small section separators for clearer information hierarchy.
+
+2. **Standardized empty states**
+   - File: `dashboard/index.html`
+   - Added reusable `.empty-state` styling and applied it to the Products table empty case for a cleaner, more “real SaaS” feel.
+
+3. **Admin sidebar grouping**
+   - File: `dashboard/admin.html`
+   - Added small section separators (“Platform”, “Admin”) and flex-column sidebar spacing to reduce visual clutter.
+
+4. **Consistent loading/empty/error states**
+   - File: `dashboard/index.html`
+   - Analytics charts now show Loading/No data/Error states instead of staying stale.
+   - Billing “Payment History” now shows Loading + a premium empty state when there are no payments, plus a clear error message on failure.
+

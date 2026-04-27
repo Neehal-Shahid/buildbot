@@ -856,7 +856,15 @@ function buildbot_disconnect_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
   update_option('buildbot_connected', false);
-  wp_send_json_success();
+  update_option('buildbot_last_sync', '');
+  update_option('buildbot_product_count', 0);
+  update_option('buildbot_woo_url', '');
+  update_option('buildbot_is_pc_store', true);
+  update_option('buildbot_category_stats', []);
+  update_option('buildbot_unmapped_count', 0);
+  // keep store_id and secret_key so reconnect is quick, but stop all features
+  update_option('buildbot_widget_enabled', true);
+  wp_send_json_success(['disconnected' => true]);
 }
 
 // ─── NONCE IN FOOTER (kept for compatibility) ────────────
@@ -909,11 +917,13 @@ function buildbot_hook_product_delete($post_id) {
   $store_id = get_option('buildbot_store_id');
   $secret   = get_option('buildbot_secret_key');
   if (!$store_id || !$secret) return;
+  // wc_get_product() can be null here depending on trash timing; fall back to post title.
   $product = wc_get_product($post_id);
-  if (!$product) return;
+  $product_name = $product ? $product->get_name() : get_the_title($post_id);
+  if (!$product_name) $product_name = 'Deleted product';
   wp_remote_post(BUILDBOT_API . '/plugin/product/delete', [
     'headers'  => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
-    'body'     => json_encode(['productName' => $product->get_name(), 'wooId' => $post_id]),
+    'body'     => json_encode(['productName' => $product_name, 'wooId' => $post_id]),
     'timeout'  => 10,
     'blocking' => false
   ]);

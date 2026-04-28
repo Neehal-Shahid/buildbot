@@ -80,9 +80,13 @@ router.post('/recommend', async (req, res) => {
   if (cachedRec) {
     // We still log it so analytics are accurate, but it costs 0 credits
     await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', cachedRec);
+    // If cached rec is old single-build format (has .buildName), wrap it
+    const isOldFormat = cachedRec.buildName !== undefined && !cachedRec.builds;
     return res.json({
       success: true,
-      recommendation: cachedRec,
+      builds:   isOldFormat ? [{ ...cachedRec, tier: 'Recommended Build', tagline: 'Previously generated recommendation' }] : (cachedRec.builds || [cachedRec]),
+      canBuild: true,
+      noBuildsReason: '',
       currency,
       usage: {
         used:      limitCheck.used + 1,
@@ -97,22 +101,69 @@ router.post('/recommend', async (req, res) => {
   // TEST MODE — returns fake data without using API credits
   // Remove TEST_MODE variable from Railway when done testing
   if (process.env.TEST_MODE === 'true') {
-    const fakeRecommendation = {
-      buildName: 'Test Budget Build',
-      totalPrice: Math.round(parsedBudget * 0.9),
-      withinBudget: true,
-      parts: [
-        { category: 'CPU',     name: 'Test CPU',        price: 20000, reason: 'Good for ' + purpose },
-        { category: 'RAM',     name: 'Test RAM 16GB',   price: 8000,  reason: 'Sufficient for tasks' },
-        { category: 'Storage', name: 'Test SSD 512GB',  price: 10000, reason: 'Fast storage' }
-      ],
-      summary: 'This is a test build. AI is disabled to save API credits.',
-      tips: 'Remove TEST_MODE from Railway variables when done testing limits.'
-    };
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', fakeRecommendation);
+    const budgetNum = parseInt(budget);
+    const fakeBuilds = [
+      {
+        tier: 'Budget Build',
+        tagline: 'Maximum value, minimum spend',
+        buildName: 'Entry Level ' + purpose + ' PC',
+        totalPrice: Math.round(budgetNum * 0.75),
+        withinBudget: true,
+        budgetRemaining: Math.round(budgetNum * 0.25),
+        parts: [
+          { category: 'CPU',     name: 'Test CPU Budget',   price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3),  reason: 'Good value for ' + purpose },
+          { category: 'RAM',     name: 'Test RAM 8GB',      price: Math.round(budgetNum*0.15),quantity:1, totalPrice: Math.round(budgetNum*0.15), reason: 'Minimum for smooth use' },
+          { category: 'Storage', name: 'Test HDD 1TB',      price: Math.round(budgetNum*0.1), quantity:1, totalPrice: Math.round(budgetNum*0.1),  reason: 'Affordable storage' },
+          { category: 'PSU',     name: 'Test PSU 450W',     price: Math.round(budgetNum*0.2), quantity:1, totalPrice: Math.round(budgetNum*0.2),  reason: 'Sufficient power' },
+        ],
+        missingCategories: ['Motherboard', 'Case'],
+        summary: 'A basic build that covers the essentials. Best for tight budgets.',
+        tips: 'AI is in TEST_MODE. Remove TEST_MODE from Railway to enable real builds.',
+        budgetAdvice: 'You have budget left — consider adding a case or monitor later.'
+      },
+      {
+        tier: 'Balanced Build',
+        tagline: 'Best performance per rupee',
+        buildName: 'Mid-Range ' + purpose + ' PC',
+        totalPrice: Math.round(budgetNum * 0.88),
+        withinBudget: true,
+        budgetRemaining: Math.round(budgetNum * 0.12),
+        parts: [
+          { category: 'CPU',     name: 'Test CPU Mid',      price: Math.round(budgetNum*0.35),quantity:1, totalPrice: Math.round(budgetNum*0.35), reason: 'Great performance for ' + purpose },
+          { category: 'RAM',     name: 'Test RAM 16GB',     price: Math.round(budgetNum*0.18),quantity:1, totalPrice: Math.round(budgetNum*0.18), reason: 'Sweet spot for multitasking' },
+          { category: 'Storage', name: 'Test SSD 512GB',    price: Math.round(budgetNum*0.12),quantity:1, totalPrice: Math.round(budgetNum*0.12), reason: 'Fast NVMe storage' },
+          { category: 'PSU',     name: 'Test PSU 550W',     price: Math.round(budgetNum*0.23),quantity:1, totalPrice: Math.round(budgetNum*0.23), reason: 'Headroom for upgrades' },
+        ],
+        missingCategories: ['GPU'],
+        summary: 'The sweet spot. Best balance of performance and price for ' + purpose + '.',
+        tips: 'TEST_MODE is on. This is fake data.',
+        budgetAdvice: 'Small budget remaining — save for a GPU upgrade.'
+      },
+      {
+        tier: 'Max Build',
+        tagline: 'Everything your budget can buy',
+        buildName: 'Full ' + purpose + ' Beast',
+        totalPrice: Math.round(budgetNum * 0.97),
+        withinBudget: true,
+        budgetRemaining: Math.round(budgetNum * 0.03),
+        parts: [
+          { category: 'CPU',     name: 'Test CPU High-End', price: Math.round(budgetNum*0.38),quantity:1, totalPrice: Math.round(budgetNum*0.38), reason: 'Top performance for ' + purpose },
+          { category: 'GPU',     name: 'Test GPU',          price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3),  reason: 'Handles demanding tasks' },
+          { category: 'RAM',     name: 'Test RAM 32GB',     price: Math.round(budgetNum*0.15),quantity:1, totalPrice: Math.round(budgetNum*0.15), reason: 'Maximum RAM for future proofing' },
+          { category: 'Storage', name: 'Test NVMe 1TB',     price: Math.round(budgetNum*0.14),quantity:1, totalPrice: Math.round(budgetNum*0.14), reason: 'Fast and spacious' },
+        ],
+        missingCategories: [],
+        summary: 'Maximum performance within your budget. Built to last. Ideal for serious ' + purpose + '.',
+        tips: 'TEST_MODE is on. Remove TEST_MODE from Railway env to get real AI builds.',
+        budgetAdvice: 'Budget nearly fully used. You\'re getting the most out of your money.'
+      }
+    ];
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', fakeBuilds[1]);
     return res.json({
       success: true,
-      recommendation: fakeRecommendation,
+      builds: fakeBuilds,
+      canBuild: true,
+      noBuildsReason: '',
       currency,
       usage: {
         used:      limitCheck.used + 1,
@@ -135,64 +186,63 @@ router.post('/recommend', async (req, res) => {
   ${productList}
   
   YOUR TASK:
-  Build the best possible PC using ONLY the products listed above.
+  Create exactly THREE different PC build options using ONLY the products listed above.
+  Each build must be distinct in price tier and component balance.
+  
+  BUILD TIERS TO CREATE:
+  1. "Budget Build" — Use 70-80% of the budget. Best value. No frills.
+  2. "Balanced Build" — Use 88-95% of the budget. Best performance per rupee.  
+  3. "Max Build" — Use as close to 100% of budget as possible. Best performance within budget.
   
   IMPORTANT RULES:
-  1. QUANTITIES: You CAN recommend multiple units of the same product if needed.
-     Example: 2x RAM sticks for dual channel, multiple cables, etc.
-     If recommending multiple units, multiply the price accordingly.
+  1. ONLY use products that exist EXACTLY in the list above. Never invent products.
+  2. Each build must have different total prices (not the same components rearranged).
+  3. If budget is under 30,000 ${currency}: Set canBuild to false and explain in noBuildsReason.
+  4. If the store has no products affordable under budget: Set canBuild to false.
+  5. If you cannot make 3 distinct builds (e.g. store has too few products), make as many as you can (minimum 1).
+  6. QUANTITIES: You can recommend multiple units (e.g. 2x RAM). Multiply price by quantity.
+  7. Compatibility: Match CPU socket to motherboard, RAM type to board, PSU wattage to GPU.
+  8. PURPOSE OPTIMIZATION per build tier:
+     - Gaming: GPU first, then CPU, then RAM
+     - Video Editing: RAM (32GB if possible), CPU, fast SSD
+     - Office/Studies: Value CPU, 8GB RAM, SSD — keep it cheap
+     - Coding: 16GB RAM, fast CPU, SSD
+     - Designing: GPU, RAM, display quality
   
-  2. BUDGET HANDLING:
-     - If budget is under 30,000 ${currency}: Respond that budget is too low for a complete PC build. Suggest minimum required budget.
-     - If budget is tight but possible: Build the most basic working PC and warn the customer.
-     - If budget is good: Build the best possible PC for the purpose.
-     - Try to stay within budget. If impossible with available products, explain why.
-     - If significant budget remains after build, suggest what to do with remaining amount.
-  
-  3. MISSING CATEGORIES:
-     - If a critical component (CPU, Motherboard, RAM, PSU) is not available in the store catalog, mention it clearly in tips.
-     - Do NOT invent products that are not in the list above.
-     - ONLY recommend products that exist exactly in the list above.
-  
-  4. PURPOSE OPTIMIZATION:
-     - Gaming: Prioritize GPU, then CPU, then RAM (16GB minimum)
-     - Video Editing: Prioritize RAM (32GB if possible), CPU, Storage (SSD)
-     - Office/Studies: Prioritize value, basic CPU, 8GB RAM, SSD
-     - Coding: Prioritize RAM (16GB), fast CPU, SSD storage
-     - Designing: Prioritize GPU, RAM, good monitor if available
-     - Streaming: Prioritize CPU, RAM, fast internet card if available
-  
-  5. COMPATIBILITY:
-     - Make sure CPU and Motherboard socket types match if detectable from names
-     - Make sure PSU wattage is sufficient for the GPU chosen
-     - Make sure RAM type matches motherboard if detectable
-  
-  Respond ONLY in this exact JSON format, no extra text:
+  Respond ONLY in this exact JSON format, no extra text, no markdown:
   {
-    "buildName": "Descriptive name for this build",
-    "totalPrice": 0,
-    "withinBudget": true,
-    "budgetRemaining": 0,
-    "parts": [
+    "canBuild": true,
+    "noBuildsReason": "",
+    "builds": [
       {
-        "category": "RAM",
-        "name": "Exact product name from list",
-        "price": 0,
-        "quantity": 2,
+        "tier": "Budget Build",
+        "tagline": "One sentence — what makes this tier special",
+        "buildName": "Descriptive name e.g. Entry Gaming Rig",
         "totalPrice": 0,
-        "reason": "Why this was chosen"
+        "withinBudget": true,
+        "budgetRemaining": 0,
+        "parts": [
+          {
+            "category": "CPU",
+            "name": "Exact product name from list",
+            "price": 0,
+            "quantity": 1,
+            "totalPrice": 0,
+            "reason": "Why this part was chosen for this build"
+          }
+        ],
+        "missingCategories": [],
+        "summary": "2-3 sentences: what this build is good for, who should pick it",
+        "tips": "Compatibility notes, upgrade path, usage tips",
+        "budgetAdvice": "What to do with remaining budget or why it's tight"
       }
-    ],
-    "missingCategories": [],
-    "summary": "2-3 sentence summary of this build",
-    "tips": "Budget advice, compatibility notes, or upgrade suggestions",
-    "budgetAdvice": "What to do with remaining budget OR why budget was insufficient"
+    ]
   }`;
 
   try {
     const message = await anthropic.messages.create({
       model:      'claude-3-5-haiku-20241022',
-      max_tokens: 1500,
+      max_tokens: 3500,
       messages:   [{ role: 'user', content: prompt }]
     });
 
@@ -200,12 +250,15 @@ router.post('/recommend', async (req, res) => {
     if (!jsonMatch)
       return res.status(500).json({ error: 'AI response invalid' });
 
-    const recommendation = JSON.parse(jsonMatch[0]);
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', recommendation);
+    const parsed = JSON.parse(jsonMatch[0]);
+    // Log only the first/best build for analytics (backwards compatible)
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', parsed.builds?.[0] || parsed);
 
     res.json({
       success: true,
-      recommendation,
+      builds:    parsed.builds || [],
+      canBuild:  parsed.canBuild !== false,
+      noBuildsReason: parsed.noBuildsReason || '',
       currency,
       usage: {
         used:      limitCheck.used + 1,

@@ -17,15 +17,16 @@
   right: 24px;
   width: 380px;
   max-height: 640px;
-  background: var(--w-bg);
-  border: 1px solid var(--w-border);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(26, 29, 39, 0.94));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 20px;
   z-index: 999998;
   display: none;
   flex-direction: column;
   overflow: hidden;
   font-family: 'Poppins', sans-serif;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
   transform-origin: bottom right;
 }
 
@@ -69,9 +70,8 @@
 /* Header */
 #bb-header {
   height: 64px;
-  background: rgba(15, 17, 23, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--w-border);
+  background: rgba(26, 29, 39, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -428,8 +428,9 @@
 @keyframes bb-overlay-in { from { opacity: 0; } to { opacity: 1; } }
 
 #bb-modal-panel {
-  background: var(--w-bg);
-  border: 1px solid var(--w-border);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(26, 29, 39, 0.98));
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 24px 24px 0 0;
   width: 100%;
   max-width: 520px;
@@ -450,9 +451,9 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 24px 24px 20px;
-  border-bottom: 1px solid var(--w-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
-  background: var(--w-surface);
+  background: rgba(26, 29, 39, 0.4);
 }
 #bb-modal-tier-badge {
   display: inline-block;

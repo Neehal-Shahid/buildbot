@@ -3342,17 +3342,7 @@
                   <input type="text" id="brand-color-hex" value="#7c6af7" style="flex:1;" placeholder="#7c6af7" />
                 </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Widget Background Color</label>
-                <div style="display:flex;gap:10px;align-items:center;">
-                  <input type="color" id="widget-bg-color" value="#1a1d27"
-                    style="width:50px;height:40px;border:none;background:none;cursor:pointer;padding:0;" />
-                  <input type="text" id="widget-bg-hex" value="#1a1d27" style="flex:1;" placeholder="#1a1d27" />
-                </div>
-                <div style="font-size:11px;color:#555;margin-top:4px;">
-                  Background of the widget panel. Dark colors work best with glassmorphism effect.
-                </div>
-              </div>
+
               <div class="form-group">
                 <label class="form-label">Currency</label>
                 <select id="currency-select">
@@ -3845,16 +3835,7 @@
         if (previewBtn) previewBtn.style.background = e.target.value;
       });
 
-      document.getElementById('widget-bg-color')?.addEventListener('input', (e) => {
-        const widgetHex = document.getElementById('widget-bg-hex');
-        if (widgetHex) widgetHex.value = e.target.value;
-        updateWidgetPreview();
-      });
-      document.getElementById('widget-bg-hex')?.addEventListener('input', (e) => {
-        const widgetColor = document.getElementById('widget-bg-color');
-        if (widgetColor) widgetColor.value = e.target.value;
-        updateWidgetPreview();
-      });
+
       // Live widget text preview
       document.getElementById('widget-title-input')?.addEventListener('input', updateWidgetPreview);
       document.getElementById('welcome-msg-input')?.addEventListener('input', updateWidgetPreview);
@@ -5002,7 +4983,6 @@
     async function saveSettings() {
       const brandColor = document.getElementById('brand-color-hex').value;
       const currency = document.getElementById('currency-select').value;
-      const widgetBg = document.getElementById('widget-bg-hex').value || '#1a1d27';
 
       try {
         const res = await fetch(`${API}/settings`, {
@@ -5070,7 +5050,6 @@
       const msg = document.getElementById('welcome-msg-input')?.value || '';
       const btn = document.getElementById('button-text-input')?.value || 'Get Started';
       const color = document.getElementById('brand-color-hex')?.value || '#7c6af7';
-      const bg = document.getElementById('widget-bg-hex')?.value || '#1a1d27';
 
       const previewTitle = document.getElementById('preview-title');
       const previewMsg = document.getElementById('preview-welcome-msg');
@@ -5105,8 +5084,6 @@
           document.getElementById('widget-title-input').value = s.widget_title || 'BuildBot';
           document.getElementById('welcome-msg-input').value = s.welcome_msg || '';
           document.getElementById('button-text-input').value = s.button_text || 'Get Started';
-          document.getElementById('widget-bg-color').value = s.widget_bg || '#1a1d27';
-          document.getElementById('widget-bg-hex').value = s.widget_bg || '#1a1d27';
           updateWidgetPreview();
         } else {
           showAlert('widget-settings-alert', '❌ Could not load widget settings.', 'error');

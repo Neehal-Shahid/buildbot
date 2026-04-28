@@ -5,7 +5,7 @@
   const API       = 'https://buildbot-production.up.railway.app/api';
 
   let BRAND_COLOR  = '#7c6af7';
-  let WIDGET_BG    = '#1a1d27';
+  let WIDGET_BG    = '#0f1117'; // Matches landing page --bg
   let CURRENCY     = 'PKR';
   let WIDGET_TITLE = 'BuildBot';
   let WELCOME_MSG  = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
@@ -48,7 +48,6 @@
           return;
         }
         BRAND_COLOR  = data.brandColor  || BRAND_COLOR;
-        WIDGET_BG    = data.widgetBg    || WIDGET_BG;
         CURRENCY     = data.currency    || CURRENCY;
         WIDGET_TITLE = data.widgetTitle || WIDGET_TITLE;
         WELCOME_MSG  = data.welcomeMsg  || WELCOME_MSG;
@@ -82,7 +81,7 @@
 
     const fontLink = document.createElement('link');
     fontLink.rel  = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap';
     document.head.appendChild(fontLink);
 
     // Load External CSS

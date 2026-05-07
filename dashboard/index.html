@@ -2725,6 +2725,38 @@
       border-color: rgba(16,185,129,0.45);
       color: var(--dash-success);
     }
+    #page-app #tab-embed.sidebar-item.cta-glow {
+      box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 0 0 4px rgba(16,185,129,.14);
+      animation: dashGlow 1.8s ease-in-out infinite;
+    }
+    @keyframes dashGlow {
+      0%,100% { box-shadow: 0 0 0 1px rgba(16,185,129,.35), 0 0 0 4px rgba(16,185,129,.10); }
+      50% { box-shadow: 0 0 0 1px rgba(16,185,129,.48), 0 0 0 8px rgba(16,185,129,.16); }
+    }
+    #page-app .trial-chip-inline {
+      margin-left: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #d7deee;
+      background: #eef2ff;
+      font-size: 11px;
+      font-weight: 600;
+      color: #3730a3;
+      cursor: pointer;
+    }
+    #page-app .trial-chip-inline.is-urgent {
+      background: #fff1f2;
+      color: #b42318;
+      border-color: #fecdca;
+    }
+    #page-app .mini-kpi {
+      display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid #d7deee;border-radius:10px;background:#fff;
+      font-size:12px;color:#344054;
+    }
+    #page-app .analytics-line-wrap {
+      border:1px solid #d7deee;border-radius:12px;background:#fff;padding:14px;
+    }
+    #page-app .analytics-line-svg { width:100%; height:220px; display:block; }
 
     /* Neutralize existing dark inline styles in dashboard only */
     #page-app [style*="background:#0f1117"] { background: #f8faff !important; }
@@ -3313,6 +3345,7 @@
         <div class="trial-banner" id="trial-banner">
           <p>🎉 You're on a <span>14-day free trial</span>. Trial ends: <span id="trial-end-date"></span></p>
           <button class="btn btn-primary btn-sm" onclick="showTab('billing')">Upgrade Now</button>
+          <span class="trial-chip-inline" id="trial-chip-inline" onclick="showTab('billing')">Trial: -- days left</span>
         </div>
 
         <!-- ── HOME TAB ── -->
@@ -3387,6 +3420,10 @@
             </div>
             <button class="btn btn-sm" onclick="copyEmbed()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);white-space:nowrap;flex-shrink:0;">📋 Copy embed code</button>
             <button class="btn btn-sm" onclick="showTab('embed')" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);white-space:nowrap;flex-shrink:0;">Full setup →</button>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;" id="activation-kpis">
+              <div class="mini-kpi" id="kpi-embed">Embed copied: No</div>
+              <div class="mini-kpi" id="kpi-live">Live status: Pending</div>
+            </div>
           </div>
 
           <div class="card">
@@ -3590,8 +3627,16 @@
 
         <!-- ── ANALYTICS TAB ── -->
         <div id="tab-content-analytics" style="display:none;">
-          <div class="section-title">Analytics</div>
+          <div class="section-title">Analytics
+            <span onclick="toggleContextHelp('help-analytics')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
           <div class="section-sub">See how customers are using your BuildBot widget.</div>
+          <div id="help-analytics" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
+            <strong style="color:#a5b4fc;">Quick tips:</strong><br/>
+            • Use 7-day view for fast trend checks.<br/>
+            • Compare budget ranges to decide inventory focus.<br/>
+            • Growth indicator highlights momentum changes.
+          </div>
 
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
             <button class="btn btn-sm" id="analytics-range-7" onclick="setAnalyticsRange(7,this)" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);">Last 7 days</button>
@@ -3623,6 +3668,14 @@
             </div>
           </div>
 
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Recommendations Trend</h2>
+            <p style="margin-bottom:10px;">Track recommendation growth over time.</p>
+            <div class="analytics-line-wrap">
+              <svg id="analytics-line-svg" class="analytics-line-svg" viewBox="0 0 760 220" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+
           <div class="two-col">
             <div class="card">
               <h2>Popular Purposes</h2>
@@ -3639,12 +3692,43 @@
               </div>
             </div>
           </div>
+          <div class="two-col" style="margin-top:14px;">
+            <div class="card">
+              <h2>Performance Insights</h2>
+              <div id="analytics-insights" style="font-size:13px;color:var(--muted);line-height:1.8;">Loading insights...</div>
+            </div>
+            <div class="card">
+              <h2>Top Builds by Budget Range</h2>
+              <table>
+                <thead>
+                  <tr><th>Budget Range</th><th>Recommendations</th><th>Trend</th></tr>
+                </thead>
+                <tbody id="analytics-budget-table">
+                  <tr><td colspan="3" style="text-align:center;color:var(--muted);">No data yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- ── BILLING TAB ── -->
         <div id="tab-content-billing" style="display:none;">
-          <div class="section-title">Billing & Plans</div>
+          <div class="section-title">Billing & Plans
+            <span onclick="toggleContextHelp('help-billing')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
           <div class="section-sub">Upgrade your plan. Pay via JazzCash or EasyPaisa.</div>
+          <div id="help-billing" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
+            <strong style="color:#a5b4fc;">Billing help:</strong><br/>
+            • Submit transaction ID after payment.<br/>
+            • Verification usually completes within 24 hours.<br/>
+            • Use plan comparison to select the right tier.
+          </div>
+
+          <div class="card" style="margin-bottom:16px;background:#eef2ff;border:1px solid #c7d2fe;">
+            <h2 style="margin-bottom:8px;">Trial Countdown</h2>
+            <p id="billing-trial-note" style="margin-bottom:10px;">Your trial details will appear here.</p>
+            <div class="mini-kpi" id="billing-verification-kpi">Payment verification: Pending</div>
+          </div>
 
           <div class="card">
             <h2>Current Plan</h2>
@@ -3652,6 +3736,20 @@
               You are on the <strong id="current-plan-name" style="color:var(--primary);">Trial</strong> plan.
               Status: <span id="current-plan-status"></span>
             </p>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <h2>Plan Comparison</h2>
+            <table>
+              <thead>
+                <tr><th>Feature</th><th>Starter</th><th>Growth</th><th>Pro</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Recommendations</td><td>500/mo</td><td>2,000/mo</td><td>Unlimited</td></tr>
+                <tr><td>WooCommerce Sync</td><td>Yes</td><td>Yes</td><td>Priority</td></tr>
+                <tr><td>Support</td><td>Email</td><td>Priority Email</td><td>Priority + Fast Review</td></tr>
+              </tbody>
+            </table>
           </div>
 
           <div class="card">
@@ -3741,8 +3839,16 @@
 
         <!-- ── SETTINGS TAB ── -->
         <div id="tab-content-settings" style="display:none;">
-          <div class="section-title">Settings</div>
+          <div class="section-title">Settings
+            <span onclick="toggleContextHelp('help-settings')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
           <div class="section-sub">Customize how your widget looks and what it says.</div>
+          <div id="help-settings" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
+            <strong style="color:#a5b4fc;">Settings guide:</strong><br/>
+            • Widget tab controls branding and text.<br/>
+            • Store tab changes mode and Woo setup.<br/>
+            • Account tab is for password/security actions.
+          </div>
 
           <!-- Settings sub-tabs (visual only — all cards stay in DOM, JS toggles display) -->
           <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;width:fit-content;margin-bottom:22px;" id="settings-subtabs">
@@ -3804,7 +3910,12 @@
           <div id="settings-panel-store" style="display:none;">
             <div class="card">
               <h2>Store</h2>
-              <p>Store connections and integrations will appear here.</p>
+              <p style="margin-bottom:12px;">Choose your primary store workflow. Dashboard adapts based on this mode.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:#eef2ff;border:1px solid #c7d2fe;">📋 My Products (Manual / CSV)</button>
+                <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')">🔌 WooCommerce</button>
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-top:10px;">You can switch anytime here. Irrelevant product UI stays hidden.</div>
             </div>
           </div>
 
@@ -4102,10 +4213,18 @@
             <div class="embed-box" style="margin-bottom:12px;" id="embed-code-display-2"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-primary btn-sm" onclick="copyEmbed()">📋 Copy embed code</button>
-              <button class="btn btn-sm" onclick="(function(){localStorage.setItem('bb_widget_live','1');var b=document.getElementById('go-live-banner');if(b)b.style.display='none';})()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);">✅ I’m live</button>
-              <button class="btn btn-sm" onclick="(function(){localStorage.removeItem('bb_widget_live');var b=document.getElementById('go-live-banner');if(b)b.style.display='flex';})()" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);">Reset</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.setItem('bb_widget_live','1');var b=document.getElementById('go-live-banner');if(b)b.style.display='none';updateActivationUI();updateOnboardingJourney();})()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);">✅ I’m live</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.removeItem('bb_widget_live');var b=document.getElementById('go-live-banner');if(b)b.style.display='flex';updateActivationUI();updateOnboardingJourney();})()" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);">Reset</button>
             </div>
             <div class="alert" id="embed-alert-2"></div>
+          </div>
+          <div class="card">
+            <h2>Live Widget Preview</h2>
+            <p style="margin-bottom:12px;">Preview how your widget appears on storefront.</p>
+            <div id="embed-live-preview" style="border:1px solid #d7deee;border-radius:12px;padding:18px;background:#f8faff;position:relative;min-height:160px;">
+              <div style="font-size:12px;color:#667085;">Demo storefront page</div>
+              <div id="embed-preview-bubble" style="position:absolute;right:20px;bottom:18px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:#7c6af7;">⚡</div>
+            </div>
           </div>
         </div>
 
@@ -4275,6 +4394,7 @@
       }
       setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
       updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
+      applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
 
       if (token && currentStore) {
         // Verify token is still valid on server
@@ -4790,6 +4910,8 @@
 
         loadAnalytics();
         showTab('home');
+        updateTrialChip();
+        updateActivationUI();
         setTimeout(updateOnboardingJourney, 250);
       } catch (err) {
         localStorage.removeItem('bb_token');
@@ -4823,6 +4945,8 @@
       if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
         setTimeout(updateOnboardingJourney, 100);
       }
+      if (name === 'billing') updateBillingTrialNote();
+      if (name === 'embed' || name === 'home') updateActivationUI();
     }
 
     // ─── ANALYTICS ────────────────────────────────────────────
@@ -4905,6 +5029,8 @@
         if (!stats.daily || stats.daily.length === 0) {
           document.getElementById('daily-chart').innerHTML = `<p style="color:var(--muted);font-size:13px;">No data yet.</p>`;
         }
+        renderAnalyticsLine(stats.daily || []);
+        renderAnalyticsInsights(stats);
 
         // Recent table
         if (stats.recent && stats.recent.length) {
@@ -5610,6 +5736,7 @@
         if (data.wooConnected) {
           localStorage.setItem('bb_store_mode', 'woo');
           updateSidebarStoreModeUI('woo', true);
+          applyStoreModeLayout('woo');
 
           // Show connected state
           document.getElementById('woo-status-badge').textContent = '✅ Connected';
@@ -5633,6 +5760,7 @@
         } else {
           const selectedMode = localStorage.getItem('bb_store_mode') || 'custom';
           updateSidebarStoreModeUI(selectedMode, false);
+          applyStoreModeLayout(selectedMode);
 
           // Ensure setup view is visible when not connected
           const connectedView = document.getElementById('woo-connected-view');
@@ -5787,11 +5915,13 @@
     // ─── HELPERS ──────────────────────────────────────────────
     function copyEmbed() {
       const code = document.getElementById('embed-code-display').textContent;
-      navigator.clipboard.writeText(code).then(() =>
-        showAlert('embed-alert', '✅ Embed code copied!', 'success')
-      );
+      navigator.clipboard.writeText(code).then(() => {
+        showAlert('embed-alert', '✅ Embed code copied!', 'success');
+        toast.success('Embed code copied.');
+      });
       localStorage.setItem('bb_embed_copied', '1');
       updateOnboardingJourney();
+      updateActivationUI();
     }
 
     function downloadTemplate() {
@@ -5886,6 +6016,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
       localStorage.setItem('bb_store_mode', view);
       updateSidebarStoreModeUI(view, view === 'woo');
+      applyStoreModeLayout(view);
       var b1 = document.getElementById('sts-woo');
       var b2 = document.getElementById('sts-custom');
       if (b1) b1.classList.toggle('sts-active', view === 'woo');
@@ -5919,6 +6050,110 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
         chip.textContent = 'Manual / CSV';
         chipSub.textContent = 'change in settings';
       }
+    }
+
+    function setStoreModePermanent(mode) {
+      localStorage.setItem('bb_store_mode', mode);
+      setSignupStoreMode(mode);
+      applyStoreModeLayout(mode);
+      updateSidebarStoreModeUI(mode, mode === 'woo');
+      if (document.getElementById('tab-content-products').style.display !== 'none') {
+        switchProductView(mode);
+      }
+      toast.success(`Store mode switched to ${mode === 'woo' ? 'WooCommerce' : 'Manual / CSV'}.`);
+      updateOnboardingJourney();
+    }
+
+    function applyStoreModeLayout(mode) {
+      var switcher = document.querySelector('#tab-content-products .store-type-switcher');
+      var customBtn = document.getElementById('store-mode-custom-btn');
+      var wooBtn = document.getElementById('store-mode-woo-btn');
+      if (switcher) switcher.style.display = 'none';
+      if (customBtn) customBtn.style.borderColor = mode === 'custom' ? '#c7d2fe' : '#d7deee';
+      if (wooBtn) wooBtn.style.borderColor = mode === 'woo' ? '#c7d2fe' : '#d7deee';
+    }
+
+    function updateTrialChip() {
+      var chip = document.getElementById('trial-chip-inline');
+      if (!chip || !currentStore || !currentStore.trialEnds) return;
+      var diff = Math.max(0, Math.ceil((new Date(currentStore.trialEnds).getTime() - Date.now()) / 86400000));
+      chip.textContent = `Trial: ${diff} day${diff === 1 ? '' : 's'} left`;
+      chip.classList.toggle('is-urgent', diff <= 3);
+    }
+
+    function updateActivationUI() {
+      var embedCopied = localStorage.getItem('bb_embed_copied') === '1';
+      var live = localStorage.getItem('bb_widget_live') === '1';
+      var k1 = document.getElementById('kpi-embed');
+      var k2 = document.getElementById('kpi-live');
+      if (k1) k1.textContent = `Embed copied: ${embedCopied ? 'Yes' : 'No'}`;
+      if (k2) k2.textContent = `Live status: ${live ? 'Live' : 'Pending'}`;
+      var cta = document.getElementById('tab-embed');
+      if (cta) cta.classList.toggle('cta-glow', !live);
+      var bubble = document.getElementById('embed-preview-bubble');
+      if (bubble) bubble.style.background = (currentStore && currentStore.brandColor) || '#7c6af7';
+    }
+
+    function updateBillingTrialNote() {
+      var note = document.getElementById('billing-trial-note');
+      if (!note || !currentStore || !currentStore.trialEnds) return;
+      var diff = Math.max(0, Math.ceil((new Date(currentStore.trialEnds).getTime() - Date.now()) / 86400000));
+      note.textContent = diff > 0
+        ? `You have ${diff} day${diff === 1 ? '' : 's'} left in trial. Upgrade now to prevent interruption.`
+        : 'Trial has ended. Upgrade now to keep widget active.';
+    }
+
+    function renderAnalyticsLine(daily) {
+      var svg = document.getElementById('analytics-line-svg');
+      if (!svg) return;
+      if (!daily.length) {
+        svg.innerHTML = '<text x="20" y="28" fill="#667085" font-size="12">No trend data yet</text>';
+        return;
+      }
+      var width = 760, height = 220, padX = 36, padY = 24;
+      var max = Math.max.apply(null, daily.map(function (d) { return d.count || 0; })) || 1;
+      var step = daily.length > 1 ? (width - padX * 2) / (daily.length - 1) : 0;
+      var points = daily.map(function (d, i) {
+        var x = padX + i * step;
+        var y = height - padY - ((d.count || 0) / max) * (height - padY * 2);
+        return [x, y];
+      });
+      var line = points.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+      var area = `M ${padX} ${height - padY} L ${line.replace(/,/g, ' ')} L ${width - padX} ${height - padY} Z`;
+      svg.innerHTML = `
+        <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity=".30"/><stop offset="100%" stop-color="#6366f1" stop-opacity=".02"/></linearGradient></defs>
+        <path d="${area}" fill="url(#g1)"></path>
+        <polyline points="${line}" fill="none" stroke="#4f46e5" stroke-width="2.5"></polyline>
+        ${points.map(function (p) { return `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#4f46e5"></circle>`; }).join('')}
+      `;
+    }
+
+    function renderAnalyticsInsights(stats) {
+      var host = document.getElementById('analytics-insights');
+      var table = document.getElementById('analytics-budget-table');
+      if (!host || !table) return;
+      var daily = stats.daily || [];
+      var recent = stats.recent || [];
+      var last = daily[daily.length - 1]?.count || 0;
+      var prev = daily[daily.length - 2]?.count || 0;
+      var growth = prev ? Math.round(((last - prev) / prev) * 100) : 0;
+      host.innerHTML = `
+        • Weekly momentum: <strong>${growth >= 0 ? '+' : ''}${growth}%</strong><br/>
+        • Most requested purpose: <strong>${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong><br/>
+        • Highest demand day: <strong>${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong>
+      `;
+      var ranges = { '<50K': 0, '50K-100K': 0, '100K-200K': 0, '200K+': 0 };
+      recent.forEach(function (r) {
+        var b = Number(r.budget || 0);
+        if (b < 50000) ranges['<50K']++;
+        else if (b < 100000) ranges['50K-100K']++;
+        else if (b < 200000) ranges['100K-200K']++;
+        else ranges['200K+']++;
+      });
+      table.innerHTML = Object.keys(ranges).map(function (k) {
+        var v = ranges[k];
+        return `<tr><td>${k}</td><td>${v}</td><td>${v > 0 ? '↗ Active' : '—'}</td></tr>`;
+      }).join('') || '<tr><td colspan="3">No data yet.</td></tr>';
     }
 
     function updateOnboardingJourney() {

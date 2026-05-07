@@ -2479,21 +2479,61 @@
        Does not affect landing/auth pages
     ═══════════════════════════════ */
     #page-app {
-      --dash-bg:        #0d0e12;
-      --dash-surface:   #13151c;
-      --dash-surface2:  #181a23;
-      --dash-border:    rgba(255,255,255,0.07);
-      --dash-border2:   rgba(255,255,255,0.12);
-      --dash-text:      #e8e8f0;
-      --dash-muted:     #6b6d82;
-      --dash-accent:    #6366f1;
-      --dash-accent-bg: rgba(99,102,241,0.10);
-      --dash-success:   #10b981;
-      --dash-warning:   #f59e0b;
-      --dash-danger:    #ef4444;
-      --dash-info-bg:   rgba(99,102,241,0.08);
-      --dash-info-text: #818cf8;
+      --dash-bg:        #f6f8fc;
+      --dash-surface:   #ffffff;
+      --dash-surface2:  #f3f5fb;
+      --dash-border:    #e3e8f4;
+      --dash-border2:   #d7deee;
+      --dash-text:      #111827;
+      --dash-muted:     #667085;
+      --dash-accent:    #4f46e5;
+      --dash-accent-bg: rgba(79,70,229,0.10);
+      --dash-success:   #059669;
+      --dash-warning:   #d97706;
+      --dash-danger:    #dc2626;
+      --dash-info-bg:   rgba(79,70,229,0.08);
+      --dash-info-text: #4338ca;
       background: var(--dash-bg);
+    }
+
+    #page-app {
+      color: var(--dash-text);
+      font-family: 'Poppins', 'Segoe UI', sans-serif;
+    }
+    #page-app .section-title,
+    #page-app .card h2,
+    #page-app .stat-value,
+    #page-app .sidebar-logo {
+      font-family: 'Montserrat', 'Poppins', sans-serif;
+      letter-spacing: -0.01em;
+    }
+    #page-app .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    #page-app .section-sub {
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    #page-app .main { background: var(--dash-bg); }
+    #page-app .app-layout { min-height: calc(100vh - 57px); }
+    #page-app .sidebar {
+      width: 248px;
+      position: sticky;
+      top: 0;
+      height: calc(100vh - 57px);
+      padding: 20px 12px;
+      overflow-y: auto;
+    }
+    #page-app .main {
+      flex: 1;
+      padding: 22px 24px;
+      overflow-x: hidden;
+    }
+    #page-app [id^="tab-content-"] {
+      max-width: 1220px;
+      margin: 0 auto;
     }
 
     #page-app .sidebar,
@@ -2512,11 +2552,28 @@
     #page-app .modal {
       border-color: var(--dash-border);
     }
+    #page-app .sidebar { box-shadow: 0 0 0 1px rgba(15,23,42,0.02); }
+    #page-app .card,
+    #page-app .stat-card { box-shadow: 0 6px 20px rgba(15,23,42,0.04); }
+    #page-app .card {
+      border-radius: 14px;
+      border: 1px solid var(--dash-border);
+    }
+    #page-app .stats-grid {
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    #page-app .stat-card {
+      border: 1px solid var(--dash-border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    #page-app .stat-label { font-size: 12px; }
 
     #page-app .sidebar-item { color: var(--dash-muted); }
-    #page-app .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--dash-text); }
+    #page-app .sidebar-item:hover { background: rgba(79,70,229,0.06); color: var(--dash-text); }
     #page-app .sidebar-item.active { background: var(--dash-accent-bg); color: var(--dash-info-text); }
-    #page-app .sidebar-sep { color: rgba(255,255,255,0.22); }
+    #page-app .sidebar-sep { color: #98a2b3; }
 
     #page-app .card h2,
     #page-app .section-title,
@@ -2526,8 +2583,8 @@
     #page-app .section-sub { color: var(--dash-muted); }
 
     #page-app table th { background: var(--dash-bg); color: var(--dash-muted); border-color: var(--dash-border); }
-    #page-app table td { border-color: rgba(255,255,255,0.04); color: #b0b2c8; }
-    #page-app table tr:hover td { background: rgba(255,255,255,0.03); }
+    #page-app table td { border-color: #eef2f8; color: #344054; }
+    #page-app table tr:hover td { background: #f8faff; }
 
     #page-app input[type=text],
     #page-app input[type=email],
@@ -2543,6 +2600,11 @@
     #page-app select:focus,
     #page-app textarea:focus { border-color: var(--dash-accent); }
 
+    #page-app .btn { color: #344054; border-color: var(--dash-border2); }
+    #page-app .btn,
+    #page-app input,
+    #page-app select,
+    #page-app textarea { font-family: 'Poppins', 'Segoe UI', sans-serif; }
     #page-app .btn-primary { background: var(--dash-accent); color: #fff; }
     #page-app .btn-primary:hover { background: #4f52d6; }
 
@@ -2593,6 +2655,27 @@
       background: rgba(16,185,129,0.18);
       border-color: rgba(16,185,129,0.45);
       color: var(--dash-success);
+    }
+
+    /* Neutralize existing dark inline styles in dashboard only */
+    #page-app [style*="background:#0f1117"] { background: #f8faff !important; }
+    #page-app [style*="background:#1a1d27"] { background: #ffffff !important; }
+    #page-app [style*="background:#2a2d3e"] { background: #eef2ff !important; }
+    #page-app [style*="color:#fff"] { color: #101828 !important; }
+    #page-app [style*="color:#888"] { color: #667085 !important; }
+    #page-app [style*="color:#555"] { color: #667085 !important; }
+    #page-app [style*="border:1px solid #2a2d3e"] { border: 1px solid #d7deee !important; }
+
+    @media (max-width: 980px) {
+      #page-app .sidebar {
+        width: 86px;
+      }
+      #page-app .sidebar .sidebar-sep,
+      #page-app .sidebar .sidebar-logo,
+      #page-app .sidebar .sb-store-type { display: none; }
+      #page-app .sidebar .sidebar-item { justify-content: center; font-size: 0; }
+      #page-app .sidebar .sidebar-item .icon { font-size: 18px; margin: 0; }
+      #page-app .main { padding: 16px; }
     }
   </style>
   <script src="config.js"></script>
@@ -3155,6 +3238,16 @@
         <div id="tab-content-home">
           <div class="section-title">Dashboard</div>
           <div class="section-sub" id="welcome-msg"></div>
+
+          <div class="card" style="margin-bottom:16px;background:#eef2ff;border:1px solid #c7d2fe;">
+            <h2 style="margin-bottom:8px;">Recommended Next Step</h2>
+            <p style="margin-bottom:12px;">Choose your store flow first so the dashboard stays focused and less confusing.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="showTab('settings')" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">🔌 I use WooCommerce</button>
+              <button class="btn btn-sm" onclick="showTab('products')" style="background:#ecfdf3;color:#027a48;border:1px solid #a6f4c5;">📋 I manage products manually</button>
+              <button class="btn btn-sm" onclick="showTab('embed')" style="background:#ffffff;color:#344054;">🚀 Complete Go Live setup</button>
+            </div>
+          </div>
 
           <div class="stats-grid">
             <div class="stat-card">
@@ -4599,7 +4692,11 @@
       document.getElementById('tab-' + name).classList.add('active');
 
       if (name === 'analytics') loadAnalytics();
-      if (name === 'products') loadProducts();
+      if (name === 'products') {
+        loadProducts();
+        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
+        switchProductView(preferredMode);
+      }
       if (name === 'billing') loadPaymentHistory();
       if (name === 'settings') {
         loadWidgetSettings();
@@ -5389,6 +5486,12 @@
         }
 
         if (data.wooConnected) {
+          localStorage.setItem('bb_store_mode', 'woo');
+          const chip = document.getElementById('sb-store-type-label');
+          const chipSub = document.getElementById('sb-store-type-sub');
+          if (chip) chip.textContent = 'WooCommerce';
+          if (chipSub) chipSub.textContent = 'auto-sync active';
+
           // Show connected state
           document.getElementById('woo-status-badge').textContent = '✅ Connected';
           document.getElementById('woo-status-badge').style.background = 'rgba(46,204,113,.12)';
@@ -5409,6 +5512,12 @@
             widgetStatus.style.color = data.widgetEnabled ? '#2ecc71' : '#e74c3c';
           }
         } else {
+          localStorage.setItem('bb_store_mode', 'custom');
+          const chip = document.getElementById('sb-store-type-label');
+          const chipSub = document.getElementById('sb-store-type-sub');
+          if (chip) chip.textContent = 'Manual / CSV';
+          if (chipSub) chipSub.textContent = 'change in settings';
+
           // Ensure setup view is visible when not connected
           const connectedView = document.getElementById('woo-connected-view');
           const setupView = document.getElementById('woo-setup-view');

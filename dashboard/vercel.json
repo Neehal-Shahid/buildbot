@@ -12,6 +12,10 @@
         "dest": "/admin.html"
       },
       {
+        "src": "/dashboard",
+        "dest": "/dashboard.html"
+      },
+      {
         "src": "/admin.html",
         "dest": "/admin.html"
       },

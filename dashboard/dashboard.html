@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuildBot – Dashboard</title>
+  <meta name="robots" content="noindex" />
+  <script>
+    // Dedicated Dashboard entrypoint.
+    // Keeps your `index.html` as the single source of truth for all UI/logic.
+    // We only add a query flag so `index.html` can start in dashboard mode.
+    (function () {
+      const url = new URL(window.location.href);
+      url.pathname = url.pathname.replace(/\/dashboard\.html$/i, '/');
+      url.searchParams.set('dashboard', '1');
+      window.location.replace(url.toString());
+    })();
+  </script>
+</head>
+<body></body>
+</html>
+

@@ -4344,6 +4344,7 @@
 
   <script>
     const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
+    const FORCE_DASHBOARD = new URLSearchParams(window.location.search).get('dashboard') === '1';
     let token = localStorage.getItem('bb_token');
     function readStoreFromStorage() {
       try {
@@ -4423,14 +4424,14 @@
             localStorage.removeItem('bb_store');
             token = null;
             currentStore = null;
-            showPage('landing');
+            showPage(FORCE_DASHBOARD ? 'login' : 'landing');
           }
         } catch {
-          // Server unreachable — show landing
-          showPage('landing');
+          // Server unreachable — show landing (or login if dashboard-only entry)
+          showPage(FORCE_DASHBOARD ? 'login' : 'landing');
         }
       } else {
-        showPage('landing');
+        showPage(FORCE_DASHBOARD ? 'login' : 'landing');
       }
 
 
@@ -4454,16 +4455,21 @@
       document.getElementById('welcome-msg-input')?.addEventListener('input', updateWidgetPreview);
       document.getElementById('button-text-input')?.addEventListener('input', updateWidgetPreview);
 
-      document.addEventListener('scroll', updateLandingProgress, { passive: true });
-      window.addEventListener('resize', updateLandingProgress, { passive: true });
-      initInteractiveEffects();
-      initHeroThree();
-      initHeroCursorGlow();
-      updateLandingProgress();
+      // Landing-only effects should not run on the dashboard entrypoint.
+      if (!FORCE_DASHBOARD) {
+        document.addEventListener('scroll', updateLandingProgress, { passive: true });
+        window.addEventListener('resize', updateLandingProgress, { passive: true });
+        initInteractiveEffects();
+        initHeroThree();
+        initHeroCursorGlow();
+        updateLandingProgress();
+      }
     };
 
     // ─── PAGE ROUTING ─────────────────────────────────────────
     function showPage(name) {
+      // If someone opened the dedicated dashboard entry, never route to landing.
+      if (FORCE_DASHBOARD && name === 'landing') name = 'login';
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
       document.body.classList.toggle('landing-mode', name === 'landing');

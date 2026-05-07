@@ -2472,6 +2472,128 @@
         font-size: 25px;
       }
     }
+
+    /* ═══════════════════════════════
+       DASHBOARD THEME OVERRIDE
+       Applies ONLY inside #page-app
+       Does not affect landing/auth pages
+    ═══════════════════════════════ */
+    #page-app {
+      --dash-bg:        #0d0e12;
+      --dash-surface:   #13151c;
+      --dash-surface2:  #181a23;
+      --dash-border:    rgba(255,255,255,0.07);
+      --dash-border2:   rgba(255,255,255,0.12);
+      --dash-text:      #e8e8f0;
+      --dash-muted:     #6b6d82;
+      --dash-accent:    #6366f1;
+      --dash-accent-bg: rgba(99,102,241,0.10);
+      --dash-success:   #10b981;
+      --dash-warning:   #f59e0b;
+      --dash-danger:    #ef4444;
+      --dash-info-bg:   rgba(99,102,241,0.08);
+      --dash-info-text: #818cf8;
+      background: var(--dash-bg);
+    }
+
+    #page-app .sidebar,
+    #page-app .card,
+    #page-app .stat-card,
+    #page-app .trial-banner,
+    #page-app .embed-box,
+    #page-app .store-type-switcher {
+      background: var(--dash-surface);
+    }
+
+    #page-app .sidebar,
+    #page-app .card,
+    #page-app .trial-banner,
+    #page-app .embed-box,
+    #page-app .modal {
+      border-color: var(--dash-border);
+    }
+
+    #page-app .sidebar-item { color: var(--dash-muted); }
+    #page-app .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--dash-text); }
+    #page-app .sidebar-item.active { background: var(--dash-accent-bg); color: var(--dash-info-text); }
+    #page-app .sidebar-sep { color: rgba(255,255,255,0.22); }
+
+    #page-app .card h2,
+    #page-app .section-title,
+    #page-app .stat-value { color: var(--dash-text); }
+    #page-app .card p,
+    #page-app .stat-label,
+    #page-app .section-sub { color: var(--dash-muted); }
+
+    #page-app table th { background: var(--dash-bg); color: var(--dash-muted); border-color: var(--dash-border); }
+    #page-app table td { border-color: rgba(255,255,255,0.04); color: #b0b2c8; }
+    #page-app table tr:hover td { background: rgba(255,255,255,0.03); }
+
+    #page-app input[type=text],
+    #page-app input[type=email],
+    #page-app input[type=password],
+    #page-app input[type=number],
+    #page-app select,
+    #page-app textarea {
+      background: var(--dash-bg);
+      border-color: var(--dash-border2);
+      color: var(--dash-text);
+    }
+    #page-app input:focus,
+    #page-app select:focus,
+    #page-app textarea:focus { border-color: var(--dash-accent); }
+
+    #page-app .btn-primary { background: var(--dash-accent); color: #fff; }
+    #page-app .btn-primary:hover { background: #4f52d6; }
+
+    #page-app .badge-success { background: rgba(16,185,129,0.12); color: var(--dash-success); }
+    #page-app .badge-warning { background: rgba(245,158,11,0.12); color: var(--dash-warning); }
+    #page-app .badge-danger  { background: rgba(239,68,68,0.12);  color: var(--dash-danger); }
+
+    #page-app .modal-bg { background: rgba(0,0,0,0.75); }
+
+    /* Sidebar store type chip */
+    #page-app .sb-store-type {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 10px 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(16,185,129,0.22);
+      background: rgba(16,185,129,0.06);
+      cursor: pointer;
+      user-select: none;
+    }
+    #page-app .sb-store-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--dash-success);
+      flex-shrink: 0;
+    }
+    #page-app #sb-store-type-label {
+      color: #a7f3d0;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Sidebar Go-Live button emphasis */
+    #page-app #tab-embed.sidebar-item {
+      background: rgba(16,185,129,0.10);
+      border: 1px solid rgba(16,185,129,0.28);
+      color: var(--dash-success);
+      font-weight: 600;
+    }
+    #page-app #tab-embed.sidebar-item:hover { background: rgba(16,185,129,0.18); }
+    #page-app #tab-embed.sidebar-item.active {
+      background: rgba(16,185,129,0.18);
+      border-color: rgba(16,185,129,0.45);
+      color: var(--dash-success);
+    }
   </style>
   <script src="config.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -2973,16 +3095,34 @@
 
       <!-- Sidebar -->
       <div class="sidebar">
-        <div class="sidebar-sep">Workspace</div>
-        <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
-          <span class="icon">🏠</span> Dashboard
+        <div class="sidebar-logo" style="margin:0 10px 6px;font-weight:800;color:#fff;font-size:14px;letter-spacing:.02em;">
+          ⚡ BuildBot
         </div>
+
+        <div class="sb-store-type" id="sb-store-type-chip" onclick="showTab('settings')">
+          <div class="sb-store-dot"></div>
+          <div style="flex:1;min-width:0;">
+            <div class="sb-store-label" id="sb-store-type-label">Loading...</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.28);margin-top:1px;" id="sb-store-type-sub">change in settings</div>
+          </div>
+        </div>
+
+        <div class="sidebar-sep">Get started</div>
+        <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
+          <span class="icon">🏠</span> Overview
+        </div>
+        <div class="sidebar-item" onclick="showTab('embed')" id="tab-embed">
+          <span class="icon">🔗</span> Go Live · Widget
+        </div>
+
+        <div class="sidebar-sep">Workspace</div>
         <div class="sidebar-item" onclick="showTab('products')" id="tab-products">
           <span class="icon">📦</span> Products
         </div>
         <div class="sidebar-item" onclick="showTab('analytics')" id="tab-analytics">
           <span class="icon">📊</span> Analytics
         </div>
+
         <div class="sidebar-sep">Account</div>
         <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
           <span class="icon">💳</span> Billing
@@ -2990,8 +3130,15 @@
         <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
           <span class="icon">⚙️</span> Settings
         </div>
-        <div class="sidebar-item sidebar-logout" onclick="doLogout()">
-          <span class="icon">🚪</span> Logout
+        <div class="sidebar-item" onclick="showTab('help')" id="tab-help">
+          <span class="icon">❓</span> Help & Docs
+        </div>
+
+        <div style="flex:1;"></div>
+        <div class="sidebar-bottom" style="margin:10px 10px 0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+          <div class="sidebar-item sidebar-logout" onclick="doLogout()" style="margin:0;">
+            <span class="icon">🚪</span> Logout
+          </div>
         </div>
       </div>
 
@@ -3032,6 +3179,17 @@
             </div>
           </div>
 
+          <!-- Go Live Banner — shown until widget is confirmed live -->
+          <div id="go-live-banner" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:12px;margin-bottom:20px;">
+            <div style="font-size:22px;flex-shrink:0;">🚀</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:600;color:#a7f3d0;margin-bottom:2px;">Your widget is ready — paste it on your store to go live</div>
+              <div style="font-size:12px;color:rgba(167,243,208,0.65);">One line of code. Copy the script tag and paste it before &lt;/body&gt; on your website.</div>
+            </div>
+            <button class="btn btn-sm" onclick="copyEmbed()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);white-space:nowrap;flex-shrink:0;">📋 Copy embed code</button>
+            <button class="btn btn-sm" onclick="showTab('embed')" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);white-space:nowrap;flex-shrink:0;">Full setup →</button>
+          </div>
+
           <div class="card">
             <h2>Your Embed Code</h2>
             <p style="margin-bottom:16px;">Paste this before the &lt;/body&gt; tag on your website.</p>
@@ -3064,8 +3222,40 @@
         <!-- ── PRODUCTS TAB ── -->
         <!-- ── PRODUCTS TAB ── -->
         <div id="tab-content-products" style="display:none;">
-          <div class="section-title">Product Catalog</div>
+          <div class="section-title">Product Catalog
+            <span onclick="toggleContextHelp('help-products')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
           <div class="section-sub">Manage your products. The AI only recommends in-stock items.</div>
+
+          <div id="help-products" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
+            <strong style="color:#a5b4fc;">Common questions:</strong><br/>
+            • <strong>WooCommerce not syncing?</strong> Ensure the plugin is installed, activated, and the secret key matches.<br/>
+            • <strong>How often do products sync?</strong> Automatically every 6 hours, or click "Sync now" for immediate update.<br/>
+            • <strong>Can I add products manually if I use WooCommerce?</strong> Switch to Manual mode using the tab switcher above.
+          </div>
+
+          <div class="store-type-switcher" style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;width:fit-content;margin-bottom:16px;">
+            <button id="sts-woo" class="sts-btn" onclick="switchProductView('woo',this)" style="font-size:12px;padding:6px 14px;">🔌 WooCommerce</button>
+            <button id="sts-custom" class="sts-btn sts-active" onclick="switchProductView('custom',this)" style="font-size:12px;padding:6px 14px;">📋 Manual / CSV</button>
+          </div>
+
+          <div id="products-woo-view" style="display:none;">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:#818cf8;">
+              <span style="font-size:16px;flex-shrink:0;">🔌</span>
+              <span><strong style="color:#a5b4fc;">WooCommerce mode.</strong> Your products sync automatically from WordPress. To add or edit products, use your WordPress admin panel.</span>
+            </div>
+            <div class="card">
+              <h2>Connect WooCommerce</h2>
+              <p style="margin-bottom:10px;">WooCommerce sync is configured in <b>Settings</b>. Once connected, products will sync automatically.</p>
+              <button class="btn btn-primary btn-sm" onclick="showTab('settings')">Go to Settings</button>
+            </div>
+          </div>
+
+          <div id="products-custom-view">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:#6ee7b7;">
+              <span style="font-size:16px;flex-shrink:0;">📋</span>
+              <span><strong style="color:#a7f3d0;">Manual mode.</strong> Add products one by one or upload a CSV file. You manage everything from here.</span>
+            </div>
 
           <!-- Top Action Bar -->
           <div style="display:flex;align-items:center;justify-content:space-between;
@@ -3196,12 +3386,20 @@
               </table>
             </div>
           </div>
+          </div><!-- end products-custom-view -->
         </div><!-- end tab-content-products -->
 
         <!-- ── ANALYTICS TAB ── -->
         <div id="tab-content-analytics" style="display:none;">
           <div class="section-title">Analytics</div>
           <div class="section-sub">See how customers are using your BuildBot widget.</div>
+
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn btn-sm" id="analytics-range-7" onclick="setAnalyticsRange(7,this)" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);">Last 7 days</button>
+            <button class="btn btn-sm" id="analytics-range-30" onclick="setAnalyticsRange(30,this)" style="background:transparent;color:var(--muted);">Last 30 days</button>
+            <button class="btn btn-sm" id="analytics-range-all" onclick="setAnalyticsRange(0,this)" style="background:transparent;color:var(--muted);">All time</button>
+            <span style="margin-left:auto;font-size:12px;color:var(--muted);" id="analytics-range-label">Showing: last 7 days</span>
+          </div>
 
           <div class="stats-grid">
             <div class="stat-card">
@@ -3277,15 +3475,33 @@
             </div>
 
             <div class="card" style="background:#0f1117;margin-bottom:16px;">
-              <h2 style="font-size:15px;margin-bottom:12px;">Payment Instructions</h2>
-              <p style="font-size:13px;color:var(--muted);line-height:1.8;">
-                1. Send payment to JazzCash: <strong style="color:#fff;">0300-1234567</strong><br />
-                &nbsp;&nbsp;&nbsp;or EasyPaisa: <strong style="color:#fff;">0333-1234567</strong><br />
-                2. Account name: <strong style="color:#fff;">BuildBot PK</strong><br />
-                3. Send the selected plan amount<br />
-                4. Copy your transaction ID and paste below<br />
-                5. We'll activate your plan within 24 hours
-              </p>
+              <h2 style="font-size:15px;margin-bottom:16px;">How to Pay</h2>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;gap:14px;align-items:flex-start;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">1</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Send payment</div>
+                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);line-height:1.7;">
+                      JazzCash: <strong style="color:#e8e8f0;">0300-1234567</strong>&nbsp;&nbsp;or&nbsp;&nbsp;EasyPaisa: <strong style="color:#e8e8f0;">0333-1234567</strong><br/>
+                      Account name: <strong style="color:#e8e8f0;">BuildBot PK</strong>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:14px;align-items:flex-start;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">2</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Copy your transaction ID</div>
+                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);">After payment, JazzCash / EasyPaisa shows a Transaction Reference ID. Copy it.</div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:14px;align-items:flex-start;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">3</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Paste it below &amp; submit</div>
+                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);">We verify manually and activate your plan within 24 hours. You'll receive a confirmation email.</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
@@ -3329,7 +3545,15 @@
           <div class="section-title">Settings</div>
           <div class="section-sub">Customize how your widget looks and what it says.</div>
 
+          <!-- Settings sub-tabs (visual only — all cards stay in DOM, JS toggles display) -->
+          <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;width:fit-content;margin-bottom:22px;" id="settings-subtabs">
+            <button onclick="switchSettingsTab('widget')" id="stab-widget" class="sts-btn sts-active" style="font-size:12px;padding:6px 16px;">🎨 Widget</button>
+            <button onclick="switchSettingsTab('store')" id="stab-store" class="sts-btn" style="font-size:12px;padding:6px 16px;">🏪 Store</button>
+            <button onclick="switchSettingsTab('account')" id="stab-account" class="sts-btn" style="font-size:12px;padding:6px 16px;">👤 Account</button>
+          </div>
+
           <!-- Branding Row -->
+          <div id="settings-panel-widget">
           <div class="two-col">
             <div class="card">
               <h2>Brand Colors & Currency</h2>
@@ -3375,8 +3599,17 @@
               </div>
             </div>
           </div>
+          </div><!-- end settings-panel-widget -->
 
           <!-- Change Password Row -->
+          <div id="settings-panel-store" style="display:none;">
+            <div class="card">
+              <h2>Store</h2>
+              <p>Store connections and integrations will appear here.</p>
+            </div>
+          </div>
+
+          <div id="settings-panel-account" style="display:none;">
           <div class="card">
             <h2>Security</h2>
             <p style="margin-bottom:20px;">Change your account password.</p>
@@ -3646,6 +3879,49 @@
             <h2 style="color:#e74c3c;">Danger Zone</h2>
             <p style="margin-bottom:20px;">Permanently delete your account and all associated data. This action cannot be undone.</p>
             <button class="btn btn-danger" onclick="deleteAccount(this)">Delete Account</button>
+          </div>
+          </div><!-- end settings-panel-account -->
+        </div>
+
+        <!-- ── EMBED TAB ── -->
+        <div id="tab-content-embed" style="display:none;">
+          <div class="section-title">Go Live · Widget
+            <span onclick="toggleContextHelp('help-embed')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
+          <div class="section-sub">Copy the embed code and paste it on your website to go live.</div>
+
+          <div id="help-embed" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
+            <strong style="color:#a5b4fc;">Common questions:</strong><br/>
+            • <strong>Where do I paste the code?</strong> Paste it just before the &lt;/body&gt; tag in your website's HTML or theme file.<br/>
+            • <strong>Works on Shopify?</strong> Yes — paste into your theme.liquid file before &lt;/body&gt;.<br/>
+            • <strong>Widget not appearing?</strong> Check that the script tag is on every page, not just the homepage.
+          </div>
+
+          <div class="card">
+            <h2>Embed Code</h2>
+            <p style="margin-bottom:14px;">Paste this script tag on your store (before <code>&lt;/body&gt;</code>).</p>
+            <div class="embed-box" style="margin-bottom:12px;" id="embed-code-display-2"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm" onclick="copyEmbed()">📋 Copy embed code</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.setItem('bb_widget_live','1');var b=document.getElementById('go-live-banner');if(b)b.style.display='none';})()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);">✅ I’m live</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.removeItem('bb_widget_live');var b=document.getElementById('go-live-banner');if(b)b.style.display='flex';})()" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);">Reset</button>
+            </div>
+            <div class="alert" id="embed-alert-2"></div>
+          </div>
+        </div>
+
+        <!-- ── HELP TAB ── -->
+        <div id="tab-content-help" style="display:none;">
+          <div class="section-title">Help & Docs</div>
+          <div class="section-sub">Quick answers and next steps.</div>
+          <div class="card">
+            <h2>Getting started</h2>
+            <p style="margin-bottom:14px;">Most stores go live in under 2 minutes.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Go to Go Live</button>
+              <button class="btn btn-sm" onclick="showTab('products')" style="background:#2a2d3e;color:#aaa;">Manage products</button>
+              <button class="btn btn-sm" onclick="showTab('billing')" style="background:#2a2d3e;color:#aaa;">View billing</button>
+            </div>
           </div>
         </div>
 
@@ -5311,6 +5587,80 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       el.textContent = msg;
       el.className = `alert alert-${type} show`;
       setTimeout(() => el.className = 'alert', 4000);
+    }
+
+    // Hide go-live banner when widget is confirmed live
+    (function () {
+      function refreshGoLiveBanner() {
+        var banner = document.getElementById('go-live-banner');
+        if (!banner) return;
+        var live = localStorage.getItem('bb_widget_live') === '1';
+        banner.style.display = live ? 'none' : 'flex';
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        refreshGoLiveBanner();
+        function syncEmbedCodeCopy() {
+          var code = document.getElementById('embed-code-display');
+          var code2 = document.getElementById('embed-code-display-2');
+          if (code && code2 && code.textContent) code2.textContent = code.textContent;
+        }
+        syncEmbedCodeCopy();
+        setTimeout(syncEmbedCodeCopy, 600);
+        setTimeout(syncEmbedCodeCopy, 1600);
+      });
+      // Re-check whenever checklist updates (if present in other builds)
+      var _origUpdateChecklist = window.updateChecklist;
+      if (typeof _origUpdateChecklist === 'function') {
+        window.updateChecklist = function (count) {
+          _origUpdateChecklist(count);
+          refreshGoLiveBanner();
+        };
+      }
+    })();
+
+    function switchSettingsTab(name) {
+      var panels = ['widget', 'store', 'account'];
+      panels.forEach(function (p) {
+        var el = document.getElementById('settings-panel-' + p);
+        var btn = document.getElementById('stab-' + p);
+        if (el) el.style.display = (p === name) ? 'block' : 'none';
+        if (btn) btn.classList.toggle('sts-active', p === name);
+      });
+    }
+
+    function setAnalyticsRange(days, btn) {
+      ['analytics-range-7', 'analytics-range-30', 'analytics-range-all'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.style.background = 'transparent';
+        el.style.color = 'var(--muted)';
+        el.style.borderColor = '';
+      });
+      if (btn) {
+        btn.style.background = 'rgba(99,102,241,0.15)';
+        btn.style.color = '#818cf8';
+        btn.style.borderColor = 'rgba(99,102,241,0.3)';
+      }
+      var lbl = document.getElementById('analytics-range-label');
+      if (lbl) lbl.textContent = days === 0 ? 'Showing: all time' : 'Showing: last ' + days + ' days';
+      loadAnalytics();
+    }
+
+    function toggleContextHelp(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function switchProductView(view, btn) {
+      var woo = document.getElementById('products-woo-view');
+      var custom = document.getElementById('products-custom-view');
+      if (woo) woo.style.display = (view === 'woo') ? 'block' : 'none';
+      if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
+      var b1 = document.getElementById('sts-woo');
+      var b2 = document.getElementById('sts-custom');
+      if (b1) b1.classList.toggle('sts-active', view === 'woo');
+      if (b2) b2.classList.toggle('sts-active', view === 'custom');
     }
   </script>
 </body>

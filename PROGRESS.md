@@ -1,5 +1,5 @@
 # BuildBot — Complete Project Documentation
-> Last Updated: April 2026
+> Last Updated: May 2026
 > Paste this into any new Claude chat to continue instantly
 
 ---
@@ -43,10 +43,11 @@ Plugin ZIP:  https://buildbot-production.up.railway.app/buildbot-woocommerce.zip
 ```
 Backend:        Node.js + Express.js
 Database:       Turso (cloud SQLite — libsql client)
-Frontend:       Vanilla HTML + CSS + JavaScript (no framework)
+Frontend:       Vanilla HTML + CSS + JavaScript (no framework; Vite devDependency only)
 Widget:         Vanilla JS IIFE (immediately invoked function expression)
 AI Engine:      Anthropic Claude API (claude-3-5-haiku-20241022)
 Authentication: JWT (jsonwebtoken) + bcryptjs
+OAuth:          Google Sign-In (google-auth-library + GSI client)
 Email:          Resend API (HTTP-based, not SMTP — Railway blocks SMTP)
 File Upload:    Multer (memory storage — Railway has no persistent disk)
 Hosting Backend: Railway.app (free tier, Node.js)
@@ -118,6 +119,7 @@ JWT_SECRET          = buildbot-super-secret-jwt-key-2024
 PORT                = 3001
 ADMIN_EMAIL         = workwithneehal@gmail.com
 ADMIN_PASSWORD      = admin123
+GOOGLE_CLIENT_ID    = ...apps.googleusercontent.com
 TURSO_URL           = libsql://buildbot-neehal-shahid.aws-ap-south-1.turso.io
 TURSO_TOKEN         = eyJ...
 RESEND_API_KEY      = re_...
@@ -196,6 +198,7 @@ trial_emails_sent (
 PUBLIC (no auth):
 POST /api/signup              → Creates store, sends welcome + verify email
 POST /api/login               → Returns JWT token (7 day expiry)
+POST /api/google-auth         → Google sign-in / sign-up (auto-verifies email)
 GET  /api/verify-email?token= → Marks email verified
 POST /api/forgot-password     → Sends password reset email
 POST /api/reset-password      → Updates password with reset token
@@ -204,12 +207,15 @@ GET  /api/products/:storeId   → Returns in-stock products (for widget + AI)
 POST /api/recommend           → AI build recommendation with limit check
 GET  /api/plans               → Returns plan pricing info
 GET  /widget.js               → Serves the embeddable widget file
+GET  /widget.css              → Serves widget CSS (loaded by widget.js)
 GET  /buildbot-woocommerce.zip → Downloads WordPress plugin
+GET  /plugin-update.json      → Plugin auto-update feed
 
 STORE OWNER (JWT required in Authorization: Bearer <token>):
 GET  /api/me                  → Fresh store data from DB
 PUT  /api/settings            → Saves brand color + currency
 PUT  /api/widget-settings     → Saves widget title/msg/button/bg
+PUT  /api/change-password     → Change password from dashboard
 POST /api/upload              → Bulk CSV upload (memory storage)
 GET  /api/products/manage/:id → All products including out of stock
 POST /api/product             → Add single product
@@ -237,6 +243,12 @@ POST /api/admin/reject-payment  → Rejects payment + sends email
 POST /api/admin/disable-store   → Disables store widget
 POST /api/admin/activate-store  → Re-enables store
 POST /api/admin/delete-store    → Deletes store + all related data
+POST /api/admin/forgot-password → Sends admin reset link email
+POST /api/admin/reset-password  → Resets admin password with token
+GET  /api/admin/me              → Admin profile
+PUT  /api/admin/profile         → Update admin name/email
+PUT  /api/admin/password        → Change admin password
+GET  /api/admin/db-audit        → DB integrity report (orphans/tokens/counts)
 ```
 
 ---
@@ -308,15 +320,21 @@ Auto-contrast: Button text automatically black or white based on brand color
 Customization: Title, welcome message, button text (set by store owner)
 Widget disabled: Checks widget_enabled from server — hides itself if false
 
-Flow (4 steps with progress bar):
-Step 1: Welcome screen with custom message
-Step 2: Budget input + quick-select chips (50k/80k/1.2L/2L)
-Step 3: Purpose selection (8 options: Gaming, Office, Coding, etc.)
-Step 4: Extras selection (Monitor, Keyboard, Mouse, etc.) + free text
-→ AI generates recommendation
-→ Shows build name, parts with quantities, total, tips, budget remaining
-→ Missing categories warned
-→ Friendly error if limit hit or store inactive
+Extras:
+- Serves `widget.css` from backend and loads it dynamically
+- PDF download of recommendation (html2pdf client-side)
+
+Flow (Welcome + 3 inputs + results):
+S1: Welcome screen with custom message
+S2: Budget input + quick-select chips (50k/80k/1.2L/2L)
+S3: Purpose selection (8 options: Gaming, Office, Coding, etc.)
+S4: Extras selection (Monitor, Keyboard, Mouse, etc.) + free text
+S5: Loading animation
+S6: Results
+→ AI generates **3 build options** (Budget / Balanced / Max)
+→ Cards view + detail modal per build (parts, reasons, totals)
+→ Missing categories shown when store lacks parts
+→ Friendly customer-safe error if limit hit / store inactive / AI down
 
 Widget is served by Railway at /widget.js
 Must live in server/widget.js (not widget/widget.js)
@@ -451,11 +469,13 @@ Features:
 ### Core Features:
 - [x] Store owner signup + login with JWT
 - [x] Strong password enforcement + strength bar
-- [x] Email verification (sends, not enforced for login)
+- [x] Email verification (enforced on login)
+- [x] Google sign-in / sign-up (auto-verifies email)
 - [x] Forgot password + reset flow
 - [x] Turso cloud database (all migrations in initDB)
 - [x] CSV bulk upload (memory storage, Railway compatible)
-- [x] AI recommendations (Claude claude-opus-4-5)
+- [x] AI recommendations (Claude `claude-3-5-haiku-20241022`)
+- [x] Three-tier recommendations (3 builds returned)
 - [x] Recommendation limits (3/day trial, 500/mo starter, 2000/mo growth)
 - [x] TEST_MODE for free testing
 - [x] Product management (add/edit/delete/stock toggle)
@@ -501,6 +521,13 @@ Features:
 6. admin.html has no rate limiting on login
    → Could be brute forced
    → Low priority for now
+
+7. Widget background color from dashboard (`widget_bg`) is stored in DB but not applied in `server/widget.js`
+   → `WIDGET_BG` is currently hardcoded, but CSS variables include `--bb-bg`
+   → Fix: set `WIDGET_BG = data.widgetBg || WIDGET_BG` in widget init
+
+8. In-memory IP rate limiting resets on deploy/restart and doesn't share state across instances
+   → OK for MVP; for scale, move to a shared store (Redis) or Cloudflare/WAF rules
 ```
 
 ---
@@ -535,12 +562,14 @@ Priority 3 (Growth):
 ```bash
 # Terminal 1 — Backend
 cd Desktop/buildbot/server
+npm install
 node index.js
 # Should print: Turso database connected and tables ready!
 # Runs at: http://localhost:3001
 
 # Terminal 2 — Frontend  
 cd Desktop/buildbot/dashboard
+npm install
 npx serve .
 # Runs at: http://localhost:3000
 

@@ -1,7 +1,8 @@
 const { Resend } = require('resend');
 require('dotenv').config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const APP_URL = process.env.APP_URL || 'https://buildbot-nine.vercel.app';
 const FROM = 'BuildBot <onboarding@resend.dev>';
 const TO_OVERRIDE = process.env.RESEND_TEST_EMAIL || null;
@@ -9,6 +10,9 @@ const TO_OVERRIDE = process.env.RESEND_TEST_EMAIL || null;
 // ─── SEND FUNCTION ────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
   try {
+    if (!resend) {
+      throw new Error('RESEND_API_KEY is not set');
+    }
     const recipient = TO_OVERRIDE || to;
     const { error } = await resend.emails.send({
       from: FROM,

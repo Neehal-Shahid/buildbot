@@ -2,10 +2,20 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const { storeDB, paymentDB, analyticsDB, client, adminDB, tokenDB } = require('../database');
 
 const router = express.Router();
 const JWT_SECRET   = process.env.JWT_SECRET || 'buildbot-secret';
+
+// Basic brute-force protection for admin auth endpoints
+const adminAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' }
+});
 
 async function enrichStoresWithCounts(stores) {
   if (!stores.length) return stores;
@@ -50,7 +60,7 @@ function adminAuth(req, res, next) {
   }
 }
 
-router.post('/admin/login', async (req, res) => {
+router.post('/admin/login', adminAuthLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
@@ -140,7 +150,7 @@ router.post('/admin/activate-store', adminAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/admin/forgot-password', async (req, res) => {
+router.post('/admin/forgot-password', adminAuthLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
 
@@ -155,7 +165,7 @@ router.post('/admin/forgot-password', async (req, res) => {
   res.json({ success: true, message: 'Password reset link sent! Check your email.' });
 });
 
-router.post('/admin/reset-password', async (req, res) => {
+router.post('/admin/reset-password', adminAuthLimiter, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' });
 

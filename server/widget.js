@@ -5,7 +5,7 @@
   const API       = 'https://buildbot-production.up.railway.app/api';
 
   let BRAND_COLOR  = '#7c6af7';
-  let WIDGET_BG    = '#0f1117'; // Matches landing page --bg
+  let WIDGET_BG    = '#0f1117'; // Default; can be overridden per-store via store-config
   let CURRENCY     = 'PKR';
   let WIDGET_TITLE = 'BuildBot';
   let WELCOME_MSG  = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
@@ -48,6 +48,7 @@
           return;
         }
         BRAND_COLOR  = data.brandColor  || BRAND_COLOR;
+        WIDGET_BG    = data.widgetBg    || WIDGET_BG;
         CURRENCY     = data.currency    || CURRENCY;
         WIDGET_TITLE = data.widgetTitle || WIDGET_TITLE;
         WELCOME_MSG  = data.welcomeMsg  || WELCOME_MSG;

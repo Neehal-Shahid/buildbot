@@ -2535,6 +2535,25 @@
       max-width: 1220px;
       margin: 0 auto;
     }
+    body.dashboard-mode #main-nav {
+      position: static;
+      top: auto;
+      width: 100%;
+      margin: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: #ffffff;
+      border-bottom: 1px solid #e3e8f4;
+      padding: 14px 26px;
+      backdrop-filter: none;
+    }
+    body.dashboard-mode #main-nav .nav-logo {
+      color: #4f46e5;
+      font-size: 17px;
+    }
+    body.dashboard-mode #main-nav .nav-link {
+      color: #667085;
+    }
 
     #page-app .sidebar,
     #page-app .card,
@@ -2574,6 +2593,56 @@
     #page-app .sidebar-item:hover { background: rgba(79,70,229,0.06); color: var(--dash-text); }
     #page-app .sidebar-item.active { background: var(--dash-accent-bg); color: var(--dash-info-text); }
     #page-app .sidebar-sep { color: #98a2b3; }
+    #page-app .sidebar-item {
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #page-app .sidebar-item .icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      flex-shrink: 0;
+      font-size: 0;
+      background: currentColor;
+      opacity: .9;
+    }
+    #tab-home .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m3 11 9-8 9 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 10v10h14V10"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m3 11 9-8 9 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 10v10h14V10"/></svg>') center/contain no-repeat;
+    }
+    #tab-embed .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>') center/contain no-repeat;
+    }
+    #tab-products .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v11H3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 7 7 3h10l4 4"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v11H3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 7 7 3h10l4 4"/></svg>') center/contain no-repeat;
+    }
+    #tab-analytics .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 19V9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 19V12"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 19V7"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 19V9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 19V12"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 19V7"/></svg>') center/contain no-repeat;
+    }
+    #tab-billing .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>') center/contain no-repeat;
+    }
+    #tab-settings .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 4.6H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.36.17.71.26 1.09.26H21a2 2 0 1 1 0 4h-.09c-.38 0-.73.09-1.09.26z"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 4.6H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.36.17.71.26 1.09.26H21a2 2 0 1 1 0 4h-.09c-.38 0-.73.09-1.09.26z"/></svg>') center/contain no-repeat;
+    }
+    #tab-help .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.3-1.7 2.7"/><circle cx="12" cy="17" r="1"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.3-1.7 2.7"/><circle cx="12" cy="17" r="1"/></svg>') center/contain no-repeat;
+    }
+    .sidebar-logout .icon {
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path d="M12 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>') center/contain no-repeat;
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="black" stroke-width="2"><path d="M12 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>') center/contain no-repeat;
+    }
 
     #page-app .card h2,
     #page-app .section-title,
@@ -2664,6 +2733,10 @@
     #page-app [style*="color:#fff"] { color: #101828 !important; }
     #page-app [style*="color:#888"] { color: #667085 !important; }
     #page-app [style*="color:#555"] { color: #667085 !important; }
+    #page-app [style*="color:#666"] { color: #667085 !important; }
+    #page-app [style*="color:#ccc"] { color: #344054 !important; }
+    #page-app [style*="color:#aaa"] { color: #667085 !important; }
+    #page-app [style*="background:#3a1a1a"] { background: #fff1f2 !important; }
     #page-app [style*="border:1px solid #2a2d3e"] { border: 1px solid #d7deee !important; }
 
     @media (max-width: 980px) {
@@ -3088,6 +3161,14 @@
             Must contain uppercase, lowercase, number and special character. Example: MyStore@123
           </div>
         </div>
+        <div class="form-group">
+          <label class="form-label">How do you manage products?</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="signup-store-mode-switcher">
+            <button type="button" class="btn btn-sm" id="signup-mode-custom" onclick="setSignupStoreMode('custom')" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;">📋 Manual / CSV</button>
+            <button type="button" class="btn btn-sm" id="signup-mode-woo" onclick="setSignupStoreMode('woo')" style="background:#ffffff;">🔌 WooCommerce</button>
+          </div>
+          <div style="font-size:11px;color:#666;margin-top:8px;">You can change this later in Dashboard Settings.</div>
+        </div>
         <button class="btn btn-primary btn-full" onclick="doSignup(this)">Create Account & Start Trial</button>
         <div class="auth-meta">
           <span>Secure authentication</span>
@@ -3238,6 +3319,31 @@
         <div id="tab-content-home">
           <div class="section-title">Dashboard</div>
           <div class="section-sub" id="welcome-msg"></div>
+
+          <div class="card" style="margin-bottom:16px;background:#ffffff;border:1px solid #d7deee;">
+            <h2 style="margin-bottom:8px;">Getting Started Journey</h2>
+            <p style="margin-bottom:12px;">Follow these 3 steps to go live fast. We highlight your current next action.</p>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;" id="onboarding-journey">
+              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+                <div style="font-size:11px;color:#667085;">Step 1</div>
+                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Choose Store Mode</div>
+                <div style="font-size:11px;color:#667085;" id="journey-step-store">Pending</div>
+                <button class="btn btn-sm" onclick="showTab('settings')" style="margin-top:8px;background:#fff;">Open settings</button>
+              </div>
+              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+                <div style="font-size:11px;color:#667085;">Step 2</div>
+                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Add Product Source</div>
+                <div style="font-size:11px;color:#667085;" id="journey-step-products">Pending</div>
+                <button class="btn btn-sm" onclick="showTab('products')" style="margin-top:8px;background:#fff;">Manage products</button>
+              </div>
+              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+                <div style="font-size:11px;color:#667085;">Step 3</div>
+                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Publish Widget</div>
+                <div style="font-size:11px;color:#667085;" id="journey-step-live">Pending</div>
+                <button class="btn btn-sm" onclick="showTab('embed')" style="margin-top:8px;background:#fff;">Go live</button>
+              </div>
+            </div>
+          </div>
 
           <div class="card" style="margin-bottom:16px;background:#eef2ff;border:1px solid #c7d2fe;">
             <h2 style="margin-bottom:8px;">Recommended Next Step</h2>
@@ -4164,6 +4270,12 @@
     }
     // ─── INIT ─────────────────────────────────────────────────
     window.onload = async () => {
+      if (!localStorage.getItem('bb_store_mode')) {
+        localStorage.setItem('bb_store_mode', 'custom');
+      }
+      setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
+      updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
+
       if (token && currentStore) {
         // Verify token is still valid on server
         try {
@@ -4224,6 +4336,7 @@
       document.getElementById('page-' + name).classList.add('active');
       document.body.classList.toggle('landing-mode', name === 'landing');
       document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot');
+      document.body.classList.toggle('dashboard-mode', name === 'app');
       if (name === 'landing') {
         initScrollAnimations();
         initInteractiveEffects();
@@ -4510,6 +4623,7 @@
       const name = document.getElementById('signup-name').value.trim();
       const email = document.getElementById('signup-email').value.trim();
       const password = document.getElementById('signup-password').value;
+      const signupMode = localStorage.getItem('bb_signup_store_mode') || 'custom';
 
       if (!name || !email || !password)
         return showAlert('signup-alert', 'Please fill all fields.', 'error');
@@ -4528,6 +4642,7 @@
         if (data.success) {
           token = data.token;
           currentStore = data.store;
+          localStorage.setItem('bb_store_mode', signupMode);
           localStorage.removeItem('bb_token');
           localStorage.removeItem('bb_store');
           localStorage.setItem('bb_token', token);
@@ -4675,6 +4790,7 @@
 
         loadAnalytics();
         showTab('home');
+        setTimeout(updateOnboardingJourney, 250);
       } catch (err) {
         localStorage.removeItem('bb_token');
         localStorage.removeItem('bb_store');
@@ -4701,6 +4817,11 @@
       if (name === 'settings') {
         loadWidgetSettings();
         loadWooStatus();
+        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
+        switchSettingsTab(preferredMode === 'woo' ? 'store' : 'widget');
+      }
+      if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
+        setTimeout(updateOnboardingJourney, 100);
       }
     }
 
@@ -4795,6 +4916,7 @@
           <td>${new Date(r.created_at).toLocaleDateString()}</td>
         </tr>`).join('');
         }
+        updateOnboardingJourney();
 
       } catch (e) {
         console.error(e);
@@ -5487,10 +5609,7 @@
 
         if (data.wooConnected) {
           localStorage.setItem('bb_store_mode', 'woo');
-          const chip = document.getElementById('sb-store-type-label');
-          const chipSub = document.getElementById('sb-store-type-sub');
-          if (chip) chip.textContent = 'WooCommerce';
-          if (chipSub) chipSub.textContent = 'auto-sync active';
+          updateSidebarStoreModeUI('woo', true);
 
           // Show connected state
           document.getElementById('woo-status-badge').textContent = '✅ Connected';
@@ -5512,11 +5631,8 @@
             widgetStatus.style.color = data.widgetEnabled ? '#2ecc71' : '#e74c3c';
           }
         } else {
-          localStorage.setItem('bb_store_mode', 'custom');
-          const chip = document.getElementById('sb-store-type-label');
-          const chipSub = document.getElementById('sb-store-type-sub');
-          if (chip) chip.textContent = 'Manual / CSV';
-          if (chipSub) chipSub.textContent = 'change in settings';
+          const selectedMode = localStorage.getItem('bb_store_mode') || 'custom';
+          updateSidebarStoreModeUI(selectedMode, false);
 
           // Ensure setup view is visible when not connected
           const connectedView = document.getElementById('woo-connected-view');
@@ -5674,6 +5790,8 @@
       navigator.clipboard.writeText(code).then(() =>
         showAlert('embed-alert', '✅ Embed code copied!', 'success')
       );
+      localStorage.setItem('bb_embed_copied', '1');
+      updateOnboardingJourney();
     }
 
     function downloadTemplate() {
@@ -5766,10 +5884,81 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var custom = document.getElementById('products-custom-view');
       if (woo) woo.style.display = (view === 'woo') ? 'block' : 'none';
       if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
+      localStorage.setItem('bb_store_mode', view);
+      updateSidebarStoreModeUI(view, view === 'woo');
       var b1 = document.getElementById('sts-woo');
       var b2 = document.getElementById('sts-custom');
       if (b1) b1.classList.toggle('sts-active', view === 'woo');
       if (b2) b2.classList.toggle('sts-active', view === 'custom');
+    }
+
+    function setSignupStoreMode(mode) {
+      localStorage.setItem('bb_signup_store_mode', mode);
+      var customBtn = document.getElementById('signup-mode-custom');
+      var wooBtn = document.getElementById('signup-mode-woo');
+      if (customBtn) {
+        customBtn.style.background = mode === 'custom' ? '#eef2ff' : '#ffffff';
+        customBtn.style.color = mode === 'custom' ? '#3730a3' : '#344054';
+        customBtn.style.borderColor = mode === 'custom' ? '#c7d2fe' : '#d0d5dd';
+      }
+      if (wooBtn) {
+        wooBtn.style.background = mode === 'woo' ? '#eef2ff' : '#ffffff';
+        wooBtn.style.color = mode === 'woo' ? '#3730a3' : '#344054';
+        wooBtn.style.borderColor = mode === 'woo' ? '#c7d2fe' : '#d0d5dd';
+      }
+    }
+
+    function updateSidebarStoreModeUI(mode, connected) {
+      var chip = document.getElementById('sb-store-type-label');
+      var chipSub = document.getElementById('sb-store-type-sub');
+      if (!chip || !chipSub) return;
+      if (mode === 'woo') {
+        chip.textContent = 'WooCommerce';
+        chipSub.textContent = connected ? 'auto-sync active' : 'setup required';
+      } else {
+        chip.textContent = 'Manual / CSV';
+        chipSub.textContent = 'change in settings';
+      }
+    }
+
+    function updateOnboardingJourney() {
+      var mode = localStorage.getItem('bb_store_mode') || 'custom';
+      var productsCount = Number((document.getElementById('stat-products') || {}).textContent || 0);
+      var embedCopied = localStorage.getItem('bb_embed_copied') === '1';
+      var live = localStorage.getItem('bb_widget_live') === '1';
+
+      var stepStore = document.getElementById('journey-step-store');
+      var stepProducts = document.getElementById('journey-step-products');
+      var stepLive = document.getElementById('journey-step-live');
+
+      if (stepStore) {
+        stepStore.textContent = mode === 'woo' ? 'WooCommerce selected' : 'Manual / CSV selected';
+        stepStore.style.color = '#027a48';
+      }
+      if (stepProducts) {
+        if (mode === 'woo') {
+          stepProducts.textContent = 'Connect Woo plugin in settings';
+          stepProducts.style.color = '#667085';
+        } else if (productsCount > 0) {
+          stepProducts.textContent = productsCount + ' products loaded';
+          stepProducts.style.color = '#027a48';
+        } else {
+          stepProducts.textContent = 'Add first product or upload CSV';
+          stepProducts.style.color = '#667085';
+        }
+      }
+      if (stepLive) {
+        if (live) {
+          stepLive.textContent = 'Widget is live on your store';
+          stepLive.style.color = '#027a48';
+        } else if (embedCopied) {
+          stepLive.textContent = 'Embed copied. Paste on website to finish';
+          stepLive.style.color = '#3730a3';
+        } else {
+          stepLive.textContent = 'Copy and publish widget script';
+          stepLive.style.color = '#667085';
+        }
+      }
     }
   </script>
 </body>

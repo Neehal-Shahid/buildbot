@@ -1,4 +1,12 @@
-const BUILDBOT_API = window.location.hostname === 'localhost'
+// API selection:
+// - By default, use production API (works on localhost too).
+// - Only use local API when explicitly enabled (so localhost doesn't break auth).
+const useLocalApi =
+  window.location.hostname === 'localhost' &&
+  (new URLSearchParams(window.location.search).get('localApi') === '1' ||
+    localStorage.getItem('bb_use_local_api') === '1');
+
+const BUILDBOT_API = useLocalApi
   ? 'http://localhost:3001/api'
   : 'https://buildbot-production.up.railway.app/api';
 

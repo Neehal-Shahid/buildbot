@@ -151,6 +151,11 @@
       flex-direction: column;
       gap: 1px;
     }
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 10px;
+    }
     .sidebar-section-label {
       font-size: 10px;
       font-weight: 600;
@@ -1056,38 +1061,50 @@
           <span class="sidebar-logo-name">BuildBot</span>
         </div>
         <nav class="sidebar-nav">
-          <span class="sidebar-section-label">Get Started</span>
+
           <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             Overview
           </div>
-          <div class="sidebar-item" onclick="showTab('embed')" id="tab-embed">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>
-            Go Live · Widget
-            <span class="sidebar-status-dot" id="embed-status-dot"></span>
-          </div>
-          <span class="sidebar-section-label">Workspace</span>
+
           <div class="sidebar-item" onclick="showTab('products')" id="tab-products">
-            <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             Products
           </div>
+
           <div class="sidebar-item" onclick="showTab('analytics')" id="tab-analytics">
-            <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             Analytics
           </div>
-          <span class="sidebar-section-label">Account</span>
+
+          <div class="sidebar-item" onclick="showTab('embed')" id="tab-embed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>
+            Install Widget
+            <span class="sidebar-status-dot" id="embed-status-dot"></span>
+          </div>
+
+          <div class="sidebar-divider"></div>
+
           <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
-            <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Billing
           </div>
-          <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Settings
+
+          <div class="sidebar-item" onclick="showTab('account')" id="tab-account">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Account
           </div>
+
+          <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Widget Settings
+          </div>
+
           <div class="sidebar-item" onclick="showTab('help')" id="tab-help">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
             Help & Docs
           </div>
+
         </nav>
         <div class="sidebar-footer">
           <div class="sidebar-user">
@@ -1193,14 +1210,6 @@
             </div>
           </div>
 
-          <div class="card" id="settings-security-card">
-            <h2>Your Embed Code</h2>
-            <p style="margin-bottom:16px;">Paste this before the &lt;/body&gt; tag on your website.</p>
-            <div class="embed-box" id="embed-code-display"></div>
-            <button class="btn btn-primary btn-sm" onclick="copyEmbed()">Copy Code</button>
-            <div class="alert" id="embed-alert"></div>
-          </div>
-
           <div class="card" id="settings-widget-text-card">
             <h2>Recent Activity</h2>
             <p style="margin-bottom:16px;">Last 10 build recommendations made on your store.</p>
@@ -1234,7 +1243,7 @@
             <strong style="color:var(--text);">Common questions:</strong><br/>
             • <strong>WooCommerce not syncing?</strong> Ensure the plugin is installed, activated, and the secret key matches.<br/>
             • <strong>How often do products sync?</strong> Automatically every 6 hours, or click "Sync now" for immediate update.<br/>
-            • <strong>Can I add products manually if I use WooCommerce?</strong> Switch store mode in Settings → Store.
+            • <strong>Can I add products manually if I use WooCommerce?</strong> Use <strong>Store Mode</strong> below to switch to My Products (Manual / CSV).
           </div>
 
           <div id="products-woo-view" style="display:none;">
@@ -1242,11 +1251,170 @@
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg>
               <span><strong style="color:var(--text);">WooCommerce mode.</strong> Your products sync automatically from WordPress. To add or edit products, use your WordPress admin panel.</span>
             </div>
-            <div class="card">
-              <h2>Connect WooCommerce</h2>
-              <p style="margin-bottom:10px;">WooCommerce sync is configured in <b>Settings</b>. Once connected, products will sync automatically.</p>
-              <button class="btn btn-primary btn-sm" onclick="showTab('settings')">Go to Settings</button>
+            <div class="card" style="margin-bottom:16px;">
+              <h2>Store Mode</h2>
+              <p style="margin-bottom:12px;">Choose your primary store workflow.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:var(--accent-bg);border:1px solid var(--border-2);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>My Products (Manual / CSV)</button>
+                <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg>WooCommerce</button>
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-top:10px;">You can switch anytime. Irrelevant product UI stays hidden.</div>
             </div>
+          <!-- WooCommerce Plugin Section -->
+          <div class="card" id="woo-section">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+              <div style="font-size:28px;display:flex;align-items:center;color:var(--accent);"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg></div>
+              <div>
+                <h2 style="margin:0;">WooCommerce Auto-Sync</h2>
+                <p style="margin:4px 0 0;font-size:13px;color:#666;">
+                  Connect your WooCommerce store — products sync automatically. No CSV needed.
+                </p>
+              </div>
+              <div id="woo-status-badge" style="margin-left:auto;padding:5px 14px;
+      border-radius:20px;font-size:12px;font-weight:700;
+      background:rgba(231,76,60,.12);color:var(--danger);
+      border:1px solid rgba(231,76,60,.3);">
+                ● Not Connected
+              </div>
+            </div>
+
+            <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+            <!-- Connected State (hidden by default) -->
+            <div id="woo-connected-view" style="display:none;">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                  <div
+                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    Store URL</div>
+                  <div style="font-size:13px;color:var(--text-2);font-weight:500;word-break:break-all;" id="woo-url-display">—
+                  </div>
+                </div>
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                  <div
+                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    Products Synced</div>
+                  <div style="font-size:22px;font-weight:700;color:var(--success);" id="woo-count-display">0</div>
+                </div>
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                  <div
+                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    Last Synced</div>
+                  <div style="font-size:13px;color:var(--text-2);font-weight:500;" id="woo-sync-display">Never</div>
+                </div>
+              </div>
+              <div id="woo-widget-status" style="font-size:13px;margin-bottom:14px;padding:10px 14px;
+  background:var(--surface-2);border-radius:8px;border:1px solid var(--border);">
+                Checking widget status...
+              </div>
+              <div style="display:flex;gap:10px;">
+                <p style="font-size:12px;color:var(--muted);padding:8px 0;">To run a manual sync, go to your WordPress Admin panel > WooCommerce > BuildBot and click Sync.</p>
+                <button class="btn btn-sm" onclick="disconnectWoo()"
+                  style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border);">
+                  Disconnect
+                </button>
+              </div>
+              <div class="alert" id="woo-sync-alert" style="margin-top:12px;"></div>
+            </div>
+
+            <!-- Setup Steps (shown when not connected) -->
+            <div id="woo-setup-view">
+
+              <!-- Step 1: Download -->
+              <div style="display:flex;gap:16px;margin-bottom:24px;">
+                <div style="width:32px;height:32px;background:var(--accent);border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">1</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
+                    Download the BuildBot Plugin
+                  </div>
+                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
+                    Download and install this plugin on your WordPress website.
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="downloadPlugin()">
+                    Download Plugin (.zip)
+                  </button>
+                </div>
+              </div>
+
+              <!-- Step 2: Install -->
+              <div style="display:flex;gap:16px;margin-bottom:24px;">
+                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">2</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
+                    Install on WordPress
+                  </div>
+                  <div style="font-size:12px;color:#666;line-height:1.8;">
+                    Go to <strong style="color:var(--text-2);">WordPress Dashboard → Plugins → Add New → Upload
+                      Plugin</strong><br />
+                    Select the downloaded .zip file → Click Install Now → Activate
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Secret Key -->
+              <div style="display:flex;gap:16px;margin-bottom:24px;">
+                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">3</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
+                    Copy Your Secret Key
+                  </div>
+                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
+                    Paste this key in the BuildBot plugin settings on WordPress.
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <div id="plugin-secret-display" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+            padding:10px 14px;font-family:monospace;font-size:12px;color:var(--accent);
+            flex:1;word-break:break-all;">
+                      Click "Generate Key" to create your secret key
+                    </div>
+                    <button class="btn btn-sm" id="generate-key-btn" onclick="generatePluginKey()"
+                      style="background:var(--border);color:#aaa;white-space:nowrap;">
+                      Generate Key
+                    </button>
+                    <button class="btn btn-sm" id="copy-key-btn" onclick="copyPluginKey()" style="display:none;
+            background:var(--border);color:#aaa;white-space:nowrap;">
+                      Copy
+                    </button>
+                  </div>
+                  <div style="margin-top:8px;">
+                    <div id="store-id-for-plugin" style="font-size:12px;color:#666;">
+                      Your Store ID:
+                      <strong style="color:#aaa;" id="store-id-plugin-display"></strong>
+                      <span onclick="copyStoreId()"
+                        style="color:var(--accent);cursor:pointer;margin-left:8px;font-size:11px;">
+                        Copy
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 4: Connect -->
+              <div style="display:flex;gap:16px;">
+                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">4</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
+                    Connect from WordPress
+                  </div>
+                  <div style="font-size:12px;color:#666;line-height:1.8;">
+                    In WordPress go to <strong style="color:var(--text-2);">BuildBot</strong> in the left menu.<br />
+                    Enter your Store ID and Secret Key → Click <strong style="color:var(--text-2);">Connect &
+                      Sync</strong>.<br />
+                    Your products will sync automatically!
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- end woo-setup-view -->
+          </div><!-- end woo-section -->
           </div>
 
           <div id="products-custom-view">
@@ -1604,24 +1772,62 @@
           </div>
         </div>
 
+        <!-- ── ACCOUNT TAB ── -->
+        <div id="tab-content-account" style="display:none;">
+          <div class="section-title">Account</div>
+          <div class="section-sub">Manage your password, security, and account settings.</div>
+
+          <div id="settings-panel-account">
+            <div class="card" id="settings-account-security-card" style="margin-bottom:16px;">
+            <h2>Security</h2>
+            <p style="margin-bottom:20px;">Change your account password.</p>
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <div class="pwd-wrap">
+                <input type="password" id="cp-current" placeholder="Current password" style="max-width:320px;" />
+                <span class="pwd-toggle"
+                  onclick="togglePassword('cp-current', this)">👁️</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <div class="pwd-wrap">
+                <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol"
+                  style="max-width:320px;" />
+                <span class="pwd-toggle"
+                  onclick="togglePassword('cp-new', this)">👁️</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <div class="pwd-wrap">
+                <input type="password" id="cp-confirm" placeholder="Repeat new password" style="max-width:320px;" />
+                <span class="pwd-toggle"
+                  onclick="togglePassword('cp-confirm', this)">👁️</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="changePassword(this)">Change Password</button>
+            <div class="alert" id="cp-alert" style="max-width:320px;"></div>
+            </div>
+
+            <div class="card" id="settings-danger-card" style="border-color:var(--danger-border);">
+              <h2 style="color:var(--danger);">Danger Zone</h2>
+              <p style="margin-bottom:20px;">Permanently delete your account and all associated data. This action cannot be undone.</p>
+              <button class="btn btn-danger" onclick="deleteAccount(this)">Delete Account</button>
+            </div>
+          </div>
+        </div>
+
         <!-- ── SETTINGS TAB ── -->
         <div id="tab-content-settings" style="display:none;">
-          <div class="section-title">Settings
+          <div class="section-title">Widget Settings
             <span onclick="toggleContextHelp('help-settings')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Customize how your widget looks and what it says.</div>
           <div id="help-settings" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:8px 0 16px;font-size:12.5px;color:var(--text-2);line-height:1.8;">
-            <strong style="color:#a5b4fc;">Settings guide:</strong><br/>
-            • Widget tab controls branding and text.<br/>
-            • Store tab changes mode and Woo setup.<br/>
-            • Account tab is for password/security actions.
-          </div>
-
-          <!-- Settings sub-tabs (visual only — all cards stay in DOM, JS toggles display) -->
-          <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;width:fit-content;margin-bottom:22px;" id="settings-subtabs">
-            <button onclick="switchSettingsTab('widget')" id="stab-widget" class="sts-btn sts-active" style="font-size:12px;padding:6px 16px;">🎨 Widget</button>
-            <button onclick="switchSettingsTab('store')" id="stab-store" class="sts-btn" style="font-size:12px;padding:6px 16px;">🏪 Store</button>
-            <button onclick="switchSettingsTab('account')" id="stab-account" class="sts-btn" style="font-size:12px;padding:6px 16px;">👤 Account</button>
+            <strong style="color:var(--accent-text);">Settings guide:</strong><br/>
+            • Customize your widget's brand color, currency, title, and welcome message.<br/>
+            • Changes save instantly and apply to your live widget.
           </div>
 
           <!-- Branding Row -->
@@ -1670,53 +1876,6 @@
                 </div>
               </div>
             </div>
-          </div>
-          </div><!-- end settings-panel-widget -->
-
-          <!-- Change Password Row -->
-          <div id="settings-panel-store" style="display:none;">
-            <div class="card">
-              <h2>Store</h2>
-              <p style="margin-bottom:12px;">Choose your primary store workflow. Dashboard adapts based on this mode.</p>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:var(--accent-bg);border:1px solid var(--border-2);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>My Products (Manual / CSV)</button>
-                <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg>WooCommerce</button>
-              </div>
-              <div style="font-size:12px;color:var(--muted);margin-top:10px;">You can switch anytime here. Irrelevant product UI stays hidden.</div>
-            </div>
-          </div>
-
-          <div id="settings-panel-account" style="display:none;">
-          <div class="card" id="settings-account-security-card" style="display:none;">
-            <h2>Security</h2>
-            <p style="margin-bottom:20px;">Change your account password.</p>
-            <div class="form-group">
-              <label class="form-label">Current Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-current" placeholder="Current password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-current', this)">👁️</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">New Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol"
-                  style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-new', this)">👁️</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Confirm New Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-confirm" placeholder="Repeat new password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-confirm', this)">👁️</span>
-              </div>
-            </div>
-            <button class="btn btn-primary" onclick="changePassword(this)">Change Password</button>
-            <div class="alert" id="cp-alert" style="max-width:320px;"></div>
           </div>
 
           <!-- Widget Text Customization -->
@@ -1795,174 +1954,12 @@
             </div>
             <div class="alert" id="widget-settings-alert"></div>
           </div>
-          <!-- WooCommerce Plugin Section -->
-          <div class="card" id="woo-section">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-              <div style="font-size:28px;display:flex;align-items:center;color:var(--accent);"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg></div>
-              <div>
-                <h2 style="margin:0;">WooCommerce Auto-Sync</h2>
-                <p style="margin:4px 0 0;font-size:13px;color:#666;">
-                  Connect your WooCommerce store — products sync automatically. No CSV needed.
-                </p>
-              </div>
-              <div id="woo-status-badge" style="margin-left:auto;padding:5px 14px;
-      border-radius:20px;font-size:12px;font-weight:700;
-      background:rgba(231,76,60,.12);color:var(--danger);
-      border:1px solid rgba(231,76,60,.3);">
-                ● Not Connected
-              </div>
-            </div>
-
-            <div style="height:1px;background:var(--border);margin:20px 0;"></div>
-
-            <!-- Connected State (hidden by default) -->
-            <div id="woo-connected-view" style="display:none;">
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
-                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                  <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    Store URL</div>
-                  <div style="font-size:13px;color:var(--text-2);font-weight:500;word-break:break-all;" id="woo-url-display">—
-                  </div>
-                </div>
-                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                  <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    Products Synced</div>
-                  <div style="font-size:22px;font-weight:700;color:var(--success);" id="woo-count-display">0</div>
-                </div>
-                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                  <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
-                    Last Synced</div>
-                  <div style="font-size:13px;color:var(--text-2);font-weight:500;" id="woo-sync-display">Never</div>
-                </div>
-              </div>
-              <div id="woo-widget-status" style="font-size:13px;margin-bottom:14px;padding:10px 14px;
-  background:var(--surface-2);border-radius:8px;border:1px solid var(--border);">
-                Checking widget status...
-              </div>
-              <div style="display:flex;gap:10px;">
-                <p style="font-size:12px;color:var(--muted);padding:8px 0;">To run a manual sync, go to your WordPress Admin panel > WooCommerce > BuildBot and click Sync.</p>
-                <button class="btn btn-sm" onclick="disconnectWoo()"
-                  style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border);">
-                  Disconnect
-                </button>
-              </div>
-              <div class="alert" id="woo-sync-alert" style="margin-top:12px;"></div>
-            </div>
-
-            <!-- Setup Steps (shown when not connected) -->
-            <div id="woo-setup-view">
-
-              <!-- Step 1: Download -->
-              <div style="display:flex;gap:16px;margin-bottom:24px;">
-                <div style="width:32px;height:32px;background:var(--accent);border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">1</div>
-                <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
-                    Download the BuildBot Plugin
-                  </div>
-                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
-                    Download and install this plugin on your WordPress website.
-                  </div>
-                  <button class="btn btn-primary btn-sm" onclick="downloadPlugin()">
-                    Download Plugin (.zip)
-                  </button>
-                </div>
-              </div>
-
-              <!-- Step 2: Install -->
-              <div style="display:flex;gap:16px;margin-bottom:24px;">
-                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">2</div>
-                <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
-                    Install on WordPress
-                  </div>
-                  <div style="font-size:12px;color:#666;line-height:1.8;">
-                    Go to <strong style="color:var(--text-2);">WordPress Dashboard → Plugins → Add New → Upload
-                      Plugin</strong><br />
-                    Select the downloaded .zip file → Click Install Now → Activate
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 3: Secret Key -->
-              <div style="display:flex;gap:16px;margin-bottom:24px;">
-                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">3</div>
-                <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
-                    Copy Your Secret Key
-                  </div>
-                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
-                    Paste this key in the BuildBot plugin settings on WordPress.
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;">
-                    <div id="plugin-secret-display" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
-            padding:10px 14px;font-family:monospace;font-size:12px;color:var(--accent);
-            flex:1;word-break:break-all;">
-                      Click "Generate Key" to create your secret key
-                    </div>
-                    <button class="btn btn-sm" id="generate-key-btn" onclick="generatePluginKey()"
-                      style="background:var(--border);color:#aaa;white-space:nowrap;">
-                      Generate Key
-                    </button>
-                    <button class="btn btn-sm" id="copy-key-btn" onclick="copyPluginKey()" style="display:none;
-            background:var(--border);color:#aaa;white-space:nowrap;">
-                      Copy
-                    </button>
-                  </div>
-                  <div style="margin-top:8px;">
-                    <div id="store-id-for-plugin" style="font-size:12px;color:#666;">
-                      Your Store ID:
-                      <strong style="color:#aaa;" id="store-id-plugin-display"></strong>
-                      <span onclick="copyStoreId()"
-                        style="color:var(--accent);cursor:pointer;margin-left:8px;font-size:11px;">
-                        Copy
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Step 4: Connect -->
-              <div style="display:flex;gap:16px;">
-                <div style="width:32px;height:32px;background:var(--border);border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">4</div>
-                <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
-                    Connect from WordPress
-                  </div>
-                  <div style="font-size:12px;color:#666;line-height:1.8;">
-                    In WordPress go to <strong style="color:var(--text-2);">BuildBot</strong> in the left menu.<br />
-                    Enter your Store ID and Secret Key → Click <strong style="color:var(--text-2);">Connect &
-                      Sync</strong>.<br />
-                    Your products will sync automatically!
-                  </div>
-                </div>
-              </div>
-
-            </div><!-- end woo-setup-view -->
-          </div><!-- end woo-section -->
-
-          <!-- Danger Zone -->
-          <div class="card" id="settings-danger-card" style="border-color:var(--danger-border);">
-            <h2 style="color:var(--danger);">Danger Zone</h2>
-            <p style="margin-bottom:20px;">Permanently delete your account and all associated data. This action cannot be undone.</p>
-            <button class="btn btn-danger" onclick="deleteAccount(this)">Delete Account</button>
-          </div>
-          </div><!-- end settings-panel-account -->
+          </div><!-- end settings-panel-widget -->
         </div>
 
         <!-- ── EMBED TAB ── -->
         <div id="tab-content-embed" style="display:none;">
-          <div class="section-title">Embed
+          <div class="section-title">Install Widget
             <span onclick="toggleContextHelp('help-embed')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Copy the embed code and paste it on your website to go live.</div>
@@ -2466,7 +2463,7 @@
           if (warn) warn.remove();
         }
 
-        document.getElementById('embed-code-display').textContent =
+        document.getElementById('embed-code-display-2').textContent =
           `<script src="https://buildbot-production.up.railway.app/widget.js" data-store-id="${currentStore.storeId}"><\/script>`;
 
         document.getElementById('current-plan-name').textContent =
@@ -2516,7 +2513,7 @@
       document.querySelectorAll('.mobile-tab').forEach(s => s.classList.remove('active'));
       document.getElementById('tab-content-' + name).style.display = 'block';
       document.getElementById('tab-' + name).classList.add('active');
-      var mobileMap = { home: 0, embed: 1, products: 2, analytics: 3, settings: 4 };
+      var mobileMap = { home: 0, products: 1, analytics: 2, embed: 3, account: 4 };
       var mobileTabs = document.querySelectorAll('.mobile-tab');
       if (mobileTabs[mobileMap[name]] != null) mobileTabs[mobileMap[name]].classList.add('active');
 
@@ -2524,21 +2521,18 @@
       if (name === 'embed' && typeof window.syncEmbedCodeCopy === 'function') window.syncEmbedCodeCopy();
       if (name === 'products') {
         loadProducts();
+        loadWooStatus();
         const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
         switchProductView(preferredMode);
       }
       if (name === 'billing') loadPaymentHistory();
       if (name === 'settings') {
         loadWidgetSettings();
-        loadWooStatus();
-        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
-        switchSettingsTab(preferredMode === 'woo' ? 'store' : 'widget');
       }
       if (name === 'account') {
-        var em = document.getElementById('account-email');
-        var sn = document.getElementById('account-store-name');
-        if (em && currentStore) em.value = currentStore.email || '';
-        if (sn && currentStore) sn.value = currentStore.name || '';
+        loadWooStatus();
+        const secCard = document.getElementById('settings-account-security-card');
+        if (secCard) secCard.style.display = 'block';
       }
       if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
         setTimeout(updateOnboardingJourney, 100);
@@ -3516,9 +3510,9 @@
 
     // ─── HELPERS ──────────────────────────────────────────────
     function copyEmbed() {
-      const code = document.getElementById('embed-code-display').textContent;
+      const code = document.getElementById('embed-code-display-2').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        showAlert('embed-alert', 'Embed code copied.', 'success');
+        showAlert('embed-alert-2', 'Embed code copied.', 'success');
         toast.success('Embed code copied.');
       });
       localStorage.setItem('bb_embed_copied', '1');
@@ -3563,11 +3557,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
         var live = localStorage.getItem('bb_widget_live') === '1';
         banner.style.display = live ? 'none' : 'flex';
       }
-      window.syncEmbedCodeCopy = function syncEmbedCodeCopy() {
-        var code = document.getElementById('embed-code-display');
-        var code2 = document.getElementById('embed-code-display-2');
-        if (code && code2 && code.textContent) code2.textContent = code.textContent;
-      };
+      window.syncEmbedCodeCopy = function syncEmbedCodeCopy() {};
       document.addEventListener('DOMContentLoaded', function () {
         refreshGoLiveBanner();
         updateEmbedStatusDot();
@@ -3583,30 +3573,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       }
     })();
 
-    function switchSettingsTab(name) {
-      var tabs = ['widget', 'store', 'account'];
-      tabs.forEach(function (t) {
-        var btn = document.getElementById('stab-' + t);
-        if (btn) btn.classList.toggle('sts-active', t === name);
-      });
-
-      var widgetPanel = document.getElementById('settings-panel-widget');
-      var storePanel = document.getElementById('settings-panel-store');
-      var sharedPanel = document.getElementById('settings-panel-account');
-      if (widgetPanel) widgetPanel.style.display = (name === 'widget') ? 'block' : 'none';
-      if (storePanel) storePanel.style.display = (name === 'store') ? 'block' : 'none';
-      if (sharedPanel) sharedPanel.style.display = 'block';
-
-      var accountSecurityCard = document.getElementById('settings-account-security-card');
-      var widgetContentCard = document.getElementById('settings-widget-content-card');
-      var wooCard = document.getElementById('woo-section');
-      var dangerCard = document.getElementById('settings-danger-card');
-
-      if (accountSecurityCard) accountSecurityCard.style.display = (name === 'account') ? 'block' : 'none';
-      if (dangerCard) dangerCard.style.display = (name === 'account') ? 'block' : 'none';
-      if (widgetContentCard) widgetContentCard.style.display = (name === 'widget') ? 'block' : 'none';
-      if (wooCard) wooCard.style.display = (name === 'store') ? 'block' : 'none';
-    }
+    function switchSettingsTab(name) {}
 
     function setAnalyticsRange(days, btn) {
       document.querySelectorAll('.analytics-range-btn').forEach(b => b.classList.remove('range-btn-active'));
@@ -3627,8 +3594,8 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var mode = localStorage.getItem('bb_store_mode') || 'custom';
       if (stepTwoBtn) {
         if (mode === 'woo') {
-          stepTwoBtn.textContent = 'Open Store settings';
-          stepTwoBtn.onclick = function () { showTab('settings'); switchSettingsTab('store'); };
+          stepTwoBtn.textContent = 'Connect WooCommerce';
+          stepTwoBtn.onclick = function () { showTab('products'); };
         } else {
           stepTwoBtn.textContent = 'Manage products';
           stepTwoBtn.onclick = function () { showTab('products'); };
@@ -3825,19 +3792,24 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
   </script>
   <div class="mobile-tabs">
     <button class="mobile-tab" onclick="showTab('home')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview
-    </button>
-    <button class="mobile-tab" onclick="showTab('embed')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>Embed
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Overview
     </button>
     <button class="mobile-tab" onclick="showTab('products')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Products
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Products
     </button>
     <button class="mobile-tab" onclick="showTab('analytics')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
     </button>
-    <button class="mobile-tab" onclick="showTab('settings')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+    <button class="mobile-tab" onclick="showTab('embed')">
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>
+      Install
+    </button>
+    <button class="mobile-tab" onclick="showTab('account')">
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Account
     </button>
   </div>
 </body>

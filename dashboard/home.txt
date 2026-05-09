@@ -1,0 +1,200 @@
+<div id="tab-content-home">
+ <div class="section-title">
+  Dashboard
+ </div>
+ <div class="section-sub" id="welcome-msg">
+ </div>
+ <div class="card" style="margin-bottom:16px;background:#ffffff;border:1px solid #d7deee;">
+  <h2 style="margin-bottom:8px;">
+   Getting Started Journey
+  </h2>
+  <p style="margin-bottom:12px;">
+   Follow these 3 steps to go live fast. We highlight your current next action.
+  </p>
+  <div id="onboarding-journey" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+   <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+    <div style="font-size:11px;color:var(--muted);">
+     Step 1
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">
+     Choose Store Mode
+    </div>
+    <div id="journey-step-store" style="font-size:11px;color:var(--muted);">
+     Pending
+    </div>
+    <button class="btn btn-sm" onclick="showTab('settings')" style="margin-top:8px;background:#fff;">
+     Open settings
+    </button>
+   </div>
+   <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+    <div style="font-size:11px;color:var(--muted);">
+     Step 2
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">
+     Add Product Source
+    </div>
+    <div id="journey-step-products" style="font-size:11px;color:var(--muted);">
+     Pending
+    </div>
+    <button class="btn btn-sm" onclick="showTab('products')" style="margin-top:8px;background:#fff;">
+     Manage products
+    </button>
+   </div>
+   <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
+    <div style="font-size:11px;color:var(--muted);">
+     Step 3
+    </div>
+    <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">
+     Publish Widget
+    </div>
+    <div id="journey-step-live" style="font-size:11px;color:var(--muted);">
+     Pending
+    </div>
+    <button class="btn btn-sm" onclick="showTab('embed')" style="margin-top:8px;background:#fff;">
+     Go live
+    </button>
+   </div>
+  </div>
+ </div>
+ <div class="card" style="margin-bottom:16px;background:var(--accent-bg);border:1px solid var(--border-2);">
+  <h2 style="margin-bottom:8px;">
+   Recommended Next Step
+  </h2>
+  <p style="margin-bottom:12px;">
+   Choose your store flow first so the dashboard stays focused and less confusing.
+  </p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+   <button class="btn btn-sm" onclick="showTab('settings')" style="background:#e0e7ff;color:#3730a3;border:1px solid var(--border-2);">
+    🔌 I use WooCommerce
+   </button>
+   <button class="btn btn-sm" onclick="showTab('products')" style="background:#ecfdf3;color:var(--success);border:1px solid #a6f4c5;">
+    📋 I manage products manually
+   </button>
+   <button class="btn btn-sm" onclick="showTab('embed')" style="background:#ffffff;color:var(--text);">
+    🚀 Complete Go Live setup
+   </button>
+  </div>
+ </div>
+ <div class="stats-grid">
+  <div class="stat-card">
+   <div class="stat-icon">
+    🤖
+   </div>
+   <div class="stat-value" id="stat-total">
+    0
+   </div>
+   <div class="stat-label" id="rec-limit-label">
+    Total Recommendations
+   </div>
+  </div>
+  <div class="stat-card">
+   <div class="stat-icon">
+    📦
+   </div>
+   <div class="stat-value" id="stat-products">
+    0
+   </div>
+   <div class="stat-label">
+    Products in Catalog
+   </div>
+  </div>
+  <div class="stat-card">
+   <div class="stat-icon">
+    💰
+   </div>
+   <div class="stat-value" id="stat-budget">
+    0
+   </div>
+   <div class="stat-label">
+    Avg Customer Budget
+   </div>
+  </div>
+  <div class="stat-card">
+   <div class="stat-icon">
+    📅
+   </div>
+   <div class="stat-value" id="stat-today">
+    0
+   </div>
+   <div class="stat-label">
+    Recommendations Today
+   </div>
+  </div>
+ </div>
+ <!-- Go Live Banner — shown until widget is confirmed live -->
+ <div id="go-live-banner" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:12px;margin-bottom:20px;">
+  <div style="font-size:22px;flex-shrink:0;">
+   🚀
+  </div>
+  <div style="flex:1;">
+   <div style="font-size:13px;font-weight:600;color:#a7f3d0;margin-bottom:2px;">
+    Your widget is ready — paste it on your store to go live
+   </div>
+   <div style="font-size:12px;color:rgba(167,243,208,0.65);">
+    One line of code. Copy the script tag and paste it before &lt;/body&gt; on your website.
+   </div>
+  </div>
+  <button class="btn btn-sm" onclick="copyEmbed()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);white-space:nowrap;flex-shrink:0;">
+   📋 Copy embed code
+  </button>
+  <button class="btn btn-sm" onclick="showTab('embed')" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);white-space:nowrap;flex-shrink:0;">
+   Full setup →
+  </button>
+  <div id="activation-kpis" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+   <div class="mini-kpi" id="kpi-embed">
+    Embed copied: No
+   </div>
+   <div class="mini-kpi" id="kpi-live">
+    Live status: Pending
+   </div>
+  </div>
+ </div>
+ <div class="card" id="settings-security-card">
+  <h2>
+   Your Embed Code
+  </h2>
+  <p style="margin-bottom:16px;">
+   Paste this before the &lt;/body&gt; tag on your website.
+  </p>
+  <div class="embed-box" id="embed-code-display">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="copyEmbed()">
+   📋 Copy Code
+  </button>
+  <div class="alert" id="embed-alert">
+  </div>
+ </div>
+ <div class="card" id="settings-widget-text-card">
+  <h2>
+   Recent Activity
+  </h2>
+  <p style="margin-bottom:16px;">
+   Last 10 build recommendations made on your store.
+  </p>
+  <table>
+   <thead>
+    <tr>
+     <th>
+      Purpose
+     </th>
+     <th>
+      Budget
+     </th>
+     <th>
+      Extras
+     </th>
+     <th>
+      Date
+     </th>
+    </tr>
+   </thead>
+   <tbody id="recent-table">
+    <tr>
+     <td colspan="4" style="color:var(--muted);text-align:center;">
+      No recommendations yet
+     </td>
+    </tr>
+   </tbody>
+  </table>
+ </div>
+</div>

@@ -1,0 +1,68 @@
+<div class="sidebar">
+ <div class="sidebar-logo" style="margin:0 10px 6px;font-weight:800;color:var(--text);font-size:14px;letter-spacing:.02em;">
+  ⚡ BuildBot
+ </div>
+ <div class="sidebar-sep">
+  Get started
+ </div>
+ <div class="sidebar-item active" id="tab-home" onclick="showTab('home')">
+  <span class="icon">
+   🏠
+  </span>
+  Overview
+ </div>
+ <div class="sidebar-item" id="tab-embed" onclick="showTab('embed')">
+  <span class="icon">
+   🔗
+  </span>
+  Go Live · Widget
+  <span id="embed-status-dot" style="width:7px;height:7px;border-radius:50%;background:var(--warning);margin-left:auto;display:none;">
+  </span>
+ </div>
+ <div class="sidebar-sep">
+  Workspace
+ </div>
+ <div class="sidebar-item" id="tab-products" onclick="showTab('products')">
+  <span class="icon">
+   📦
+  </span>
+  Products
+ </div>
+ <div class="sidebar-item" id="tab-analytics" onclick="showTab('analytics')">
+  <span class="icon">
+   📊
+  </span>
+  Analytics
+ </div>
+ <div class="sidebar-sep">
+  Account
+ </div>
+ <div class="sidebar-item" id="tab-billing" onclick="showTab('billing')">
+  <span class="icon">
+   💳
+  </span>
+  Billing
+ </div>
+ <div class="sidebar-item" id="tab-settings" onclick="showTab('settings')">
+  <span class="icon">
+   ⚙️
+  </span>
+  Settings
+ </div>
+ <div class="sidebar-item" id="tab-help" onclick="showTab('help')">
+  <span class="icon">
+   ❓
+  </span>
+  Help &amp; Docs
+ </div>
+ <div style="flex:1;">
+ </div>
+ <div class="sidebar-bottom" style="margin:10px 10px 0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+  <div class="sidebar-item sidebar-logout" onclick="doLogout()" style="margin:0;">
+   <span class="icon">
+    🚪
+   </span>
+   Logout
+  </div>
+ </div>
+</div>

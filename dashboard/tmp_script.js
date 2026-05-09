@@ -1,0 +1,1667 @@
+
+    const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
+    let token = localStorage.getItem('bb_token');
+    let currentStore = JSON.parse(localStorage.getItem('bb_store') || 'null');
+
+    if (!token || !currentStore) {
+      window.location.href = 'index.html';
+    }
+
+    const emailEl = document.getElementById('nav-user-email');
+    if (emailEl && currentStore) emailEl.textContent = currentStore.email || '';
+    let selectedPlan = 'starter';
+
+    // Dashboard runs with production API by default (see config.js).
+    // If you want to use a local backend, open with `?localApi=1` or set `localStorage.bb_use_local_api = '1'`.
+
+    // Password strength checker for signup
+    function checkSignupStrength(val) {
+      const bar = document.getElementById('signup-strength-bar');
+      if (!bar) return;
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)) score++;
+      const colors = ['var(--danger)', '#f39c12', '#f39c12', 'var(--success)', 'var(--success)'];
+      bar.style.width = (score / 4 * 100) + '%';
+      bar.style.background = colors[score];
+    }
+
+    // Forgot password
+    async function doForgot(btn) {
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email)
+        return showAlert('forgot-alert', 'Please enter your email.', 'error');
+
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = 'Sending...';
+
+      try {
+        const res = await fetch(`${API}/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('forgot-alert', '✅ ' + data.message, 'success');
+        } else {
+          showAlert('forgot-alert', '❌ ' + data.error, 'error');
+        }
+      } catch {
+        showAlert('forgot-alert', '❌ Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+    // ─── INIT ─────────────────────────────────────────────────
+    window.onload = async () => {
+      if (!localStorage.getItem('bb_store_mode')) {
+        localStorage.setItem('bb_store_mode', 'custom');
+      }
+      setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
+      updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
+      applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
+
+      // This file is dashboard-only. If there is no session, send the user to login on index.html.
+      if (!token || !currentStore) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Verify token is still valid on server, then enter app.
+      try {
+        const res = await fetch(`${API}/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          enterApp();
+        } else {
+          localStorage.removeItem('bb_token');
+          localStorage.removeItem('bb_store');
+          window.location.href = 'index.html';
+        }
+      } catch {
+        localStorage.removeItem('bb_token');
+        localStorage.removeItem('bb_store');
+        window.location.href = 'index.html';
+      }
+
+
+      // Color picker sync
+      document.getElementById('brand-color')?.addEventListener('input', (e) => {
+        const hex = document.getElementById('brand-color-hex');
+        const previewBtn = document.getElementById('widget-preview-btn');
+        if (hex) hex.value = e.target.value;
+        if (previewBtn) previewBtn.style.background = e.target.value;
+      });
+      document.getElementById('brand-color-hex')?.addEventListener('input', (e) => {
+        const picker = document.getElementById('brand-color');
+        const previewBtn = document.getElementById('widget-preview-btn');
+        if (picker) picker.value = e.target.value;
+        if (previewBtn) previewBtn.style.background = e.target.value;
+      });
+
+
+      // Live widget text preview
+      document.getElementById('widget-title-input')?.addEventListener('input', updateWidgetPreview);
+      document.getElementById('welcome-msg-input')?.addEventListener('input', updateWidgetPreview);
+      document.getElementById('button-text-input')?.addEventListener('input', updateWidgetPreview);
+
+      // Dashboard-only file: do not run landing effects here.
+    };
+
+    // ─── PAGE ROUTING ─────────────────────────────────────────
+
+    // ─── AUTH ─────────────────────────────────────────────────
+
+    // ─── GOOGLE AUTH ────────────────────────────────────────────
+    async function handleGoogleCredentialResponse(response) {
+      try {
+        const res = await fetch(`${API}/google-auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('bb_token', data.token);
+          localStorage.setItem('bb_store', JSON.stringify(data.store));
+          token = data.token;
+          currentStore = data.store;
+
+          const isSignup = !currentStore.plan;
+          if (isSignup) {
+            showAlert('signup-alert', '✅ Welcome! Redirecting...', 'success');
+          } else {
+            showAlert('login-alert', '✅ Login successful!', 'success');
+          }
+          setTimeout(() => enterApp(), 1000);
+        } else {
+          showAlert('login-alert', data.error || 'Google Login failed.', 'error');
+          showAlert('signup-alert', data.error || 'Google Login failed.', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert('login-alert', 'Connection error.', 'error');
+        showAlert('signup-alert', 'Connection error.', 'error');
+      }
+    }
+
+    // ─── TOGGLE PASSWORD ────────────────────────────────────────
+    function togglePassword(inputId, icon) {
+      const input = document.getElementById(inputId);
+      if (!input || !icon) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = '🙈';
+        icon.setAttribute('aria-label', 'Hide password');
+        icon.setAttribute('title', 'Hide password');
+      } else {
+        input.type = 'password';
+        icon.textContent = '👁️';
+        icon.setAttribute('aria-label', 'Show password');
+        icon.setAttribute('title', 'Show password');
+      }
+    }
+
+    // Removed landing-only animation/effects functions.
+
+    // ─── CHANGE PASSWORD ────────────────────────────────────────
+    async function changePassword(btn) {
+      const current = document.getElementById('cp-current').value;
+      const newPwd = document.getElementById('cp-new').value;
+      const confirmPwd = document.getElementById('cp-confirm').value;
+
+      if (!current || !newPwd || !confirmPwd) return showAlert('cp-alert', 'Please fill all fields.', 'error');
+      if (newPwd !== confirmPwd) return showAlert('cp-alert', 'New passwords do not match.', 'error');
+
+      btn.disabled = true;
+      btn.textContent = 'Changing...';
+      try {
+        const res = await fetch(`${API}/change-password`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ currentPassword: current, newPassword: newPwd })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('cp-alert', '✅ Password changed successfully!', 'success');
+          document.getElementById('cp-current').value = '';
+          document.getElementById('cp-new').value = '';
+          document.getElementById('cp-confirm').value = '';
+        } else {
+          showAlert('cp-alert', data.error, 'error');
+        }
+      } catch (e) {
+        showAlert('cp-alert', 'Connection error.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+      }
+    }
+
+    async function doSignup(btn) {
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const signupMode = localStorage.getItem('bb_signup_store_mode') || 'custom';
+
+      if (!name || !email || !password)
+        return showAlert('signup-alert', 'Please fill all fields.', 'error');
+
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = 'Please wait...';
+
+      try {
+        const res = await fetch(`${API}/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          token = data.token;
+          currentStore = data.store;
+          localStorage.setItem('bb_store_mode', signupMode);
+          localStorage.removeItem('bb_token');
+          localStorage.removeItem('bb_store');
+          localStorage.setItem('bb_token', token);
+          localStorage.setItem('bb_store', JSON.stringify(currentStore));
+          enterApp();
+        } else {
+          showAlert('signup-alert', data.error, 'error');
+        }
+      } catch {
+        showAlert('signup-alert', 'Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+
+    async function doLogin(btn) {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      if (!email || !password)
+        return showAlert('login-alert', 'Please fill all fields.', 'error');
+
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = 'Logging in...';
+
+      try {
+        const res = await fetch(`${API}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          token = data.token;
+          currentStore = data.store;
+          localStorage.removeItem('bb_token');
+          localStorage.removeItem('bb_store');
+          localStorage.setItem('bb_token', token);
+          localStorage.setItem('bb_store', JSON.stringify(currentStore));
+          enterApp();
+        } else {
+          showAlert('login-alert', data.error, 'error');
+        }
+      } catch {
+        showAlert('login-alert', 'Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+
+    function doLogout() {
+      token = null; currentStore = null;
+      localStorage.removeItem('bb_token');
+      localStorage.removeItem('bb_store');
+      window.location.href = 'index.html';
+    }
+
+
+// ─── ENTER APP ────────────────────────────────────────────
+    async function enterApp() {
+      if (!token) {
+        doLogout();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success || !data.store) {
+          throw new Error(data.error || 'Session invalid');
+        }
+
+        currentStore = {
+          storeId: data.store.store_id,
+          name: data.store.name,
+          email: data.store.email,
+          plan: data.store.plan,
+          planStatus: data.store.plan_status,
+          trialEnds: data.store.trial_ends,
+          brandColor: data.store.brand_color,
+          currency: data.store.currency
+        };
+        localStorage.setItem('bb_store', JSON.stringify(currentStore));
+
+        const emailEl = document.getElementById('nav-user-email');
+        if (emailEl) emailEl.textContent = currentStore.email || '';
+
+        document.getElementById('welcome-msg').textContent =
+          `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;
+
+        if (currentStore.plan === 'trial') {
+          document.getElementById('trial-banner').style.display = 'flex';
+          document.getElementById('trial-end-date').textContent =
+            new Date(currentStore.trialEnds).toLocaleDateString('en-PK',
+              { day: 'numeric', month: 'long', year: 'numeric' });
+          // Add daily limit warning
+          const existingWarn = document.getElementById('trial-limit-warn');
+          if (!existingWarn) {
+            const warn = document.createElement('div');
+            warn.id = 'trial-limit-warn';
+            warn.style.cssText = `
+      background:#1a1a2a;border:1px solid var(--accent);border-radius:10px;
+      padding:12px 20px;margin-bottom:16px;font-size:13px;color:#aaa;
+      display:flex;align-items:center;gap:10px;
+    `;
+            warn.innerHTML = `
+      <span style="font-size:20px;">⚠️</span>
+      <span>You are on the <strong style="color:var(--accent);">Free Trial</strong>.
+      Widget is limited to <strong style="color:#fff;">3 recommendations per day</strong>.
+      <a onclick="showTab('billing')" style="color:var(--accent);cursor:pointer;margin-left:6px;">
+      Upgrade to remove limits →</a></span>
+    `;
+            // Insert before stats grid
+            const statsGrid = document.querySelector('.stats-grid');
+            if (statsGrid) statsGrid.parentNode.insertBefore(warn, statsGrid);
+          }
+        } else {
+          document.getElementById('trial-banner').style.display = 'none';
+          const warn = document.getElementById('trial-limit-warn');
+          if (warn) warn.remove();
+        }
+
+        document.getElementById('embed-code-display').textContent =
+          `<script src="https://buildbot-production.up.railway.app/widget.js" data-store-id="${currentStore.storeId}"><\/script>`;
+
+        document.getElementById('current-plan-name').textContent =
+          currentStore.plan.charAt(0).toUpperCase() + currentStore.plan.slice(1);
+        document.getElementById('current-plan-status').innerHTML =
+          `<span class="badge badge-success">Active</span>`;
+
+        document.getElementById('brand-color').value = currentStore.brandColor || 'var(--accent)';
+        document.getElementById('brand-color-hex').value = currentStore.brandColor || 'var(--accent)';
+        document.getElementById('widget-preview-btn').style.background = currentStore.brandColor || 'var(--accent)';
+        if (currentStore.currency)
+          document.getElementById('currency-select').value = currentStore.currency;
+
+        loadAnalytics();
+        showTab('home');
+        updateTrialChip();
+        updateActivationUI();
+        setTimeout(updateOnboardingJourney, 250);
+      } catch (err) {
+        localStorage.removeItem('bb_token');
+        localStorage.removeItem('bb_store');
+        token = null;
+        currentStore = null;
+        window.location.href = 'index.html';
+      }
+    }
+    // ─── TABS ─────────────────────────────────────────────────
+    function showTab(name) {
+      document.querySelectorAll('[id^="tab-content-"]').forEach(t => t.style.display = 'none');
+      document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.mobile-tab').forEach(s => s.classList.remove('active'));
+      document.getElementById('tab-content-' + name).style.display = 'block';
+      document.getElementById('tab-' + name).classList.add('active');
+      var mobileMap = { home: 0, embed: 1, products: 2, analytics: 3, settings: 4 };
+      var mobileTabs = document.querySelectorAll('.mobile-tab');
+      if (mobileTabs[mobileMap[name]] != null) mobileTabs[mobileMap[name]].classList.add('active');
+
+      if (name === 'analytics') loadAnalytics();
+      if (name === 'embed' && typeof window.syncEmbedCodeCopy === 'function') window.syncEmbedCodeCopy();
+      if (name === 'products') {
+        loadProducts();
+        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
+        switchProductView(preferredMode);
+      }
+      if (name === 'billing') loadPaymentHistory();
+      if (name === 'settings') {
+        loadWidgetSettings();
+        loadWooStatus();
+        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
+        switchSettingsTab(preferredMode === 'woo' ? 'store' : 'widget');
+      }
+      if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
+        setTimeout(updateOnboardingJourney, 100);
+      }
+      if (name === 'billing') updateBillingTrialNote();
+      if (name === 'embed' || name === 'home') updateActivationUI();
+    }
+
+    // ─── ANALYTICS ────────────────────────────────────────────
+    async function loadAnalytics() {
+      try {
+        const purposeEl = document.getElementById('purpose-chart');
+        const dailyEl = document.getElementById('daily-chart');
+        if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
+        if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
+
+        const res = await fetch(`${API}/analytics`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) {
+          if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--danger);font-size:13px;">Could not load analytics.</p>`;
+          if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--danger);font-size:13px;">Could not load analytics.</p>`;
+          return;
+        }
+
+        const { stats, productCount } = data;
+
+        // Home stats
+        document.getElementById('stat-total').textContent = stats.total.count;
+        document.getElementById('stat-products').textContent = productCount.count;
+        document.getElementById('stat-budget').textContent =
+          stats.avgBudget.avg ? Math.round(stats.avgBudget.avg).toLocaleString() : '0';
+        // Show limit info
+        const planLimits = {
+          trial: '3/day',
+          starter: '500/mo',
+          growth: '2,000/mo',
+          pro: 'Unlimited'
+        };
+        const limitLabel = planLimits[currentStore.plan] || '500/mo';
+        const el = document.getElementById('rec-limit-label');
+        if (el) el.textContent = `Recommendations (Limit: ${limitLabel})`;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayRow = (stats.daily || []).find(d => d.day === todayStr);
+        document.getElementById('stat-today').textContent = todayRow ? todayRow.count : '0';
+
+
+        // Analytics tab
+        document.getElementById('a-total').textContent = stats.total.count;
+        document.getElementById('a-avg').textContent =
+          stats.avgBudget.avg ? Math.round(stats.avgBudget.avg).toLocaleString() : '0';
+        document.getElementById('a-today').textContent = todayRow ? todayRow.count : '0';
+        const weekTotal = (stats.daily || []).reduce((s, d) => s + d.count, 0);
+        document.getElementById('a-week').textContent = weekTotal;
+
+        // Purpose chart
+        if (stats.byPurpose && stats.byPurpose.length) {
+          const max = stats.byPurpose[0].count;
+          document.getElementById('purpose-chart').innerHTML = stats.byPurpose.map(p => `
+        <div class="chart-row">
+          <div class="chart-label">${p.purpose}</div>
+          <div class="chart-bar-bg">
+            <div class="chart-bar-fill" style="width:${(p.count / max * 100)}%"></div>
+          </div>
+          <div class="chart-count">${p.count}</div>
+        </div>`).join('');
+        }
+        if (!stats.byPurpose || stats.byPurpose.length === 0) {
+          document.getElementById('purpose-chart').innerHTML = `<p style="color:var(--muted);font-size:13px;">No data yet.</p>`;
+        }
+
+        // Daily chart
+        if (stats.daily && stats.daily.length) {
+          const maxD = Math.max(...stats.daily.map(d => d.count));
+          document.getElementById('daily-chart').innerHTML = stats.daily.map(d => `
+        <div class="chart-row">
+          <div class="chart-label">${d.day}</div>
+          <div class="chart-bar-bg">
+            <div class="chart-bar-fill" style="width:${(d.count / maxD * 100)}%"></div>
+          </div>
+          <div class="chart-count">${d.count}</div>
+        </div>`).join('');
+        }
+        if (!stats.daily || stats.daily.length === 0) {
+          document.getElementById('daily-chart').innerHTML = `<p style="color:var(--muted);font-size:13px;">No data yet.</p>`;
+        }
+        renderAnalyticsLine(stats.daily || []);
+        renderAnalyticsInsights(stats);
+
+        // Recent table
+        if (stats.recent && stats.recent.length) {
+          document.getElementById('recent-table').innerHTML = stats.recent.map(r => `
+        <tr>
+          <td>${r.purpose}</td>
+          <td>PKR ${Number(r.budget).toLocaleString()}</td>
+          <td>${r.extras || '—'}</td>
+          <td>${new Date(r.created_at).toLocaleDateString()}</td>
+        </tr>`).join('');
+        }
+        updateOnboardingJourney();
+
+      } catch (e) {
+        console.error(e);
+        const purposeEl = document.getElementById('purpose-chart');
+        const dailyEl = document.getElementById('daily-chart');
+        if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--danger);font-size:13px;">Could not load analytics.</p>`;
+        if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--danger);font-size:13px;">Could not load analytics.</p>`;
+      }
+    }
+
+    // ─── PRODUCTS ─────────────────────────────────────────────
+    // ─── PRODUCTS ─────────────────────────────────────────────
+    let allProducts = [];
+    let editingProduct = null;
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(`${API}/products/manage/${currentStore.storeId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        allProducts = data.products || [];
+        renderProducts(allProducts);
+        updateProductStats(allProducts);
+      } catch (e) {
+        document.getElementById('products-table').innerHTML = `
+      <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--danger);">
+        Could not load products.
+      </td></tr>`;
+      }
+    }
+
+    function updateProductStats(products) {
+      const inStock = products.filter(p => p.in_stock == 1).length;
+      const outStock = products.filter(p => p.in_stock == 0).length;
+      const categories = [...new Set(products.map(p => p.category))].length;
+
+      document.getElementById('pm-total').textContent = products.length;
+      document.getElementById('pm-instock').textContent = inStock;
+      document.getElementById('pm-outstock').textContent = outStock;
+      document.getElementById('pm-categories').textContent = categories;
+      document.getElementById('product-count-badge').textContent =
+        `(${products.length} products)`;
+    }
+
+    function renderProducts(products) {
+      const tbody = document.getElementById('products-table');
+      if (!products.length) {
+        tbody.innerHTML = `
+      <tr><td colspan="5">
+        <div class="empty-state">
+          <div class="es-ic">📦</div>
+          <div class="es-title">No products found</div>
+          <div class="es-sub">Upload a CSV or add products manually.</div>
+        </div>
+      </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = products.map(p => `
+    <tr id="prow-${p.id}" style="border-bottom:1px solid var(--surface);
+      transition:background .15s;"
+      onmouseover="this.style.background='var(--surface)'"
+      onmouseout="this.style.background='transparent'">
+
+      <td style="padding:14px 24px;">
+        <div style="font-weight:500;color:#fff;margin-bottom:2px;">
+          ${escHtml(p.name)}
+        </div>
+        ${p.description
+          ? `<div style="font-size:11px;color:#555;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">
+              ${escHtml(p.description)}
+             </div>`
+          : ''}
+      </td>
+
+      <td style="padding:14px 16px;">
+        <span style="background:#1a1a3a;color:var(--accent);padding:3px 10px;
+          border-radius:20px;font-size:11px;font-weight:600;">
+          ${escHtml(p.category)}
+        </span>
+      </td>
+
+      <td style="padding:14px 16px;text-align:right;
+        font-weight:600;color:#fff;white-space:nowrap;">
+        PKR ${Number(p.price).toLocaleString()}
+      </td>
+
+      <td style="padding:14px 16px;text-align:center;">
+        <button onclick="toggleStock(${p.id}, ${p.in_stock == 1 ? 0 : 1}, this)"
+          style="border:none;cursor:pointer;padding:4px 12px;border-radius:20px;
+          font-size:11px;font-weight:600;transition:all .2s;
+          background:${p.in_stock == 1 ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)'};
+          color:${p.in_stock == 1 ? 'var(--success)' : 'var(--danger)'};
+          border:1px solid ${p.in_stock == 1 ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'};">
+          ${p.in_stock == 1 ? '✓ In Stock' : '✗ Out of Stock'}
+        </button>
+      </td>
+
+      <td style="padding:14px 24px;text-align:right;">
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button onclick="openEditProduct(${p.id})"
+            style="background:transparent;border:1px solid var(--border);
+            color:#aaa;padding:6px 12px;border-radius:6px;
+            font-size:12px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='#aaa'">
+            Edit
+          </button>
+          <button onclick="openDeleteProduct(${p.id}, '${escHtml(p.name).replace(/'/g, "\\'")}', this)"
+            style="background:transparent;border:1px solid var(--border);
+            color:#aaa;padding:6px 12px;border-radius:6px;
+            font-size:12px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='#aaa'">
+            Delete
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+    }
+
+    function filterProducts() {
+      const search = document.getElementById('product-search').value.toLowerCase();
+      const category = document.getElementById('product-category-filter').value;
+      const stock = document.getElementById('product-stock-filter').value;
+
+      const filtered = allProducts.filter(p => {
+        const matchSearch = !search || p.name.toLowerCase().includes(search) ||
+          (p.description || '').toLowerCase().includes(search);
+        const matchCategory = !category || p.category === category;
+        const matchStock = stock === '' || String(p.in_stock) === stock;
+        return matchSearch && matchCategory && matchStock;
+      });
+
+      renderProducts(filtered);
+
+      const note = document.getElementById('pm-filtered-note');
+      note.style.display = filtered.length < allProducts.length ? 'block' : 'none';
+    }
+
+    // ─── ADD PRODUCT ──────────────────────────────────────────
+    function openAddProduct() {
+      editingProduct = null;
+      document.getElementById('product-modal-title').textContent = '+ Add Product';
+      document.getElementById('product-modal-sub').textContent = 'Add a single product to your catalog.';
+      document.getElementById('pm-save-btn').textContent = 'Add Product';
+      document.getElementById('pm-name').value = '';
+      document.getElementById('pm-category').value = '';
+      document.getElementById('pm-price').value = '';
+      document.getElementById('pm-description').value = '';
+      document.getElementById('pm-alert').className = 'alert';
+      document.getElementById('product-modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('pm-name').focus(), 100);
+    }
+
+    // ─── EDIT PRODUCT ─────────────────────────────────────────
+    function openEditProduct(id) {
+      const p = allProducts.find(p => p.id == id);
+      if (!p) return;
+      editingProduct = p;
+      document.getElementById('product-modal-title').textContent = 'Edit Product';
+      document.getElementById('product-modal-sub').textContent = 'Update product details.';
+      document.getElementById('pm-save-btn').textContent = 'Save Changes';
+      document.getElementById('pm-name').value = p.name;
+      document.getElementById('pm-category').value = p.category;
+      document.getElementById('pm-price').value = p.price;
+      document.getElementById('pm-description').value = p.description || '';
+      document.getElementById('pm-alert').className = 'alert';
+      document.getElementById('product-modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('pm-name').focus(), 100);
+    }
+
+    async function saveProduct() {
+      const name = document.getElementById('pm-name').value.trim();
+      const category = document.getElementById('pm-category').value;
+      const price = document.getElementById('pm-price').value;
+      const description = document.getElementById('pm-description').value.trim();
+
+      if (!name) return showPmAlert('Product name is required.', 'error');
+      if (!category) return showPmAlert('Please select a category.', 'error');
+      if (!price || isNaN(price) || parseFloat(price) <= 0)
+        return showPmAlert('Please enter a valid price.', 'error');
+
+      const btn = document.getElementById('pm-save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const isEdit = !!editingProduct;
+        const url = isEdit ? `${API}/product/${editingProduct.id}` : `${API}/product`;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name, category, price: parseFloat(price), description })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          closeProductModal();
+          await loadProducts();
+          showAlert('upload-alert', `✅ ${data.message}`, 'success');
+        } else {
+          showPmAlert(data.error || 'Something went wrong.', 'error');
+        }
+      } catch {
+        showPmAlert('Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = editingProduct ? 'Save Changes' : 'Add Product';
+      }
+    }
+
+    function closeProductModal() {
+      document.getElementById('product-modal').style.display = 'none';
+      editingProduct = null;
+    }
+
+    // ─── STOCK TOGGLE ─────────────────────────────────────────
+    async function toggleStock(id, newStock, btn) {
+      if (btn) setBtnLoading(btn, true, 'Saving…');
+      try {
+        const res = await fetch(`${API}/product/${id}/stock`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ inStock: newStock === 1 })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Update locally without full reload
+          const p = allProducts.find(p => p.id == id);
+          if (p) p.in_stock = newStock;
+          // Fast visual feedback (in case table is filtered/re-rendered)
+          if (btn) {
+            btn.textContent = newStock === 1 ? '✓ In Stock' : '✗ Out of Stock';
+            btn.style.background = newStock === 1 ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)';
+            btn.style.color = newStock === 1 ? 'var(--success)' : 'var(--danger)';
+            btn.style.border = `1px solid ${newStock === 1 ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'}`;
+          }
+          filterProducts();
+          updateProductStats(allProducts);
+        } else {
+          toast.error(data.error || 'Could not update stock status.');
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('Could not update stock status.');
+      } finally {
+        if (btn) setBtnLoading(btn, false);
+      }
+    }
+
+    // ─── DELETE PRODUCT ───────────────────────────────────────
+    let deletingProductId = null;
+
+    function openDeleteProduct(id, name, triggerBtn) {
+      deletingProductId = id;
+      window.__lastDeleteTrigger = triggerBtn || null;
+      document.getElementById('delete-product-name').textContent = name;
+      document.getElementById('delete-product-modal').style.display = 'flex';
+    }
+
+    async function confirmDeleteProduct() {
+      if (!deletingProductId) return;
+      const okBtn = document.getElementById('delete-confirm-btn');
+      const cancelBtn = document.getElementById('delete-cancel-btn');
+      if (okBtn) setBtnLoading(okBtn, true, 'Deleting…');
+      if (cancelBtn) cancelBtn.disabled = true;
+      try {
+        const res = await fetch(`${API}/product/${deletingProductId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeDeleteModal();
+          await loadProducts();
+          toast.success('Product deleted.');
+        } else {
+          toast.error(data.error || 'Could not delete product.');
+        }
+      } catch (e) { console.error(e); }
+      finally {
+        if (okBtn) setBtnLoading(okBtn, false);
+        if (cancelBtn) cancelBtn.disabled = false;
+      }
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('delete-product-modal').style.display = 'none';
+      deletingProductId = null;
+      try { window.__lastDeleteTrigger?.focus?.(); } catch {}
+    }
+
+    // ─── HELPERS ──────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showPmAlert(msg, type) {
+      const el = document.getElementById('pm-alert');
+      el.textContent = msg;
+      el.className = `alert alert-${type} show`;
+      setTimeout(() => el.className = 'alert', 4000);
+    }
+
+    function csvSelected(input) {
+      if (input.files[0]) {
+        document.getElementById('csv-filename').textContent = '📄 ' + input.files[0].name;
+        document.getElementById('upload-btn').disabled = false;
+      }
+    }
+
+    function getExistingProductCount() {
+      // Prefer server-derived count from Analytics if available; fallback to local arrays.
+      const statEl = document.getElementById('stat-products');
+      const statCount = Number(String(statEl?.textContent || '0').replace(/[^0-9]/g, '')) || 0;
+      if (Number.isFinite(statCount) && statCount > 0) return statCount;
+      return Array.isArray(allProducts) ? allProducts.length : 0;
+    }
+
+    function setBtnLoading(btn, isLoading, loadingText) {
+      if (!btn) return;
+      if (isLoading) {
+        if (!btn.dataset.origText) btn.dataset.origText = btn.textContent;
+        if (loadingText) btn.textContent = loadingText;
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+      } else {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
+        if (btn.dataset.origText) {
+          btn.textContent = btn.dataset.origText;
+          delete btn.dataset.origText;
+        }
+      }
+    }
+
+    const toast = {
+      success: (msg, title = 'Success') => showToast('success', title, msg, '✅'),
+      error: (msg, title = 'Error') => showToast('error', title, msg, '⛔'),
+      info: (msg, title = 'Info') => showToast('info', title, msg, 'ℹ️')
+    };
+
+    function showToast(type, title, msg, icon) {
+      const wrap = document.getElementById('toast-wrap');
+      if (!wrap) return;
+
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.setAttribute('role', 'status');
+      el.innerHTML = `
+        <div class="toast-ic">${icon || ''}</div>
+        <div class="toast-bd">
+          <div class="toast-tt">${escHtml(title || '')}</div>
+          <div class="toast-tx">${escHtml(msg || '')}</div>
+        </div>
+        <button class="toast-x" aria-label="Dismiss">✕</button>
+      `;
+      const close = () => { try { el.remove(); } catch {} };
+      el.querySelector('.toast-x')?.addEventListener('click', close);
+      wrap.appendChild(el);
+
+      const timeout = type === 'error' ? 6000 : 3500;
+      setTimeout(close, timeout);
+    }
+
+    function uiConfirm({ title, desc, okText = 'Confirm', cancelText = 'Cancel', variant = 'default', bodyHtml = '' }) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('ui-confirm-modal');
+        const titleEl = document.getElementById('ui-confirm-title');
+        const descEl = document.getElementById('ui-confirm-desc');
+        const bodyEl = document.getElementById('ui-confirm-body');
+        const cancelBtn = document.getElementById('ui-confirm-cancel');
+        const okBtn = document.getElementById('ui-confirm-ok');
+        if (!modal || !cancelBtn || !okBtn || !titleEl || !descEl || !bodyEl) return resolve(false);
+
+        titleEl.textContent = title || 'Confirm';
+        descEl.textContent = desc || '';
+        bodyEl.innerHTML = bodyHtml || '';
+        cancelBtn.textContent = cancelText;
+        okBtn.textContent = okText;
+        okBtn.className = variant === 'danger' ? 'btn btn-danger' : 'btn btn-primary';
+
+        let done = false;
+        const cleanup = () => {
+          cancelBtn.removeEventListener('click', onCancel);
+          okBtn.removeEventListener('click', onOk);
+          modal.removeEventListener('click', onBg);
+          window.removeEventListener('keydown', onEsc);
+          modal.style.display = 'none';
+          okBtn.disabled = false;
+          cancelBtn.disabled = false;
+          okBtn.classList.remove('is-loading');
+          done = true;
+        };
+        const finish = (val) => { if (done) return; cleanup(); resolve(val); };
+        const onCancel = () => finish(false);
+        const onOk = () => finish(true);
+        const onBg = (e) => { if (e.target === modal) finish(false); };
+        const onEsc = (e) => { if (e.key === 'Escape') finish(false); };
+
+        cancelBtn.addEventListener('click', onCancel);
+        okBtn.addEventListener('click', onOk);
+        modal.addEventListener('click', onBg);
+        window.addEventListener('keydown', onEsc);
+
+        modal.style.display = 'flex';
+        setTimeout(() => okBtn.focus(), 50);
+      });
+    }
+
+    async function doUpload() {
+      const file = document.getElementById('csv-upload').files[0];
+      if (!file) return;
+
+      const uploadBtn = document.getElementById('upload-btn');
+      const fileInput = document.getElementById('csv-upload');
+      const fileNameEl = document.getElementById('csv-filename');
+
+      const existing = getExistingProductCount();
+      if (existing > 0) {
+        const ok = await uiConfirm({
+          title: 'Replace your catalog?',
+          desc: 'Uploading this CSV will overwrite your existing products. This can’t be undone.',
+          okText: 'Replace & Upload',
+          cancelText: 'Cancel',
+          variant: 'danger'
+        });
+        if (!ok) return;
+      }
+
+      setBtnLoading(uploadBtn, true, 'Uploading…');
+      uploadBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append('catalog', file);
+
+      try {
+        const res = await fetch(`${API}/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          toast.success(data.message || 'Catalog uploaded.');
+          await loadProducts();
+          await loadAnalytics();
+          // Reset file input UI after upload
+          if (fileInput) fileInput.value = '';
+          if (fileNameEl) fileNameEl.textContent = '';
+          uploadBtn.disabled = true;
+        } else {
+          toast.error(data.error || 'Upload failed.');
+        }
+      } catch (err) {
+        toast.error('Cannot connect to server.');
+      } finally {
+        setBtnLoading(uploadBtn, false);
+        uploadBtn.textContent = 'Upload';
+        // Only re-enable if a file is selected (and we didn't reset it)
+        if (fileInput?.files?.length) uploadBtn.disabled = false;
+      }
+    }
+
+    // ─── BILLING ──────────────────────────────────────────────
+    function selectPlan(plan, el) {
+      selectedPlan = plan;
+      document.querySelectorAll('.plan-opt').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    async function submitPayment() {
+      const method = document.getElementById('pay-method').value;
+      const ref = document.getElementById('pay-ref').value.trim();
+
+      if (!ref) return showAlert('pay-alert', 'Please enter your transaction reference.', 'error');
+
+      try {
+        const res = await fetch(`${API}/payment/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ plan: selectedPlan, method, transactionRef: ref })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('pay-alert', '✅ ' + data.message, 'success');
+          document.getElementById('pay-ref').value = '';
+          loadPaymentHistory();
+        } else {
+          showAlert('pay-alert', '❌ ' + data.error, 'error');
+        }
+      } catch {
+        showAlert('pay-alert', '❌ Cannot connect to server.', 'error');
+      }
+    }
+
+    async function loadPaymentHistory() {
+      const tbody = document.getElementById('payment-history');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:18px;">
+            Loading…
+          </td></tr>
+        `;
+      }
+      try {
+        const res = await fetch(`${API}/payment/history`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.payments && data.payments.length) {
+          tbody.innerHTML = data.payments.map(p => `
+        <tr>
+          <td>${p.plan}</td>
+          <td>Rs ${Number(p.amount).toLocaleString()}</td>
+          <td>${p.method}</td>
+          <td><span class="badge ${p.status === 'approved' ? 'badge-success' : p.status === 'pending' ? 'badge-warning' : 'badge-danger'}">${p.status}</span></td>
+          <td>${new Date(p.created_at).toLocaleDateString()}</td>
+        </tr>`).join('');
+        } else if (tbody) {
+          tbody.innerHTML = `
+            <tr><td colspan="5">
+              <div class="empty-state">
+                <div class="es-ic">💳</div>
+                <div class="es-title">No payments yet</div>
+                <div class="es-sub">Your submissions will appear here once you request a plan upgrade.</div>
+              </div>
+            </td></tr>
+          `;
+        }
+      } catch (e) {
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr><td colspan="5" style="color:var(--danger);text-align:center;padding:18px;">
+              Could not load payment history.
+            </td></tr>
+          `;
+        }
+      }
+    }
+
+    // ─── SETTINGS ─────────────────────────────────────────────
+    async function saveSettings() {
+      const brandColor = document.getElementById('brand-color-hex').value;
+      const currency = document.getElementById('currency-select').value;
+
+      try {
+        const res = await fetch(`${API}/settings`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ brandColor, currency })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          currentStore.brandColor = brandColor;
+          currentStore.currency = currency;
+          localStorage.setItem('bb_store', JSON.stringify(currentStore));
+          showAlert('settings-alert', '✅ Branding saved!', 'success');
+          updateWidgetPreview();
+        } else {
+          showAlert('settings-alert', '❌ ' + data.error, 'error');
+        }
+      } catch {
+        showAlert('settings-alert', '❌ Cannot connect to server.', 'error');
+      }
+    }
+
+    async function saveWidgetSettings() {
+      const widgetTitle = document.getElementById('widget-title-input').value.trim();
+      const welcomeMsg = document.getElementById('welcome-msg-input').value.trim();
+      const buttonText = document.getElementById('button-text-input').value.trim();
+
+      if (!widgetTitle || !welcomeMsg || !buttonText)
+        return showAlert('widget-settings-alert', '❌ All fields are required.', 'error');
+
+      try {
+        const res = await fetch(`${API}/widget-settings`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ widgetTitle, welcomeMsg, buttonText })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('widget-settings-alert', '✅ Widget settings saved! Refresh your store page to see changes.', 'success');
+          updateWidgetPreview();
+        } else {
+          showAlert('widget-settings-alert', '❌ ' + data.error, 'error');
+        }
+      } catch {
+        showAlert('widget-settings-alert', '❌ Cannot connect to server.', 'error');
+      }
+    }
+
+    function resetWidgetDefaults() {
+      document.getElementById('widget-title-input').value = 'BuildBot';
+      document.getElementById('welcome-msg-input').value = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
+      document.getElementById('button-text-input').value = 'Get Started';
+      updateWidgetPreview();
+    }
+
+    function updateWidgetPreview() {
+      const title = document.getElementById('widget-title-input')?.value || 'BuildBot';
+      const msg = document.getElementById('welcome-msg-input')?.value || '';
+      const btn = document.getElementById('button-text-input')?.value || 'Get Started';
+      const color = document.getElementById('brand-color-hex')?.value || 'var(--accent)';
+
+      const previewTitle = document.getElementById('preview-title');
+      const previewMsg = document.getElementById('preview-welcome-msg');
+      const previewBtn = document.getElementById('preview-btn-text');
+      const previewBubble = document.getElementById('widget-preview-btn');
+      const previewBox = document.querySelector('.widget-preview-box');
+
+      if (previewTitle) previewTitle.textContent = '⚡ ' + title;
+      if (previewMsg) previewMsg.textContent = msg;
+      if (previewBtn) {
+        previewBtn.textContent = btn + ' →';
+        previewBtn.style.background = color;
+        // Auto contrast for button text
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        previewBtn.style.color = lum > 0.5 ? '#000' : '#fff';
+      }
+      if (previewBubble) previewBubble.style.background = color;
+    }
+
+    async function loadWidgetSettings() {
+      try {
+        const res = await fetch(`${API}/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const s = data.store;
+          document.getElementById('widget-title-input').value = s.widget_title || 'BuildBot';
+          document.getElementById('welcome-msg-input').value = s.welcome_msg || '';
+          document.getElementById('button-text-input').value = s.button_text || 'Get Started';
+          updateWidgetPreview();
+        } else {
+          showAlert('widget-settings-alert', '❌ Could not load widget settings.', 'error');
+        }
+      } catch (e) { }
+    }
+
+    // ─── WOOCOMMERCE PLUGIN ───────────────────────────────────
+    let pluginSecretKey = '';
+
+    async function loadWooStatus() {
+      try {
+        const res = await fetch(`${API}/plugin/status`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) return;
+
+        // Show store ID
+        document.getElementById('store-id-plugin-display').textContent =
+          currentStore.storeId;
+
+        if (data.hasKey && data.secret) {
+          pluginSecretKey = data.secret;
+          document.getElementById('plugin-secret-display').textContent = data.secret;
+          document.getElementById('generate-key-btn').textContent = '🔄 Regenerate';
+          document.getElementById('copy-key-btn').style.display = 'inline-block';
+        }
+
+        if (data.wooConnected) {
+          localStorage.setItem('bb_store_mode', 'woo');
+          updateSidebarStoreModeUI('woo', true);
+          applyStoreModeLayout('woo');
+
+          // Show connected state
+          document.getElementById('woo-status-badge').textContent = '✅ Connected';
+          document.getElementById('woo-status-badge').style.background = 'rgba(46,204,113,.12)';
+          document.getElementById('woo-status-badge').style.color = 'var(--success)';
+          document.getElementById('woo-status-badge').style.border = '1px solid rgba(46,204,113,.3)';
+          document.getElementById('woo-connected-view').style.display = 'block';
+          document.getElementById('woo-setup-view').style.display = 'none';
+          document.getElementById('woo-url-display').textContent = data.wooUrl || '—';
+          document.getElementById('woo-count-display').textContent = data.productCount || 0;
+          document.getElementById('woo-sync-display').textContent = data.lastSync
+            ? timeAgo(data.lastSync) : 'Never';
+          // Show widget status in connected view
+          const widgetStatus = document.getElementById('woo-widget-status');
+          if (widgetStatus) {
+            widgetStatus.textContent = data.widgetEnabled
+              ? '✅ Widget is showing on your store'
+              : '⛔ Widget is disabled — enable it from WordPress';
+            widgetStatus.style.color = data.widgetEnabled ? 'var(--success)' : 'var(--danger)';
+          }
+        } else {
+          const selectedMode = localStorage.getItem('bb_store_mode') || 'custom';
+          updateSidebarStoreModeUI(selectedMode, false);
+          applyStoreModeLayout(selectedMode);
+
+          // Ensure setup view is visible when not connected
+          const connectedView = document.getElementById('woo-connected-view');
+          const setupView = document.getElementById('woo-setup-view');
+          if (connectedView) connectedView.style.display = 'none';
+          if (setupView) setupView.style.display = 'block';
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    async function generatePluginKey() {
+      const btn = document.getElementById('generate-key-btn');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      try {
+        const res = await fetch(`${API}/plugin/generate-key`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          pluginSecretKey = data.secret;
+          document.getElementById('plugin-secret-display').textContent = data.secret;
+          document.getElementById('copy-key-btn').style.display = 'inline-block';
+          btn.textContent = '🔄 Regenerate';
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function copyPluginKey() {
+      if (!pluginSecretKey) return;
+      navigator.clipboard.writeText(pluginSecretKey).then(() => {
+        const btn = document.getElementById('copy-key-btn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+      });
+    }
+
+    function copyStoreId() {
+      navigator.clipboard.writeText(currentStore.storeId).then(() => {
+        const el = document.getElementById('store-id-for-plugin');
+        const original = el.innerHTML;
+        el.innerHTML = `Your Store ID: <strong style="color:var(--success);">${currentStore.storeId}</strong> <span style="color:var(--success);font-size:11px;">✅ Copied!</span>`;
+        setTimeout(() => el.innerHTML = original, 2000);
+      });
+    }
+
+    async function disconnectWoo() {
+      const ok = await uiConfirm({
+        title: 'Disconnect WooCommerce?',
+        desc: 'Auto-sync will stop. Your already-synced products will remain in BuildBot.',
+        okText: 'Disconnect',
+        cancelText: 'Cancel',
+        variant: 'danger'
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(`${API}/plugin/disconnect`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Could not disconnect WooCommerce');
+        toast.success('WooCommerce disconnected.');
+        await loadWooStatus();
+      } catch (e) {
+        toast.error(e.message || 'Could not disconnect WooCommerce.');
+      }
+    }
+
+    function downloadPlugin() {
+      if (!pluginSecretKey) {
+        showAlert('widget-settings-alert',
+          '⚠️ Please generate your Secret Key first (Step 2), then download the plugin.',
+          'error'
+        );
+        generatePluginKey();
+        return;
+      }
+      // Download the plugin zip from server
+      window.open(
+        'https://buildbot-production.up.railway.app/buildbot-woocommerce.zip',
+        '_blank'
+      );
+    }
+
+    async function deleteAccount(btn) {
+      const storeId = currentStore?.storeId || '';
+      const ok = await uiConfirm({
+        title: 'Delete your account permanently?',
+        desc: 'This will permanently delete your store and all related data. This cannot be undone.',
+        okText: 'Delete permanently',
+        cancelText: 'Cancel',
+        variant: 'danger',
+        bodyHtml: `
+          <div style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 12px;">
+            <div style="font-size:11px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">Type to confirm</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+              Type <strong style="color:#fff;">${escHtml(storeId || 'your store id')}</strong> to enable delete.
+            </div>
+            <input type="text" id="ui-delete-confirm-input" placeholder="${storeId ? storeId : 'Store ID'}"
+              style="width:100%;padding:11px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:13px;outline:none;" />
+          </div>
+        `
+      });
+      if (!ok) return;
+
+      const typed = String(document.getElementById('ui-delete-confirm-input')?.value || '').trim();
+      if (storeId && typed !== storeId) {
+        toast.error('Confirmation text does not match. Account was not deleted.');
+        return;
+      }
+
+      setBtnLoading(btn, true, 'Deleting…');
+
+      try {
+        const res = await fetch(`${API}/account`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          localStorage.removeItem('bb_token');
+          localStorage.removeItem('bb_store');
+          toast.success('Account deleted.');
+          setTimeout(() => location.reload(), 600);
+        } else {
+          toast.error(data.error || 'Could not delete account.');
+        }
+      } catch (e) {
+        toast.error('Cannot connect to server.');
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    }
+
+    function timeAgo(isoString) {
+      const diff = Math.floor((Date.now() - new Date(isoString)) / 1000);
+      if (diff < 60) return `${diff} seconds ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+      return `${Math.floor(diff / 86400)} days ago`;
+    }
+
+    // ─── HELPERS ──────────────────────────────────────────────
+    function copyEmbed() {
+      const code = document.getElementById('embed-code-display').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        showAlert('embed-alert', '✅ Embed code copied!', 'success');
+        toast.success('Embed code copied.');
+      });
+      localStorage.setItem('bb_embed_copied', '1');
+      updateOnboardingJourney();
+      updateActivationUI();
+      updateEmbedStatusDot();
+    }
+
+    function downloadTemplate() {
+      const csv = `name,category,price,description
+Intel Core i5-13400F,CPU,45000,Great mid range processor
+ASUS Prime B660M-K,Motherboard,18000,LGA1700 compatible motherboard
+Corsair Vengeance 16GB DDR4,RAM,8500,Reliable 16GB RAM kit
+WD Blue 1TB SSD,Storage,14000,Fast and reliable SSD
+MSI GeForce RTX 3060,GPU,65000,Great for gaming and editing
+Corsair CV550 550W PSU,PSU,8500,Reliable power supply
+Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = 'buildbot-template.csv';
+      a.click();
+    }
+
+    function showAlert(id, msg, type) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = `alert alert-${type} show`;
+      setTimeout(() => el.className = 'alert', 4000);
+    }
+
+    // Hide go-live banner when widget is confirmed live
+    (function () {
+      window.updateEmbedStatusDot = function updateEmbedStatusDot() {
+        var dot = document.getElementById('embed-status-dot');
+        if (!dot) return;
+        var live = localStorage.getItem('bb_widget_live') === '1';
+        dot.style.display = live ? 'none' : 'inline-block';
+      };
+      function refreshGoLiveBanner() {
+        var banner = document.getElementById('go-live-banner');
+        if (!banner) return;
+        var live = localStorage.getItem('bb_widget_live') === '1';
+        banner.style.display = live ? 'none' : 'flex';
+      }
+      window.syncEmbedCodeCopy = function syncEmbedCodeCopy() {
+        var code = document.getElementById('embed-code-display');
+        var code2 = document.getElementById('embed-code-display-2');
+        if (code && code2 && code.textContent) code2.textContent = code.textContent;
+      };
+      document.addEventListener('DOMContentLoaded', function () {
+        refreshGoLiveBanner();
+        updateEmbedStatusDot();
+      });
+      // Re-check whenever checklist updates (if present in other builds)
+      var _origUpdateChecklist = window.updateChecklist;
+      if (typeof _origUpdateChecklist === 'function') {
+        window.updateChecklist = function (count) {
+          _origUpdateChecklist(count);
+          refreshGoLiveBanner();
+          updateEmbedStatusDot();
+        };
+      }
+    })();
+
+    function switchSettingsTab(name) {
+      var panels = ['widget', 'store', 'account'];
+      panels.forEach(function (p) {
+        var el = document.getElementById('settings-panel-' + p);
+        var btn = document.getElementById('stab-' + p);
+        if (el) el.style.display = (p === name) ? 'block' : 'none';
+        if (btn) btn.classList.toggle('sts-active', p === name);
+      });
+      var accountPanel = document.getElementById('settings-panel-account');
+      var securityCard = document.getElementById('settings-security-card');
+      var widgetTextCard = document.getElementById('settings-widget-text-card');
+      var wooCard = document.getElementById('woo-section');
+      var dangerCard = document.getElementById('settings-danger-card');
+      if (securityCard) securityCard.style.display = (name === 'account') ? 'block' : 'none';
+      if (widgetTextCard) widgetTextCard.style.display = (name === 'widget') ? 'block' : 'none';
+      if (wooCard) wooCard.style.display = (name === 'store') ? 'block' : 'none';
+      if (dangerCard) dangerCard.style.display = (name === 'account') ? 'block' : 'none';
+      if (accountPanel) {
+        accountPanel.style.display = (name === 'widget' || name === 'store' || name === 'account') ? 'block' : 'none';
+      }
+      if (name === 'widget') {
+        var wp = document.getElementById('settings-panel-widget');
+        if (wp) wp.style.display = 'block';
+      }
+      if (name === 'store') {
+        var sp = document.getElementById('settings-panel-store');
+        if (sp) sp.style.display = 'block';
+      }
+    }
+
+    function setAnalyticsRange(days, btn) {
+      document.querySelectorAll('.analytics-range-btn').forEach(b => b.classList.remove('range-btn-active'));
+      if (btn) btn.classList.add('range-btn-active');
+      var lbl = document.getElementById('analytics-range-label');
+      if (lbl) lbl.textContent = days === 0 ? 'Showing: all time' : 'Showing: last ' + days + ' days';
+      loadAnalytics();
+    }
+
+    function toggleContextHelp(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function switchProductView(view, btn) {
+      var woo = document.getElementById('products-woo-view');
+      var custom = document.getElementById('products-custom-view');
+      if (woo) woo.style.display = (view === 'woo') ? 'block' : 'none';
+      if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
+      localStorage.setItem('bb_store_mode', view);
+      updateSidebarStoreModeUI(view, view === 'woo');
+      applyStoreModeLayout(view);
+      var b1 = document.getElementById('sts-woo');
+      var b2 = document.getElementById('sts-custom');
+      if (b1) b1.classList.toggle('sts-active', view === 'woo');
+      if (b2) b2.classList.toggle('sts-active', view === 'custom');
+    }
+
+    function setSignupStoreMode(mode) {
+      localStorage.setItem('bb_signup_store_mode', mode);
+      var customBtn = document.getElementById('signup-mode-custom');
+      var wooBtn = document.getElementById('signup-mode-woo');
+      if (customBtn) {
+        customBtn.style.background = mode === 'custom' ? 'var(--accent-bg)' : '#ffffff';
+        customBtn.style.color = mode === 'custom' ? '#3730a3' : 'var(--text)';
+        customBtn.style.borderColor = mode === 'custom' ? 'var(--border-2)' : '#d0d5dd';
+      }
+      if (wooBtn) {
+        wooBtn.style.background = mode === 'woo' ? 'var(--accent-bg)' : '#ffffff';
+        wooBtn.style.color = mode === 'woo' ? '#3730a3' : 'var(--text)';
+        wooBtn.style.borderColor = mode === 'woo' ? 'var(--border-2)' : '#d0d5dd';
+      }
+    }
+
+    function updateSidebarStoreModeUI() {}
+
+    function setStoreModePermanent(mode) {
+      localStorage.setItem('bb_store_mode', mode);
+      setSignupStoreMode(mode);
+      applyStoreModeLayout(mode);
+      updateSidebarStoreModeUI(mode, mode === 'woo');
+      if (document.getElementById('tab-content-products').style.display !== 'none') {
+        switchProductView(mode);
+      }
+      toast.success(`Store mode switched to ${mode === 'woo' ? 'WooCommerce' : 'Manual / CSV'}.`);
+      updateOnboardingJourney();
+    }
+
+    function applyStoreModeLayout(mode) {
+      var customBtn = document.getElementById('store-mode-custom-btn');
+      var wooBtn = document.getElementById('store-mode-woo-btn');
+      if (customBtn) customBtn.style.borderColor = mode === 'custom' ? 'var(--border-2)' : '#d7deee';
+      if (wooBtn) wooBtn.style.borderColor = mode === 'woo' ? 'var(--border-2)' : '#d7deee';
+    }
+
+    function updateTrialChip() {
+      var chip = document.getElementById('trial-chip-inline');
+      if (!chip || !currentStore || !currentStore.trialEnds) return;
+      var diff = Math.max(0, Math.ceil((new Date(currentStore.trialEnds).getTime() - Date.now()) / 86400000));
+      chip.textContent = `Trial: ${diff} day${diff === 1 ? '' : 's'} left`;
+      chip.classList.toggle('is-urgent', diff <= 3);
+    }
+
+    function updateActivationUI() {
+      var embedCopied = localStorage.getItem('bb_embed_copied') === '1';
+      var live = localStorage.getItem('bb_widget_live') === '1';
+      var k1 = document.getElementById('kpi-embed');
+      var k2 = document.getElementById('kpi-live');
+      if (k1) k1.textContent = `Embed copied: ${embedCopied ? 'Yes' : 'No'}`;
+      if (k2) k2.textContent = `Live status: ${live ? 'Live' : 'Pending'}`;
+      var cta = document.getElementById('tab-embed');
+      if (cta) cta.classList.toggle('cta-glow', !live);
+      var bubble = document.getElementById('embed-preview-bubble');
+      if (bubble) bubble.style.background = (currentStore && currentStore.brandColor) || 'var(--accent)';
+      if (typeof updateEmbedStatusDot === 'function') updateEmbedStatusDot();
+    }
+
+    function updateBillingTrialNote() {
+      var note = document.getElementById('billing-trial-note');
+      if (!note || !currentStore || !currentStore.trialEnds) return;
+      var diff = Math.max(0, Math.ceil((new Date(currentStore.trialEnds).getTime() - Date.now()) / 86400000));
+      note.textContent = diff > 0
+        ? `You have ${diff} day${diff === 1 ? '' : 's'} left in trial. Upgrade now to prevent interruption.`
+        : 'Trial has ended. Upgrade now to keep widget active.';
+    }
+
+    function renderAnalyticsLine(daily) {
+      var svg = document.getElementById('analytics-line-svg');
+      if (!svg) return;
+      if (!daily.length) {
+        svg.innerHTML = '<text x="20" y="28" fill="var(--muted)" font-size="12">No trend data yet</text>';
+        return;
+      }
+      var width = 760, height = 220, padX = 36, padY = 24;
+      var max = Math.max.apply(null, daily.map(function (d) { return d.count || 0; })) || 1;
+      var step = daily.length > 1 ? (width - padX * 2) / (daily.length - 1) : 0;
+      var points = daily.map(function (d, i) {
+        var x = padX + i * step;
+        var y = height - padY - ((d.count || 0) / max) * (height - padY * 2);
+        return [x, y];
+      });
+      var line = points.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+      var area = `M ${padX} ${height - padY} L ${line.replace(/,/g, ' ')} L ${width - padX} ${height - padY} Z`;
+      svg.innerHTML = `
+        <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity=".30"/><stop offset="100%" stop-color="#6366f1" stop-opacity=".02"/></linearGradient></defs>
+        <path d="${area}" fill="url(#g1)"></path>
+        <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5"></polyline>
+        ${points.map(function (p) { return `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--accent)"></circle>`; }).join('')}
+      `;
+    }
+
+    function renderAnalyticsInsights(stats) {
+      var host = document.getElementById('analytics-insights');
+      var table = document.getElementById('analytics-budget-table');
+      if (!host || !table) return;
+      var daily = stats.daily || [];
+      var recent = stats.recent || [];
+      var last = daily[daily.length - 1]?.count || 0;
+      var prev = daily[daily.length - 2]?.count || 0;
+      var growth = prev ? Math.round(((last - prev) / prev) * 100) : 0;
+      host.innerHTML = `
+        • Weekly momentum: <strong>${growth >= 0 ? '+' : ''}${growth}%</strong><br/>
+        • Most requested purpose: <strong>${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong><br/>
+        • Highest demand day: <strong>${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong>
+      `;
+      var ranges = { '<50K': 0, '50K-100K': 0, '100K-200K': 0, '200K+': 0 };
+      recent.forEach(function (r) {
+        var b = Number(r.budget || 0);
+        if (b < 50000) ranges['<50K']++;
+        else if (b < 100000) ranges['50K-100K']++;
+        else if (b < 200000) ranges['100K-200K']++;
+        else ranges['200K+']++;
+      });
+      table.innerHTML = Object.keys(ranges).map(function (k) {
+        var v = ranges[k];
+        return `<tr><td>${k}</td><td>${v}</td><td>${v > 0 ? '↗ Active' : '—'}</td></tr>`;
+      }).join('') || '<tr><td colspan="3">No data yet.</td></tr>';
+    }
+
+    function updateOnboardingJourney() {
+      var mode = localStorage.getItem('bb_store_mode') || 'custom';
+      var productsCount = Number((document.getElementById('stat-products') || {}).textContent || 0);
+      var embedCopied = localStorage.getItem('bb_embed_copied') === '1';
+      var live = localStorage.getItem('bb_widget_live') === '1';
+
+      var stepStore = document.getElementById('journey-step-store');
+      var stepProducts = document.getElementById('journey-step-products');
+      var stepLive = document.getElementById('journey-step-live');
+
+      var storeConfigured = true;
+      if (stepStore) {
+        stepStore.textContent = mode === 'woo' ? 'WooCommerce selected' : 'Manual / CSV selected';
+      }
+      if (stepProducts) {
+        if (mode === 'woo') {
+          stepProducts.textContent = 'Connect Woo plugin in settings';
+        } else if (productsCount > 0) {
+          stepProducts.textContent = productsCount + ' products loaded';
+        } else {
+          stepProducts.textContent = 'Add first product or upload CSV';
+        }
+      }
+      if (stepLive) {
+        if (live) {
+          stepLive.textContent = 'Widget is live on your store';
+        } else if (embedCopied) {
+          stepLive.textContent = 'Embed copied. Paste on website to finish';
+        } else {
+          stepLive.textContent = 'Copy and publish widget script';
+        }
+      }
+      var productsDone = mode === 'woo' ? false : productsCount > 0;
+      if (stepStore) stepStore.className = 'journey-step ' + (storeConfigured ? 'step-done' : 'step-pending');
+      if (stepProducts) stepProducts.className = 'journey-step ' + (productsDone ? 'step-done' : 'step-pending');
+      if (stepLive) stepLive.className = 'journey-step ' + (live ? 'step-done' : embedCopied ? 'step-active' : 'step-pending');
+    }
+
+  

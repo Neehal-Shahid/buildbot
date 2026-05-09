@@ -90,15 +90,41 @@
     }
     .nav-right { display: flex; align-items: center; gap: 12px; }
     .trial-chip {
-      background: var(--warning-bg);
-      color: var(--warning);
-      border: 1px solid var(--warning-border);
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border: 1px solid var(--accent-border);
       font-size: 11px;
       font-weight: 600;
-      padding: 3px 10px;
+      padding: 4px 11px;
       border-radius: 20px;
       cursor: pointer;
       user-select: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .trial-chip:hover { background: rgba(79, 70, 229, 0.12); }
+    .trial-chip.is-urgent {
+      background: var(--surface);
+      color: var(--accent);
+      border-color: rgba(79, 70, 229, 0.45);
+      box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.08);
+    }
+    .trial-chip-inline {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-text);
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      padding: 6px 12px;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .trial-chip-inline:hover { background: rgba(79, 70, 229, 0.14); }
+    .trial-chip-inline.is-urgent {
+      color: var(--accent);
+      border-color: rgba(79, 70, 229, 0.35);
+      background: var(--surface);
     }
     .nav-user-email { font-size: 13px; color: var(--muted); }
 
@@ -146,31 +172,34 @@
     }
     .sidebar-nav {
       flex: 1;
-      padding: 12px 10px;
+      padding: 14px 12px 16px;
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 4px;
     }
     .sidebar-divider {
       height: 1px;
       background: var(--border);
-      margin: 8px 10px;
+      margin: 12px 8px 10px;
+      flex-shrink: 0;
     }
     .sidebar-section-label {
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.09em;
       color: var(--dim);
-      padding: 10px 8px 4px;
-      margin-top: 4px;
+      padding: 14px 10px 6px;
+      margin: 0;
       user-select: none;
     }
+    .sidebar-section-label:first-child { padding-top: 2px; }
     .sidebar-item {
       display: flex;
       align-items: center;
-      gap: 9px;
-      padding: 8px 10px;
+      gap: 10px;
+      padding: 10px 12px;
+      min-height: 40px;
       border-radius: var(--r-md);
       cursor: pointer;
       font-size: 13.5px;
@@ -197,7 +226,8 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--warning);
+      background: var(--accent);
+      opacity: 0.65;
       margin-left: auto;
     }
     .sidebar-status-dot.live {
@@ -449,8 +479,9 @@
 
     .pwd-wrap { position: relative; display: block; max-width: 320px; }
     .pwd-wrap input { padding-right: 40px; }
-    .pwd-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.6; font-size: 16px; transition: opacity 0.15s, color 0.15s; color: var(--muted); user-select: none; }
+    .pwd-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.55; transition: opacity 0.15s, color 0.15s; color: var(--muted); user-select: none; display: flex; align-items: center; justify-content: center; }
     .pwd-toggle:hover { opacity: 1; color: var(--text); }
+    .pwd-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.75; }
 
     .journey-step { font-size: 13px; }
     .journey-step.step-done    { color: var(--success); }
@@ -697,11 +728,20 @@
       color: var(--muted);
       padding: 6px 0;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
     }
 
     .plan-features li::before {
-      content: '✓ ';
-      color: var(--success);
+      content: '';
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      background-color: var(--success);
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center / contain no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E") center / contain no-repeat;
     }
 
     /* ── AUTH ── */
@@ -867,26 +907,118 @@
 
     /* ── TRIAL BANNER ── */
     .trial-banner {
-      background: var(--warning-bg);
-      border: 1px solid var(--warning-border);
+      background: linear-gradient(135deg, var(--accent-light) 0%, var(--surface) 100%);
+      border: 1px solid var(--accent-border);
       border-radius: var(--r-lg);
-      padding: 12px 18px;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 20px;
+      box-shadow: var(--shadow-xs);
     }
 
     .trial-banner p {
       font-size: 13px;
       color: var(--text-2);
+      line-height: 1.5;
     }
 
     .trial-banner span {
-      color: var(--warning);
+      color: var(--accent-text);
       font-weight: 600;
     }
+
+    .trial-limit-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      border-left: 3px solid var(--accent);
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.55;
+      box-shadow: var(--shadow-xs);
+    }
+    .trial-limit-notice svg { flex-shrink: 0; color: var(--accent); margin-top: 2px; }
+
+    .insight-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.5;
+    }
+    .insight-row:last-child { margin-bottom: 0; }
+    .insight-row svg {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      stroke: var(--accent);
+      margin-top: 2px;
+    }
+
+    .embed-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .embed-steps { grid-template-columns: 1fr; }
+    }
+    .embed-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+    }
+    .embed-step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent-light);
+      color: var(--accent-text);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .embed-step h3 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .embed-step p { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+    .card-icon-inline {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+    .card-icon-inline svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    .btn-icon-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-icon-text svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
 
     .two-col {
       display: grid;
@@ -991,32 +1123,6 @@
       margin-left: 10px;
     }
 
-    .pwd-wrap {
-      position: relative;
-      display: block;
-    }
-
-    .pwd-wrap input {
-      padding-right: 40px;
-    }
-
-    .pwd-toggle {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      opacity: 0.6;
-      font-size: 16px;
-      transition: opacity 0.2s, color 0.2s;
-      color: var(--text-secondary);
-      user-select: none;
-    }
-
-    .pwd-toggle:hover {
-      opacity: 1;
-      color: var(--text-primary);
-    }
     /* landing/nav legacy styles removed */
 
     /* removed landing/auth CSS */
@@ -1062,9 +1168,16 @@
         </div>
         <nav class="sidebar-nav">
 
+          <span class="sidebar-section-label">Workspace</span>
+
           <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             Overview
+          </div>
+
+          <div class="sidebar-item" onclick="showTab('store')" id="tab-store">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Store &amp; sync
           </div>
 
           <div class="sidebar-item" onclick="showTab('products')" id="tab-products">
@@ -1085,6 +1198,13 @@
 
           <div class="sidebar-divider"></div>
 
+          <span class="sidebar-section-label">Your account</span>
+
+          <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Widget Settings
+          </div>
+
           <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Billing
@@ -1095,14 +1215,9 @@
             Account
           </div>
 
-          <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Widget Settings
-          </div>
-
           <div class="sidebar-item" onclick="showTab('help')" id="tab-help">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
-            Help & Docs
+            Help &amp; Docs
           </div>
 
         </nav>
@@ -1112,7 +1227,7 @@
             <span class="sidebar-user-email" id="nav-user-email"></span>
           </div>
           <div class="sidebar-item" onclick="doLogout()">
-            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Logout
           </div>
         </div>
@@ -1175,22 +1290,22 @@
 
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
               <div class="stat-value" id="stat-total">0</div>
               <div class="stat-label" id="rec-limit-label">Total Recommendations</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
               <div class="stat-value" id="stat-products">0</div>
               <div class="stat-label">Products in Catalog</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
               <div class="stat-value" id="stat-budget">0</div>
               <div class="stat-label">Avg Customer Budget</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
               <div class="stat-value" id="stat-today">0</div>
               <div class="stat-label">Recommendations Today</div>
             </div>
@@ -1231,38 +1346,37 @@
           </div>
         </div>
 
-        <!-- ── PRODUCTS TAB ── -->
-        <!-- ── PRODUCTS TAB ── -->
-        <div id="tab-content-products" style="display:none;">
-          <div class="section-title">Product Catalog
-            <span onclick="toggleContextHelp('help-products')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
-          </div>
-          <div class="section-sub">Manage your products. The AI only recommends in-stock items.</div>
+        <!-- ── STORE & SYNC TAB ── -->
+        <div id="tab-content-store" style="display:none;">
+          <div class="section-title">Store &amp; sync</div>
+          <div class="section-sub">Choose your catalog source, then finish setup on this page (WooCommerce) or in Products (manual / CSV).</div>
 
-          <div id="help-products" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:8px 0 16px;font-size:12.5px;color:var(--text-2);line-height:1.8;">
-            <strong style="color:var(--text);">Common questions:</strong><br/>
-            • <strong>WooCommerce not syncing?</strong> Ensure the plugin is installed, activated, and the secret key matches.<br/>
-            • <strong>How often do products sync?</strong> Automatically every 6 hours, or click "Sync now" for immediate update.<br/>
-            • <strong>Can I add products manually if I use WooCommerce?</strong> Use <strong>Store Mode</strong> at the top of this page to switch to My Products (Manual / CSV).
-          </div>
-
-          <!-- Always visible: pick workflow first; same IDs as before for JS -->
           <div class="card" style="margin-bottom:16px;">
-            <h2>Store Mode</h2>
-            <p style="margin-bottom:12px;">Choose how your catalog works. You can switch anytime.</p>
+            <h2>Catalog source</h2>
+            <p style="margin-bottom:12px;">Pick where BuildBot reads inventory from. You can switch anytime.</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:var(--accent-bg);border:1px solid var(--border-2);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>My Products (Manual / CSV)</button>
               <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg>WooCommerce</button>
             </div>
-            <div style="font-size:12px;color:var(--muted);margin-top:10px;"><strong style="color:var(--text);">Manual / CSV</strong> shows the catalog editor below. <strong style="color:var(--text);">WooCommerce</strong> shows sync setup and pulls products from WordPress.</div>
+            <p style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.55;"><strong style="color:var(--text);">Manual / CSV</strong> — catalog lives in BuildBot (Products tab). <strong style="color:var(--text);">WooCommerce</strong> — sync from WordPress using the plugin below.</p>
           </div>
 
-          <div id="products-woo-view" style="display:none;">
+          <div id="store-manual-hint" class="card" style="margin-bottom:16px;display:none;">
+            <div style="display:flex;gap:16px;align-items:flex-start;">
+              <div class="card-icon-inline"><svg viewBox="0 0 24 24" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+              <div style="flex:1;">
+                <h2 style="font-size:16px;margin-bottom:6px;">Manual catalog</h2>
+                <p style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:12px;">Add products or upload a CSV from the <strong style="color:var(--text);">Products</strong> tab.</p>
+                <button type="button" class="btn btn-primary btn-sm" onclick="showTab('products')">Open Products</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="store-woo-panel" style="display:none;">
             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--muted);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg>
-              <span><strong style="color:var(--text);">WooCommerce mode.</strong> Your products sync automatically from WordPress. To add or edit products, use your WordPress admin panel.</span>
+              <span><strong style="color:var(--text);">WooCommerce.</strong> Products sync from WordPress. Edit catalog in your WP admin.</span>
             </div>
-          <!-- WooCommerce Plugin Section -->
           <div class="card" id="woo-section">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
               <div style="font-size:28px;display:flex;align-items:center;color:var(--accent);"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg></div>
@@ -1417,6 +1531,34 @@
 
             </div><!-- end woo-setup-view -->
           </div><!-- end woo-section -->
+          </div><!-- end store-woo-panel -->
+        </div><!-- end tab-content-store -->
+
+        <!-- ── PRODUCTS TAB ── -->
+        <div id="tab-content-products" style="display:none;">
+          <div class="section-title">Product Catalog
+            <span onclick="toggleContextHelp('help-products')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
+          </div>
+          <div class="section-sub">Edit SKUs, stock, and pricing here when your catalog source is <strong style="color:var(--text);font-weight:600;">Manual / CSV</strong>. WooCommerce stores manage inventory in WordPress.</div>
+
+          <div id="help-products" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:8px 0 16px;font-size:12.5px;color:var(--text-2);line-height:1.8;">
+            <strong style="color:var(--text);">Common questions:</strong><br/>
+            • <strong>WooCommerce not syncing?</strong> Open <strong>Store &amp; sync</strong> — confirm the plugin, secret key, and connection.<br/>
+            • <strong>How often do products sync?</strong> About every 6 hours from WordPress, or sync manually from the plugin.<br/>
+            • <strong>Prefer manual catalog?</strong> Switch catalog source to <strong>My Products</strong> in Store &amp; sync.
+          </div>
+
+          <div id="products-woo-info" style="display:none;margin-bottom:16px;">
+            <div class="card">
+              <div style="display:flex;gap:16px;align-items:flex-start;">
+                <div class="card-icon-inline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6V4m10 2V4M5 20h14a1 1 0 0 0 1-1V9H4v10a1 1 0 0 0 1 1z"/><rect x="9" y="12" width="6" height="5"/></svg></div>
+                <div style="flex:1;">
+                  <h2 style="font-size:16px;margin-bottom:6px;">Catalog synced from WooCommerce</h2>
+                  <p style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:12px;">Product edits happen in WordPress. Install and connect the BuildBot plugin under <strong style="color:var(--text);">Store &amp; sync</strong>.</p>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="showTab('store')">Open Store &amp; sync</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div id="products-custom-view">
@@ -1429,7 +1571,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;
     margin-bottom:20px;gap:12px;flex-wrap:wrap;">
             <div style="display:flex;gap:10px;align-items:center;flex:1;">
-              <input type="text" id="product-search" placeholder="🔍 Search products..." oninput="filterProducts()"
+              <input type="text" id="product-search" placeholder="Search products…" oninput="filterProducts()"
                 style="max-width:260px;padding:10px 14px;background:var(--surface-2);
         border:1px solid var(--border);border-radius:8px;color:var(--text-2);
         font-size:13px;outline:none;" />
@@ -1457,8 +1599,9 @@
               <button class="btn btn-primary btn-sm" onclick="openAddProduct()">
                 + Add Product
               </button>
-              <button class="btn btn-sm" onclick="showTab('products')" style="background:var(--border);color:#aaa;">
-                🔄 Refresh
+              <button type="button" class="btn btn-sm btn-icon-text" onclick="loadProducts()" style="background:var(--surface-2);border-color:var(--border-2);color:var(--text-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Refresh
               </button>
             </div>
           </div>
@@ -1579,27 +1722,27 @@
           <div id="analytics-empty-state" class="card empty-state" style="display:none;">
             <div class="es-title">Analytics populate once your widget is live</div>
             <div class="es-sub">Go live to start collecting session and recommendation metrics.</div>
-            <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Go to Embed</button>
+            <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Install widget</button>
           </div>
 
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
               <div class="stat-value" id="a-total">0</div>
               <div class="stat-label">Total Builds Suggested</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
               <div class="stat-value" id="a-avg">0</div>
               <div class="stat-label">Avg Budget (PKR)</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
               <div class="stat-value" id="a-today">0</div>
               <div class="stat-label">Today</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
               <div class="stat-value" id="a-week">0</div>
               <div class="stat-label">This Week</div>
             </div>
@@ -1650,7 +1793,7 @@
 
         <!-- ── BILLING TAB ── -->
         <div id="tab-content-billing" style="display:none;">
-          <div class="section-title">Billing & Plans
+          <div class="section-title">Billing &amp; plans
             <span onclick="toggleContextHelp('help-billing')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Upgrade your plan. Pay via JazzCash or EasyPaisa.</div>
@@ -1661,8 +1804,8 @@
             - Use plan comparison to select the right tier.
           </div>
 
-          <div class="card" style="margin-bottom:16px;background:var(--accent-bg);border:1px solid var(--border-2);">
-            <h2 style="margin-bottom:8px;">Trial Countdown</h2>
+          <div class="card" style="margin-bottom:16px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-xs);border-left:3px solid var(--accent);">
+            <h2 style="margin-bottom:8px;">Trial countdown</h2>
             <p id="billing-trial-note" style="margin-bottom:10px;">Your trial details will appear here.</p>
             <div class="mini-kpi" id="billing-verification-kpi">Payment verification: Pending</div>
           </div>
@@ -1787,8 +1930,7 @@
               <label class="form-label">Current Password</label>
               <div class="pwd-wrap">
                 <input type="password" id="cp-current" placeholder="Current password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-current', this)">👁️</span>
+                <span class="pwd-toggle" onclick="togglePassword('cp-current', this)" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
               </div>
             </div>
             <div class="form-group">
@@ -1796,20 +1938,29 @@
               <div class="pwd-wrap">
                 <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol"
                   style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-new', this)">👁️</span>
+                <span class="pwd-toggle" onclick="togglePassword('cp-new', this)" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
               </div>
             </div>
             <div class="form-group">
               <label class="form-label">Confirm New Password</label>
               <div class="pwd-wrap">
                 <input type="password" id="cp-confirm" placeholder="Repeat new password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-confirm', this)">👁️</span>
+                <span class="pwd-toggle" onclick="togglePassword('cp-confirm', this)" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
               </div>
             </div>
             <button class="btn btn-primary" onclick="changePassword(this)">Change Password</button>
             <div class="alert" id="cp-alert" style="max-width:320px;"></div>
+            </div>
+
+            <div class="card" id="account-forgot-card" style="margin-bottom:16px;">
+              <h2>Forgot password?</h2>
+              <p style="margin-bottom:14px;font-size:13px;color:var(--muted);line-height:1.55;">Same reset flow as the login page — we will email you a link to set a new password.</p>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="account-forgot-email" placeholder="you@example.com" autocomplete="email" style="max-width:360px;" />
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="doAccountForgot(this)">Email reset link</button>
+              <div class="alert" id="account-forgot-alert" style="max-width:420px;"></div>
             </div>
 
             <div class="card" id="settings-danger-card" style="border-color:var(--danger-border);">
@@ -1964,7 +2115,7 @@
           <div class="section-title">Install Widget
             <span onclick="toggleContextHelp('help-embed')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
-          <div class="section-sub">Copy the embed code and paste it on your website to go live.</div>
+          <div class="section-sub">One script tag loads the floating assistant on your site. Copy it once, paste before <code>&lt;/body&gt;</code>, then confirm it opens on your storefront.</div>
 
           <div id="help-embed" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
             <strong style="color:var(--accent-text);">Common questions:</strong><br/>
@@ -1973,9 +2124,33 @@
             - <strong>Widget not appearing?</strong> Check that the script tag is on every page, not just the homepage.
           </div>
 
+          <div class="embed-steps">
+            <div class="embed-step">
+              <div class="embed-step-num">1</div>
+              <div>
+                <h3>Copy snippet</h3>
+                <p>Use the button below to copy your store-specific script (includes your store ID).</p>
+              </div>
+            </div>
+            <div class="embed-step">
+              <div class="embed-step-num">2</div>
+              <div>
+                <h3>Paste in theme</h3>
+                <p>Add it to your global layout so it loads on every page customers visit.</p>
+              </div>
+            </div>
+            <div class="embed-step">
+              <div class="embed-step-num">3</div>
+              <div>
+                <h3>Verify &amp; mark live</h3>
+                <p>Open your site, confirm the widget opens, then mark live here so onboarding stays accurate.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
-            <h2>Embed Code</h2>
-            <p style="margin-bottom:14px;">Paste this script tag on your store (before <code>&lt;/body&gt;</code>).</p>
+            <h2>Your install snippet</h2>
+            <p style="margin-bottom:14px;">Paste once, just above <code>&lt;/body&gt;</code>. Same snippet works on custom HTML, WordPress theme footer, or Shopify <code>theme.liquid</code>.</p>
             <div class="embed-box" style="margin-bottom:12px;" id="embed-code-display-2"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-primary btn-sm" onclick="copyEmbed()">Copy embed code</button>
@@ -1985,24 +2160,25 @@
             <div class="alert" id="embed-alert-2"></div>
           </div>
           <div class="card">
-            <h2>Live Widget Preview</h2>
-            <p style="margin-bottom:12px;">Preview how your widget appears on storefront.</p>
-            <div id="embed-live-preview" style="border:1px solid var(--border);border-radius:12px;padding:18px;background:var(--surface-2);position:relative;min-height:160px;">
-              <div style="font-size:12px;color:var(--muted);">Demo storefront page</div>
-              <div id="embed-preview-bubble" style="position:absolute;right:20px;bottom:18px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:var(--accent);">BB</div>
+            <h2>Layout preview</h2>
+            <p style="margin-bottom:12px;font-size:13px;color:var(--muted);">Rough mock of where the launcher sits—your real brand color and title come from Widget Settings.</p>
+            <div id="embed-live-preview" style="border:1px solid var(--border);border-radius:12px;padding:18px;background:linear-gradient(180deg,var(--surface-2) 0%,var(--surface) 100%);position:relative;min-height:168px;">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim);">Storefront (mock)</div>
+              <div id="embed-preview-bubble" style="position:absolute;right:20px;bottom:18px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:var(--accent);box-shadow:0 6px 20px rgba(79,70,229,0.35);">BB</div>
             </div>
           </div>
         </div>
 
         <!-- ── HELP TAB ── -->
         <div id="tab-content-help" style="display:none;">
-          <div class="section-title">Help & Docs</div>
+          <div class="section-title">Help &amp; Docs</div>
           <div class="section-sub">Quick answers and next steps.</div>
           <div class="card">
             <h2>Getting started</h2>
             <p style="margin-bottom:14px;">Most stores go live in under 2 minutes.</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Go to Go Live</button>
+              <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Install widget</button>
+              <button class="btn btn-outline btn-sm" onclick="showTab('store')">Store &amp; sync</button>
               <button class="btn btn-outline btn-sm" onclick="showTab('products')">Manage products</button>
               <button class="btn btn-outline btn-sm" onclick="showTab('billing')">View billing</button>
             </div>
@@ -2162,6 +2338,33 @@
         btn.innerText = origText;
       }
     }
+
+    async function doAccountForgot(btn) {
+      const emailEl = document.getElementById('account-forgot-email');
+      const email = (emailEl && emailEl.value.trim()) || (currentStore && currentStore.email) || '';
+      if (!email) return showAlert('account-forgot-alert', 'Please enter your email.', 'error');
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const res = await fetch(`${API}/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('account-forgot-alert', data.message || 'Check your email for reset instructions.', 'success');
+        } else {
+          showAlert('account-forgot-alert', data.error || 'Request failed.', 'error');
+        }
+      } catch {
+        showAlert('account-forgot-alert', 'Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
     // ─── INIT ─────────────────────────────────────────────────
     window.onload = async () => {
       if (!localStorage.getItem('bb_store_mode')) {
@@ -2170,6 +2373,7 @@
       setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
       updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
       applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
+      switchProductView(localStorage.getItem('bb_store_mode') || 'custom');
 
       // This file is dashboard-only. If there is no session, send the user to login on index.html.
       if (!token || !currentStore) {
@@ -2258,17 +2462,20 @@
     }
 
     // ─── TOGGLE PASSWORD ────────────────────────────────────────
+    var _pwdEyeShow = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var _pwdEyeHide = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
     function togglePassword(inputId, icon) {
       const input = document.getElementById(inputId);
       if (!input || !icon) return;
       if (input.type === 'password') {
         input.type = 'text';
-        icon.textContent = 'Hide';
+        icon.innerHTML = _pwdEyeHide;
         icon.setAttribute('aria-label', 'Hide password');
         icon.setAttribute('title', 'Hide password');
       } else {
         input.type = 'password';
-        icon.textContent = 'Show';
+        icon.innerHTML = _pwdEyeShow;
         icon.setAttribute('aria-label', 'Show password');
         icon.setAttribute('title', 'Show password');
       }
@@ -2443,17 +2650,13 @@
           if (!existingWarn) {
             const warn = document.createElement('div');
             warn.id = 'trial-limit-warn';
-            warn.style.cssText = `
-      background:#1a1a2a;border:1px solid var(--accent);border-radius:10px;
-      padding:12px 20px;margin-bottom:16px;font-size:13px;color:#aaa;
-      display:flex;align-items:center;gap:10px;
-    `;
+            warn.className = 'trial-limit-notice';
+            warn.style.cssText = '';
             warn.innerHTML = `
-      <span style="font-size:20px;color:var(--warning);">Notice</span>
-      <span>You are on the <strong style="color:var(--accent);">Free Trial</strong>.
-      Widget is limited to <strong style="color:var(--text);">3 recommendations per day</strong>.
-      <a onclick="showTab('billing')" style="color:var(--accent);cursor:pointer;margin-left:6px;">
-      Upgrade to remove limits</a></span>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>You are on the <strong style="color:var(--accent-text);">free trial</strong>.
+      The widget is limited to <strong style="color:var(--text);">3 recommendations per day</strong>.
+      <a onclick="showTab('billing')" style="color:var(--accent);cursor:pointer;font-weight:600;margin-left:4px;">Upgrade to remove limits</a></span>
     `;
             // Insert before stats grid
             const statsGrid = document.querySelector('.stats-grid');
@@ -2515,7 +2718,7 @@
       document.querySelectorAll('.mobile-tab').forEach(s => s.classList.remove('active'));
       document.getElementById('tab-content-' + name).style.display = 'block';
       document.getElementById('tab-' + name).classList.add('active');
-      var mobileMap = { home: 0, products: 1, analytics: 2, embed: 3, account: 4 };
+      var mobileMap = { home: 0, store: 1, products: 2, embed: 3, account: 4 };
       var mobileTabs = document.querySelectorAll('.mobile-tab');
       if (mobileTabs[mobileMap[name]] != null) mobileTabs[mobileMap[name]].classList.add('active');
 
@@ -2523,6 +2726,10 @@
       if (name === 'embed' && typeof window.syncEmbedCodeCopy === 'function') window.syncEmbedCodeCopy();
       if (name === 'products') {
         loadProducts();
+        const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
+        switchProductView(preferredMode);
+      }
+      if (name === 'store') {
         loadWooStatus();
         const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
         switchProductView(preferredMode);
@@ -2532,11 +2739,12 @@
         loadWidgetSettings();
       }
       if (name === 'account') {
-        loadWooStatus();
         const secCard = document.getElementById('settings-account-security-card');
         if (secCard) secCard.style.display = 'block';
+        var af = document.getElementById('account-forgot-email');
+        if (af && currentStore && currentStore.email) af.value = currentStore.email;
       }
-      if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
+      if (name === 'home' || name === 'products' || name === 'store' || name === 'embed' || name === 'settings') {
         setTimeout(updateOnboardingJourney, 100);
       }
       if (name === 'billing') updateBillingTrialNote();
@@ -3596,8 +3804,8 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var mode = localStorage.getItem('bb_store_mode') || 'custom';
       if (stepTwoBtn) {
         if (mode === 'woo') {
-          stepTwoBtn.textContent = 'Connect WooCommerce';
-          stepTwoBtn.onclick = function () { showTab('products'); };
+          stepTwoBtn.textContent = 'Store & sync';
+          stepTwoBtn.onclick = function () { showTab('store'); };
         } else {
           stepTwoBtn.textContent = 'Manage products';
           stepTwoBtn.onclick = function () { showTab('products'); };
@@ -3612,10 +3820,14 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
     }
 
     function switchProductView(view, btn) {
-      var woo = document.getElementById('products-woo-view');
+      var storeWoo = document.getElementById('store-woo-panel');
+      var storeManual = document.getElementById('store-manual-hint');
       var custom = document.getElementById('products-custom-view');
-      if (woo) woo.style.display = (view === 'woo') ? 'block' : 'none';
+      var wooInfo = document.getElementById('products-woo-info');
+      if (storeWoo) storeWoo.style.display = (view === 'woo') ? 'block' : 'none';
+      if (storeManual) storeManual.style.display = (view === 'custom') ? 'block' : 'none';
       if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
+      if (wooInfo) wooInfo.style.display = (view === 'woo') ? 'block' : 'none';
       updateSidebarStoreModeUI(view, view === 'woo');
       applyStoreModeLayout(view);
       var b1 = document.getElementById('sts-woo');
@@ -3647,7 +3859,8 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       setSignupStoreMode(mode);
       applyStoreModeLayout(mode);
       updateSidebarStoreModeUI(mode, mode === 'woo');
-      if (document.getElementById('tab-content-products').style.display !== 'none') {
+      if (document.getElementById('tab-content-products').style.display !== 'none' ||
+          document.getElementById('tab-content-store').style.display !== 'none') {
         switchProductView(mode);
       }
       toast.success(`Store mode switched to ${mode === 'woo' ? 'WooCommerce' : 'Manual / CSV'}.`);
@@ -3735,9 +3948,9 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var prev = daily[daily.length - 2]?.count || 0;
       var growth = prev ? Math.round(((last - prev) / prev) * 100) : 0;
       host.innerHTML = `
-        - Weekly momentum: <strong>${growth >= 0 ? '+' : ''}${growth}%</strong><br/>
-        - Most requested purpose: <strong>${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong><br/>
-        - Highest demand day: <strong>${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong>
+        <div class="insight-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Weekly momentum: <strong style="color:var(--text);">${growth >= 0 ? '+' : ''}${growth}%</strong> vs prior day</span></div>
+        <div class="insight-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg><span>Top purpose: <strong style="color:var(--text);">${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong></span></div>
+        <div class="insight-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Busiest day: <strong style="color:var(--text);">${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong></span></div>
       `;
       var ranges = { '<50K': 0, '50K-100K': 0, '100K-200K': 0, '200K+': 0 };
       recent.forEach(function (r) {
@@ -3769,7 +3982,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       }
       if (stepProducts) {
         if (mode === 'woo') {
-          stepProducts.textContent = 'Connect Woo plugin in settings';
+          stepProducts.textContent = 'Finish WooCommerce setup';
         } else if (productsCount > 0) {
           stepProducts.textContent = productsCount + ' products loaded';
         } else {
@@ -3797,13 +4010,13 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       Overview
     </button>
+    <button class="mobile-tab" onclick="showTab('store')">
+      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Store
+    </button>
     <button class="mobile-tab" onclick="showTab('products')">
       <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Products
-    </button>
-    <button class="mobile-tab" onclick="showTab('analytics')">
-      <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      Analytics
     </button>
     <button class="mobile-tab" onclick="showTab('embed')">
       <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>

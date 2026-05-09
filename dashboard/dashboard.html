@@ -413,7 +413,7 @@
 
     .card-subtle {
       font-size: 12px;
-      color: rgba(255,255,255,.45);
+      color: var(--muted);
       margin-top: 6px;
     }
 
@@ -967,7 +967,7 @@
 </head>
 <body>
   <nav>
-    <div class="nav-logo">⚡ BuildBot</div>
+    <div class="nav-logo">BuildBot</div>
     <div class="nav-right">
       <span class="trial-chip" id="trial-chip-inline"></span>
       <span class="nav-user-email" id="nav-user-email"></span>
@@ -980,40 +980,43 @@
 
       <!-- Sidebar -->
       <div class="sidebar">
-        <div class="sidebar-logo" style="margin:0 10px 6px;font-weight:800;color:var(--text);font-size:14px;letter-spacing:.02em;">⚡ BuildBot</div>
+        <div class="sidebar-logo" style="margin:0 10px 6px;font-weight:800;color:var(--text);font-size:14px;letter-spacing:.02em;">BuildBot</div>
 
         <div class="sidebar-sep">Get started</div>
         <div class="sidebar-item active" onclick="showTab('home')" id="tab-home">
-          <span class="icon">🏠</span> Overview
+          <span class="icon">O</span> Overview
         </div>
         <div class="sidebar-item" onclick="showTab('embed')" id="tab-embed">
-          <span class="icon">🔗</span> Go Live · Widget
+          <span class="icon">E</span> Embed
           <span id="embed-status-dot" style="width:7px;height:7px;border-radius:50%;background:var(--warning);margin-left:auto;display:none;"></span>
         </div>
 
         <div class="sidebar-sep">Workspace</div>
         <div class="sidebar-item" onclick="showTab('products')" id="tab-products">
-          <span class="icon">📦</span> Products
+          <span class="icon">P</span> Products
         </div>
         <div class="sidebar-item" onclick="showTab('analytics')" id="tab-analytics">
-          <span class="icon">📊</span> Analytics
+          <span class="icon">A</span> Analytics
         </div>
 
         <div class="sidebar-sep">Account</div>
-        <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
-          <span class="icon">💳</span> Billing
-        </div>
         <div class="sidebar-item" onclick="showTab('settings')" id="tab-settings">
-          <span class="icon">⚙️</span> Settings
+          <span class="icon">S</span> Settings
+        </div>
+        <div class="sidebar-item" onclick="showTab('account')" id="tab-account">
+          <span class="icon">U</span> Account
+        </div>
+        <div class="sidebar-item" onclick="showTab('billing')" id="tab-billing">
+          <span class="icon">B</span> Billing
         </div>
         <div class="sidebar-item" onclick="showTab('help')" id="tab-help">
-          <span class="icon">❓</span> Help & Docs
+          <span class="icon">H</span> Help
         </div>
 
         <div style="flex:1;"></div>
-        <div class="sidebar-bottom" style="margin:10px 10px 0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+        <div class="sidebar-bottom" style="margin:10px 10px 0;padding-top:12px;border-top:1px solid var(--border);">
           <div class="sidebar-item sidebar-logout" onclick="doLogout()" style="margin:0;">
-            <span class="icon">🚪</span> Logout
+            <span class="icon">L</span> Logout
           </div>
         </div>
       </div>
@@ -1023,7 +1026,7 @@
 
         <!-- Trial Banner -->
         <div class="trial-banner" id="trial-banner">
-          <p>🎉 You're on a <span>14-day free trial</span>. Trial ends: <span id="trial-end-date"></span></p>
+          <p>You're on a <span>14-day free trial</span>. Trial ends: <span id="trial-end-date"></span></p>
           <button class="btn btn-primary btn-sm" onclick="showTab('billing')">Upgrade Now</button>
           <span class="trial-chip-inline" id="trial-chip-inline" onclick="showTab('billing')">Trial: -- days left</span>
         </div>
@@ -1033,76 +1036,80 @@
           <div class="section-title">Dashboard</div>
           <div class="section-sub" id="welcome-msg"></div>
 
-          <div class="card" style="margin-bottom:16px;background:#ffffff;border:1px solid #d7deee;">
-            <h2 style="margin-bottom:8px;">Getting Started Journey</h2>
-            <p style="margin-bottom:12px;">Follow these 3 steps to go live fast. We highlight your current next action.</p>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;" id="onboarding-journey">
-              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
-                <div style="font-size:11px;color:var(--muted);">Step 1</div>
-                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Choose Store Mode</div>
-                <div style="font-size:11px;color:var(--muted);" id="journey-step-store">Pending</div>
-                <button class="btn btn-sm" onclick="showTab('settings')" style="margin-top:8px;background:#fff;">Open settings</button>
-              </div>
-              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
-                <div style="font-size:11px;color:var(--muted);">Step 2</div>
-                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Add Product Source</div>
-                <div style="font-size:11px;color:var(--muted);" id="journey-step-products">Pending</div>
-                <button class="btn btn-sm" onclick="showTab('products')" style="margin-top:8px;background:#fff;">Manage products</button>
-              </div>
-              <div style="padding:10px 12px;border:1px solid #d7deee;border-radius:10px;background:#f8faff;">
-                <div style="font-size:11px;color:var(--muted);">Step 3</div>
-                <div style="font-size:13px;font-weight:600;color:#111827;margin:2px 0 6px;">Publish Widget</div>
-                <div style="font-size:11px;color:var(--muted);" id="journey-step-live">Pending</div>
-                <button class="btn btn-sm" onclick="showTab('embed')" style="margin-top:8px;background:#fff;">Go live</button>
-              </div>
+          <div id="overview-prelive-state">
+            <div class="card" style="margin-bottom:16px;background:var(--accent-bg);border-color:var(--accent);">
+              <h2 style="margin-bottom:8px;">Welcome to BuildBot</h2>
+              <p>You are one step away from activating your widget. Follow the journey below to go live.</p>
             </div>
-          </div>
 
-          <div class="card" style="margin-bottom:16px;background:var(--accent-bg);border:1px solid var(--border-2);">
-            <h2 style="margin-bottom:8px;">Recommended Next Step</h2>
-            <p style="margin-bottom:12px;">Choose your store flow first so the dashboard stays focused and less confusing.</p>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="btn btn-sm" onclick="showTab('settings')" style="background:#e0e7ff;color:#3730a3;border:1px solid var(--border-2);">🔌 I use WooCommerce</button>
-              <button class="btn btn-sm" onclick="showTab('products')" style="background:#ecfdf3;color:var(--success);border:1px solid #a6f4c5;">📋 I manage products manually</button>
-              <button class="btn btn-sm" onclick="showTab('embed')" style="background:#ffffff;color:var(--text);">🚀 Complete Go Live setup</button>
+            <div class="journey-card" style="margin-bottom:16px;">
+              <h2 style="margin-bottom:8px;">Getting Started Journey</h2>
+              <p style="margin-bottom:12px;">Complete the three steps to launch your assistant.</p>
+              <div class="journey-steps" id="onboarding-journey">
+                <div class="journey-stepbox">
+                  <div class="journey-num done">1</div>
+                  <div>
+                    <div style="font-size:11px;color:var(--muted);">Step 1</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin:2px 0 6px;">Store type selected</div>
+                    <div style="font-size:11px;" id="journey-step-store">Done</div>
+                  </div>
+                </div>
+                <div class="journey-stepbox">
+                  <div class="journey-num pending">2</div>
+                  <div>
+                    <div style="font-size:11px;color:var(--muted);">Step 2</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin:2px 0 6px;">Add product source</div>
+                    <div style="font-size:11px;" id="journey-step-products">Pending</div>
+                    <button class="btn btn-sm" id="journey-step-two-btn" style="margin-top:8px;">Continue</button>
+                  </div>
+                </div>
+                <div class="journey-stepbox">
+                  <div class="journey-num pending">3</div>
+                  <div>
+                    <div style="font-size:11px;color:var(--muted);">Step 3</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin:2px 0 6px;">Publish widget</div>
+                    <div style="font-size:11px;" id="journey-step-live">Pending</div>
+                    <button class="btn btn-sm" onclick="showTab('embed')" style="margin-top:8px;">Go Live</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="stat-icon">🤖</div>
+              <div class="stat-icon">R</div>
               <div class="stat-value" id="stat-total">0</div>
               <div class="stat-label" id="rec-limit-label">Total Recommendations</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">📦</div>
+              <div class="stat-icon">P</div>
               <div class="stat-value" id="stat-products">0</div>
               <div class="stat-label">Products in Catalog</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">💰</div>
+              <div class="stat-icon">B</div>
               <div class="stat-value" id="stat-budget">0</div>
               <div class="stat-label">Avg Customer Budget</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">📅</div>
+              <div class="stat-icon">D</div>
               <div class="stat-value" id="stat-today">0</div>
               <div class="stat-label">Recommendations Today</div>
             </div>
           </div>
 
-          <!-- Go Live Banner — shown until widget is confirmed live -->
-          <div id="go-live-banner" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);border-radius:12px;margin-bottom:20px;">
-            <div style="font-size:22px;flex-shrink:0;">🚀</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:600;color:#a7f3d0;margin-bottom:2px;">Your widget is ready — paste it on your store to go live</div>
-              <div style="font-size:12px;color:rgba(167,243,208,0.65);">One line of code. Copy the script tag and paste it before &lt;/body&gt; on your website.</div>
-            </div>
-            <button class="btn btn-sm" onclick="copyEmbed()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);white-space:nowrap;flex-shrink:0;">📋 Copy embed code</button>
-            <button class="btn btn-sm" onclick="showTab('embed')" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);white-space:nowrap;flex-shrink:0;">Full setup →</button>
-            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;" id="activation-kpis">
-              <div class="mini-kpi" id="kpi-embed">Embed copied: No</div>
-              <div class="mini-kpi" id="kpi-live">Live status: Pending</div>
+          <div id="overview-live-state" style="display:none;">
+            <div id="go-live-banner" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--success-bg);border:1px solid rgba(5,150,105,0.25);border-radius:12px;margin-bottom:20px;">
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;color:var(--success);margin-bottom:2px;">Live widget detected</div>
+                <div style="font-size:12px;color:var(--muted);">BuildBot is active on your storefront.</div>
+              </div>
+              <div class="badge badge-success">Live</div>
+              <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;" id="activation-kpis">
+                <div class="mini-kpi" id="kpi-embed">Embed copied: No</div>
+                <div class="mini-kpi" id="kpi-live">Live status: Pending</div>
+              </div>
             </div>
           </div>
 
@@ -1110,7 +1117,7 @@
             <h2>Your Embed Code</h2>
             <p style="margin-bottom:16px;">Paste this before the &lt;/body&gt; tag on your website.</p>
             <div class="embed-box" id="embed-code-display"></div>
-            <button class="btn btn-primary btn-sm" onclick="copyEmbed()">📋 Copy Code</button>
+            <button class="btn btn-primary btn-sm" onclick="copyEmbed()">Copy Code</button>
             <div class="alert" id="embed-alert"></div>
           </div>
 
@@ -1143,17 +1150,16 @@
           </div>
           <div class="section-sub">Manage your products. The AI only recommends in-stock items.</div>
 
-          <div id="help-products" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
-            <strong style="color:#a5b4fc;">Common questions:</strong><br/>
-            • <strong>WooCommerce not syncing?</strong> Ensure the plugin is installed, activated, and the secret key matches.<br/>
-            • <strong>How often do products sync?</strong> Automatically every 6 hours, or click "Sync now" for immediate update.<br/>
-            • <strong>Can I add products manually if I use WooCommerce?</strong> Switch store mode in Settings → Store.
+          <div id="help-products" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
+            <strong style="color:var(--accent-text);">Common questions:</strong><br/>
+            - <strong>WooCommerce not syncing?</strong> Ensure the plugin is installed, activated, and the secret key matches.<br/>
+            - <strong>How often do products sync?</strong> Automatically every 6 hours, or click "Sync now" for immediate update.<br/>
+            - <strong>Can I add products manually if I use WooCommerce?</strong> Switch store mode in Settings -> Store.
           </div>
 
           <div id="products-woo-view" style="display:none;">
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:#818cf8;">
-              <span style="font-size:16px;flex-shrink:0;">🔌</span>
-              <span><strong style="color:#a5b4fc;">WooCommerce mode.</strong> Your products sync automatically from WordPress. To add or edit products, use your WordPress admin panel.</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--info-bg);border:1px solid rgba(2,132,199,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--info);">
+              <span><strong>WooCommerce mode.</strong> Products sync automatically from WordPress. To add or edit products, use WordPress admin.</span>
             </div>
             <div class="card">
               <h2>Connect WooCommerce</h2>
@@ -1163,18 +1169,17 @@
           </div>
 
           <div id="products-custom-view">
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:#6ee7b7;">
-              <span style="font-size:16px;flex-shrink:0;">📋</span>
-              <span><strong style="color:#a7f3d0;">Manual mode.</strong> Add products one by one or upload a CSV file. You manage everything from here.</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--success-bg);border:1px solid rgba(5,150,105,0.2);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--success);">
+              <span><strong>Manual mode.</strong> Add products one by one or upload a CSV file. You manage everything from here.</span>
             </div>
 
           <!-- Top Action Bar -->
           <div style="display:flex;align-items:center;justify-content:space-between;
     margin-bottom:20px;gap:12px;flex-wrap:wrap;">
             <div style="display:flex;gap:10px;align-items:center;flex:1;">
-              <input type="text" id="product-search" placeholder="🔍 Search products..." oninput="filterProducts()"
-                style="max-width:260px;padding:10px 14px;background:var(--surface-2);
-        border:1px solid var(--border);border-radius:8px;color:#fff;
+              <input type="text" id="product-search" placeholder="Search products..." oninput="filterProducts()"
+                style="max-width:260px;padding:10px 14px;background:var(--surface);
+        border:1px solid var(--border);border-radius:8px;color:var(--text);
         font-size:13px;outline:none;" />
               <select id="product-category-filter" onchange="filterProducts()" style="padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);
         border-radius:8px;color:var(--muted);font-size:13px;outline:none;">
@@ -1200,8 +1205,8 @@
               <button class="btn btn-primary btn-sm" onclick="openAddProduct()">
                 + Add Product
               </button>
-              <button class="btn btn-sm" onclick="showTab('products')" style="background:var(--border);color:#aaa;">
-                🔄 Refresh
+              <button class="btn btn-outline btn-sm" onclick="showTab('products')">
+                Refresh
               </button>
             </div>
           </div>
@@ -1210,7 +1215,7 @@
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;
       padding:16px;text-align:center;">
-              <div style="font-size:22px;font-weight:700;color:#fff;" id="pm-total">0</div>
+              <div style="font-size:22px;font-weight:700;color:var(--text);" id="pm-total">0</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px;">Total Products</div>
             </div>
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;
@@ -1242,11 +1247,11 @@
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
                 <div id="csv-filename" style="font-size:12px;color:var(--accent);"></div>
-                <label style="background:var(--border);color:#ccc;padding:9px 16px;
+                <label style="background:var(--surface-2);color:var(--text);padding:9px 16px;
           border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
-          transition:background .2s;border:1px solid #3a3d50;" onmouseover="this.style.background='#3a3d50'"
+          transition:background .2s;border:1px solid var(--border);" onmouseover="this.style.background='var(--surface)'"
                   onmouseout="this.style.background='var(--border)'">
-                  📂 Choose File
+                  Choose File
                   <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="csvSelected(this)" />
                 </label>
                 <button class="btn btn-primary btn-sm" id="upload-btn" onclick="doUpload()" disabled>Upload</button>
@@ -1262,9 +1267,9 @@
               <h2 style="margin:0;">
                 Products
                 <span id="product-count-badge"
-                  style="color:#555;font-size:13px;font-weight:400;margin-left:6px;"></span>
+                  style="color:var(--muted);font-size:13px;font-weight:400;margin-left:6px;"></span>
               </h2>
-              <div id="pm-filtered-note" style="font-size:12px;color:#555;display:none;">
+              <div id="pm-filtered-note" style="font-size:12px;color:var(--muted);display:none;">
                 Showing filtered results
               </div>
             </div>
@@ -1273,23 +1278,23 @@
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                   <tr style="background:var(--surface-2);">
-                    <th style="padding:12px 24px;text-align:left;color:#555;
+                    <th style="padding:12px 24px;text-align:left;color:var(--muted);
               font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;">
                       Product Name
                     </th>
-                    <th style="padding:12px 16px;text-align:left;color:#555;
+                    <th style="padding:12px 16px;text-align:left;color:var(--muted);
               font-weight:600;border-bottom:1px solid var(--border);">Category</th>
-                    <th style="padding:12px 16px;text-align:right;color:#555;
+                    <th style="padding:12px 16px;text-align:right;color:var(--muted);
               font-weight:600;border-bottom:1px solid var(--border);">Price</th>
-                    <th style="padding:12px 16px;text-align:center;color:#555;
+                    <th style="padding:12px 16px;text-align:center;color:var(--muted);
               font-weight:600;border-bottom:1px solid var(--border);">Status</th>
-                    <th style="padding:12px 24px;text-align:right;color:#555;
+                    <th style="padding:12px 24px;text-align:right;color:var(--muted);
               font-weight:600;border-bottom:1px solid var(--border);">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="products-table">
                   <tr>
-                    <td colspan="5" style="padding:40px;text-align:center;color:#555;">
+                    <td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">
                       Loading products...
                     </td>
                   </tr>
@@ -1306,11 +1311,11 @@
             <span onclick="toggleContextHelp('help-analytics')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">See how customers are using your BuildBot widget.</div>
-          <div id="help-analytics" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
-            <strong style="color:#a5b4fc;">Quick tips:</strong><br/>
-            • Use 7-day view for fast trend checks.<br/>
-            • Compare budget ranges to decide inventory focus.<br/>
-            • Growth indicator highlights momentum changes.
+          <div id="help-analytics" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
+            <strong style="color:var(--accent-text);">Quick tips:</strong><br/>
+            - Use 7-day view for fast trend checks.<br/>
+            - Compare budget ranges to decide inventory focus.<br/>
+            - Growth indicator highlights momentum changes.
           </div>
 
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
@@ -1319,25 +1324,30 @@
             <button class="btn btn-sm analytics-range-btn" id="analytics-range-all" onclick="setAnalyticsRange(0,this)">All time</button>
             <span style="margin-left:auto;font-size:12px;color:var(--muted);" id="analytics-range-label">Showing: last 7 days</span>
           </div>
+          <div id="analytics-empty-state" class="card empty-state" style="display:none;">
+            <div class="es-title">Analytics populate once your widget is live</div>
+            <div class="es-sub">Go live to start collecting session and recommendation metrics.</div>
+            <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Go to Embed</button>
+          </div>
 
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="stat-icon">🤖</div>
+              <div class="stat-icon">R</div>
               <div class="stat-value" id="a-total">0</div>
               <div class="stat-label">Total Builds Suggested</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">💰</div>
+              <div class="stat-icon">B</div>
               <div class="stat-value" id="a-avg">0</div>
               <div class="stat-label">Avg Budget (PKR)</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">📅</div>
+              <div class="stat-icon">D</div>
               <div class="stat-value" id="a-today">0</div>
               <div class="stat-label">Today</div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">📈</div>
+              <div class="stat-icon">T</div>
               <div class="stat-value" id="a-week">0</div>
               <div class="stat-label">This Week</div>
             </div>
@@ -1392,11 +1402,11 @@
             <span onclick="toggleContextHelp('help-billing')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Upgrade your plan. Pay via JazzCash or EasyPaisa.</div>
-          <div id="help-billing" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
-            <strong style="color:#a5b4fc;">Billing help:</strong><br/>
-            • Submit transaction ID after payment.<br/>
-            • Verification usually completes within 24 hours.<br/>
-            • Use plan comparison to select the right tier.
+          <div id="help-billing" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
+            <strong style="color:var(--accent-text);">Billing help:</strong><br/>
+            - Submit transaction ID after payment.<br/>
+            - Verification usually completes within 24 hours.<br/>
+            - Use plan comparison to select the right tier.
           </div>
 
           <div class="card" style="margin-bottom:16px;background:var(--accent-bg);border:1px solid var(--border-2);">
@@ -1450,27 +1460,27 @@
               <h2 style="font-size:15px;margin-bottom:16px;">How to Pay</h2>
               <div style="display:flex;flex-direction:column;gap:12px;">
                 <div style="display:flex;gap:14px;align-items:flex-start;">
-                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">1</div>
+                  <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent-text);flex-shrink:0;">1</div>
                   <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Send payment</div>
-                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);line-height:1.7;">
-                      JazzCash: <strong style="color:#e8e8f0;">0300-1234567</strong>&nbsp;&nbsp;or&nbsp;&nbsp;EasyPaisa: <strong style="color:#e8e8f0;">0333-1234567</strong><br/>
-                      Account name: <strong style="color:#e8e8f0;">BuildBot PK</strong>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">Send payment</div>
+                    <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+                      JazzCash: <strong style="color:var(--text);">0300-1234567</strong>&nbsp;&nbsp;or&nbsp;&nbsp;EasyPaisa: <strong style="color:var(--text);">0333-1234567</strong><br/>
+                      Account name: <strong style="color:var(--text);">BuildBot PK</strong>
                     </div>
                   </div>
                 </div>
                 <div style="display:flex;gap:14px;align-items:flex-start;">
-                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">2</div>
+                  <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent-text);flex-shrink:0;">2</div>
                   <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Copy your transaction ID</div>
-                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);">After payment, JazzCash / EasyPaisa shows a Transaction Reference ID. Copy it.</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">Copy your transaction ID</div>
+                    <div style="font-size:12px;color:var(--muted);">After payment, JazzCash / EasyPaisa shows a Transaction Reference ID. Copy it.</div>
                   </div>
                 </div>
                 <div style="display:flex;gap:14px;align-items:flex-start;">
-                  <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#818cf8;flex-shrink:0;">3</div>
+                  <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent-text);flex-shrink:0;">3</div>
                   <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--dash-text,#e8e8f0);margin-bottom:3px;">Paste it below &amp; submit</div>
-                    <div style="font-size:12px;color:var(--dash-muted,#6b6d82);">We verify manually and activate your plan within 24 hours. You'll receive a confirmation email.</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">Paste it below and submit</div>
+                    <div style="font-size:12px;color:var(--muted);">We verify manually and activate your plan within 24 hours. You'll receive a confirmation email.</div>
                   </div>
                 </div>
               </div>
@@ -1518,18 +1528,17 @@
             <span onclick="toggleContextHelp('help-settings')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Customize how your widget looks and what it says.</div>
-          <div id="help-settings" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
-            <strong style="color:#a5b4fc;">Settings guide:</strong><br/>
-            • Widget tab controls branding and text.<br/>
-            • Store tab changes mode and Woo setup.<br/>
-            • Account tab is for password/security actions.
+          <div id="help-settings" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
+            <strong style="color:var(--accent-text);">Settings guide:</strong><br/>
+            - Widget tab controls branding and text.<br/>
+            - Store tab changes mode and Woo setup.<br/>
+            - Account tab is for password/security actions.
           </div>
 
           <!-- Settings sub-tabs (visual only — all cards stay in DOM, JS toggles display) -->
-          <div style="display:flex;gap:4px;background:rgba(255,255,255,0.04);border-radius:10px;padding:4px;width:fit-content;margin-bottom:22px;" id="settings-subtabs">
-            <button onclick="switchSettingsTab('widget')" id="stab-widget" class="sts-btn sts-active" style="font-size:12px;padding:6px 16px;">🎨 Widget</button>
-            <button onclick="switchSettingsTab('store')" id="stab-store" class="sts-btn" style="font-size:12px;padding:6px 16px;">🏪 Store</button>
-            <button onclick="switchSettingsTab('account')" id="stab-account" class="sts-btn" style="font-size:12px;padding:6px 16px;">👤 Account</button>
+          <div class="settings-tabs" id="settings-subtabs">
+            <button onclick="switchSettingsTab('widget')" id="stab-widget" class="stab sts-active">Widget</button>
+            <button onclick="switchSettingsTab('store')" id="stab-store" class="stab">Store</button>
           </div>
 
           <!-- Branding Row -->
@@ -1568,12 +1577,12 @@
                 background:var(--accent);border-radius:50%;display:flex;align-items:center;
                 justify-content:center;font-size:22px;
                 box-shadow:0 4px 16px rgba(124,106,247,.5);cursor:pointer;">
-                  ⚡
+                  BB
                 </div>
                 <div style="position:absolute;bottom:82px;right:16px;
                 background:var(--surface);border:1px solid var(--border);border-radius:12px;
                 padding:10px 14px;font-size:12px;color:var(--muted);white-space:nowrap;">
-                  <span id="preview-title" style="font-weight:700;color:#fff;">⚡ BuildBot</span><br />
+                  <span id="preview-title" style="font-weight:700;color:var(--text);">BuildBot</span><br />
                   AI PC Build Recommender
                 </div>
               </div>
@@ -1587,44 +1596,11 @@
               <h2>Store</h2>
               <p style="margin-bottom:12px;">Choose your primary store workflow. Dashboard adapts based on this mode.</p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:var(--accent-bg);border:1px solid var(--border-2);">📋 My Products (Manual / CSV)</button>
-                <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')">🔌 WooCommerce</button>
+                <button class="btn btn-sm" id="store-mode-custom-btn" onclick="setStoreModePermanent('custom')" style="background:var(--accent-bg);border:1px solid var(--border-2);">Manual / CSV</button>
+                <button class="btn btn-sm" id="store-mode-woo-btn" onclick="setStoreModePermanent('woo')">WooCommerce</button>
               </div>
               <div style="font-size:12px;color:var(--muted);margin-top:10px;">You can switch anytime here. Irrelevant product UI stays hidden.</div>
             </div>
-          </div>
-
-          <div id="settings-panel-account" style="display:none;">
-          <div class="card">
-            <h2>Security</h2>
-            <p style="margin-bottom:20px;">Change your account password.</p>
-            <div class="form-group">
-              <label class="form-label">Current Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-current" placeholder="Current password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-current', this)">👁️</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">New Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol"
-                  style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-new', this)">👁️</span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Confirm New Password</label>
-              <div class="pwd-wrap">
-                <input type="password" id="cp-confirm" placeholder="Repeat new password" style="max-width:320px;" />
-                <span class="pwd-toggle"
-                  onclick="togglePassword('cp-confirm', this)">👁️</span>
-              </div>
-            </div>
-            <button class="btn btn-primary" onclick="changePassword(this)">Change Password</button>
-            <div class="alert" id="cp-alert" style="max-width:320px;"></div>
           </div>
 
           <!-- Widget Text Customization -->
@@ -1636,22 +1612,22 @@
               <div>
                 <div class="form-group">
                   <label class="form-label">Widget Title
-                    <span style="color:#555;font-weight:400;font-size:10px;margin-left:6px;">Max 30 chars</span>
+                    <span style="color:var(--muted);font-weight:400;font-size:10px;margin-left:6px;">Max 30 chars</span>
                   </label>
                   <input type="text" id="widget-title-input" maxlength="30"
                     placeholder="e.g. PC Builder, Build My PC, TechZone" />
-                  <div style="font-size:11px;color:#555;margin-top:4px;">
+                  <div style="font-size:11px;color:var(--muted);margin-top:4px;">
                     Shown in the widget header. Default: BuildBot
                   </div>
                 </div>
 
                 <div class="form-group">
                   <label class="form-label">Start Button Text
-                    <span style="color:#555;font-weight:400;font-size:10px;margin-left:6px;">Max 20 chars</span>
+                    <span style="color:var(--muted);font-weight:400;font-size:10px;margin-left:6px;">Max 20 chars</span>
                   </label>
                   <input type="text" id="button-text-input" maxlength="20"
                     placeholder="e.g. Get Started, Build Now, Let's Go" />
-                  <div style="font-size:11px;color:#555;margin-top:4px;">
+                  <div style="font-size:11px;color:var(--muted);margin-top:4px;">
                     Text on the first screen button. Default: Get Started
                   </div>
                 </div>
@@ -1660,11 +1636,11 @@
               <div>
                 <div class="form-group">
                   <label class="form-label">Welcome Message
-                    <span style="color:#555;font-weight:400;font-size:10px;margin-left:6px;">Max 200 chars</span>
+                    <span style="color:var(--muted);font-weight:400;font-size:10px;margin-left:6px;">Max 200 chars</span>
                   </label>
                   <textarea id="welcome-msg-input" maxlength="200" rows="5"
                     placeholder="Tell customers what the widget does..."></textarea>
-                  <div style="font-size:11px;color:#555;margin-top:4px;">
+                  <div style="font-size:11px;color:var(--muted);margin-top:4px;">
                     Shown on the first screen. Keep it short and friendly.
                   </div>
                 </div>
@@ -1674,20 +1650,20 @@
             <!-- Live text preview -->
             <div style="background:var(--surface-2);border-radius:12px;padding:20px;margin:16px 0;
             border:1px solid var(--border);">
-              <div style="font-size:11px;color:#555;margin-bottom:12px;
+              <div style="font-size:11px;color:var(--muted);margin-bottom:12px;
               text-transform:uppercase;letter-spacing:.5px;">Widget First Screen Preview</div>
               <div style="text-align:center;padding:16px 0;">
-                <div style="font-size:32px;margin-bottom:8px;">🖥️</div>
-                <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;" id="preview-welcome-title">
+                <div style="font-size:32px;margin-bottom:8px;">BB</div>
+                <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;" id="preview-welcome-title">
                   Build Your Perfect PC</div>
                 <div style="font-size:12px;color:var(--muted);max-width:240px;margin:0 auto;line-height:1.6;"
                   id="preview-welcome-msg">
-                  Tell me your budget and what you need — I will find the best parts from this store for you.
+                  Tell me your budget and what you need - I will find the best parts from this store for you.
                 </div>
                 <div style="margin-top:16px;">
                   <div id="preview-btn-text" style="display:inline-block;background:var(--accent);color:#fff;
                   padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;">
-                    Get Started →
+                    Get Started
                   </div>
                 </div>
               </div>
@@ -1695,9 +1671,9 @@
 
             <div style="display:flex;gap:12px;align-items:center;">
               <button class="btn btn-primary" onclick="saveWidgetSettings()">
-                💾 Save Widget Settings
+                Save Widget Settings
               </button>
-              <button class="btn" onclick="resetWidgetDefaults()" style="background:var(--border);color:#aaa;">
+              <button class="btn btn-outline" onclick="resetWidgetDefaults()">
                 Reset to Defaults
               </button>
             </div>
@@ -1706,18 +1682,18 @@
           <!-- WooCommerce Plugin Section -->
           <div class="card" id="woo-section">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-              <div style="font-size:28px;">🔌</div>
+              <div style="font-size:20px;font-weight:700;color:var(--accent);">WC</div>
               <div>
                 <h2 style="margin:0;">WooCommerce Auto-Sync</h2>
-                <p style="margin:4px 0 0;font-size:13px;color:#666;">
-                  Connect your WooCommerce store — products sync automatically. No CSV needed.
+                <p style="margin:4px 0 0;font-size:13px;color:var(--muted);">
+                  Connect your WooCommerce store - products sync automatically. No CSV needed.
                 </p>
               </div>
               <div id="woo-status-badge" style="margin-left:auto;padding:5px 14px;
       border-radius:20px;font-size:12px;font-weight:700;
       background:rgba(231,76,60,.12);color:var(--danger);
       border:1px solid rgba(231,76,60,.3);">
-                ● Not Connected
+                Not Connected
               </div>
             </div>
 
@@ -1728,22 +1704,22 @@
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
                 <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
                   <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
                     Store URL</div>
-                  <div style="font-size:13px;color:#fff;font-weight:500;word-break:break-all;" id="woo-url-display">—
+                  <div style="font-size:13px;color:var(--text);font-weight:500;word-break:break-all;" id="woo-url-display">-
                   </div>
                 </div>
                 <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
                   <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
                     Products Synced</div>
                   <div style="font-size:22px;font-weight:700;color:var(--success);" id="woo-count-display">0</div>
                 </div>
                 <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px;">
                   <div
-                    style="font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
+                    style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">
                     Last Synced</div>
-                  <div style="font-size:13px;color:#fff;font-weight:500;" id="woo-sync-display">Never</div>
+                  <div style="font-size:13px;color:var(--text);font-weight:500;" id="woo-sync-display">Never</div>
                 </div>
               </div>
               <div id="woo-widget-status" style="font-size:13px;margin-bottom:14px;padding:10px 14px;
@@ -1752,8 +1728,7 @@
               </div>
               <div style="display:flex;gap:10px;">
                 <p style="font-size:12px;color:var(--muted);padding:8px 0;">To run a manual sync, go to your WordPress Admin panel > WooCommerce > BuildBot and click Sync.</p>
-                <button class="btn btn-sm" onclick="disconnectWoo()"
-                  style="background:#3a1a1a;color:var(--danger);border:1px solid rgba(231,76,60,.3);">
+                <button class="btn btn-sm btn-danger" onclick="disconnectWoo()">
                   Disconnect
                 </button>
               </div>
@@ -1769,14 +1744,14 @@
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">1</div>
                 <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
                     Download the BuildBot Plugin
                   </div>
-                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
+                  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
                     Download and install this plugin on your WordPress website.
                   </div>
                   <button class="btn btn-primary btn-sm" onclick="downloadPlugin()">
-                    ⬇️ Download Plugin (.zip)
+                    Download Plugin (.zip)
                   </button>
                 </div>
               </div>
@@ -1787,13 +1762,13 @@
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">2</div>
                 <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
                     Install on WordPress
                   </div>
-                  <div style="font-size:12px;color:#666;line-height:1.8;">
-                    Go to <strong style="color:#ccc;">WordPress Dashboard → Plugins → Add New → Upload
+                  <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+                    Go to <strong style="color:var(--text);">WordPress Dashboard -> Plugins -> Add New -> Upload
                       Plugin</strong><br />
-                    Select the downloaded .zip file → Click Install Now → Activate
+                    Select the downloaded .zip file -> Click Install Now -> Activate
                   </div>
                 </div>
               </div>
@@ -1804,10 +1779,10 @@
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">3</div>
                 <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
                     Copy Your Secret Key
                   </div>
-                  <div style="font-size:12px;color:#666;margin-bottom:10px;">
+                  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
                     Paste this key in the BuildBot plugin settings on WordPress.
                   </div>
                   <div style="display:flex;gap:8px;align-items:center;">
@@ -1816,19 +1791,18 @@
             flex:1;word-break:break-all;">
                       Click "Generate Key" to create your secret key
                     </div>
-                    <button class="btn btn-sm" id="generate-key-btn" onclick="generatePluginKey()"
-                      style="background:var(--border);color:#aaa;white-space:nowrap;">
+                    <button class="btn btn-sm btn-outline" id="generate-key-btn" onclick="generatePluginKey()"
+                      style="white-space:nowrap;">
                       Generate Key
                     </button>
-                    <button class="btn btn-sm" id="copy-key-btn" onclick="copyPluginKey()" style="display:none;
-            background:var(--border);color:#aaa;white-space:nowrap;">
-                      📋 Copy
+                    <button class="btn btn-sm btn-outline" id="copy-key-btn" onclick="copyPluginKey()" style="display:none;white-space:nowrap;">
+                      Copy
                     </button>
                   </div>
                   <div style="margin-top:8px;">
-                    <div id="store-id-for-plugin" style="font-size:12px;color:#666;">
+                    <div id="store-id-for-plugin" style="font-size:12px;color:var(--muted);">
                       Your Store ID:
-                      <strong style="color:#aaa;" id="store-id-plugin-display"></strong>
+                      <strong style="color:var(--text);" id="store-id-plugin-display"></strong>
                       <span onclick="copyStoreId()"
                         style="color:var(--accent);cursor:pointer;margin-left:8px;font-size:11px;">
                         Copy
@@ -1844,12 +1818,12 @@
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;color:var(--muted);flex-shrink:0;">4</div>
                 <div style="flex:1;">
-                  <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">
                     Connect from WordPress
                   </div>
-                  <div style="font-size:12px;color:#666;line-height:1.8;">
-                    In WordPress go to <strong style="color:#ccc;">BuildBot</strong> in the left menu.<br />
-                    Enter your Store ID and Secret Key → Click <strong style="color:#ccc;">Connect &
+                  <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+                    In WordPress go to <strong style="color:var(--text);">BuildBot</strong> in the left menu.<br />
+                    Enter your Store ID and Secret Key -> Click <strong style="color:var(--text);">Connect &
                       Sync</strong>.<br />
                     Your products will sync automatically!
                   </div>
@@ -1859,27 +1833,70 @@
             </div><!-- end woo-setup-view -->
           </div><!-- end woo-section -->
 
-          <!-- Danger Zone -->
-          <div class="card" id="settings-danger-card" style="border-color:#3a1a1a;">
-            <h2 style="color:var(--danger);">Danger Zone</h2>
-            <p style="margin-bottom:20px;">Permanently delete your account and all associated data. This action cannot be undone.</p>
-            <button class="btn btn-danger" onclick="deleteAccount(this)">Delete Account</button>
+        </div>
+
+        <!-- ── ACCOUNT TAB ── -->
+        <div id="tab-content-account" style="display:none;">
+          <div class="section-title">Account</div>
+          <div class="section-sub">Manage profile, password, and account controls.</div>
+          <div class="tab-stack">
+            <div class="card">
+              <h2>Profile</h2>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="account-email" readonly />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Store Name</label>
+                <input type="text" id="account-store-name" />
+              </div>
+            </div>
+            <div class="card">
+              <h2>Security</h2>
+              <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <div class="pwd-wrap">
+                  <input type="password" id="cp-current" placeholder="Current password" />
+                  <span class="pwd-toggle" onclick="togglePassword('cp-current', this)">Show</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="pwd-wrap">
+                  <input type="password" id="cp-new" placeholder="Min 8 chars, uppercase, number, symbol" />
+                  <span class="pwd-toggle" onclick="togglePassword('cp-new', this)">Show</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <div class="pwd-wrap">
+                  <input type="password" id="cp-confirm" placeholder="Repeat new password" />
+                  <span class="pwd-toggle" onclick="togglePassword('cp-confirm', this)">Show</span>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="changePassword(this)">Update password</button>
+              <div class="alert" id="cp-alert" style="max-width:320px;"></div>
+            </div>
+            <div class="card" style="border-color:rgba(220,38,38,0.3);">
+              <h2 style="color:var(--danger);">Danger zone</h2>
+              <p style="margin-bottom:16px;">Permanently delete your account and all associated data.</p>
+              <button class="btn btn-danger" onclick="deleteAccount(this)">Delete account</button>
+            </div>
           </div>
-          </div><!-- end settings-panel-account -->
         </div>
 
         <!-- ── EMBED TAB ── -->
         <div id="tab-content-embed" style="display:none;">
-          <div class="section-title">Go Live · Widget
+          <div class="section-title">Embed
             <span onclick="toggleContextHelp('help-embed')" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;margin-left:10px;vertical-align:middle;" title="Help">?</span>
           </div>
           <div class="section-sub">Copy the embed code and paste it on your website to go live.</div>
 
-          <div id="help-embed" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:#818cf8;line-height:1.8;">
-            <strong style="color:#a5b4fc;">Common questions:</strong><br/>
-            • <strong>Where do I paste the code?</strong> Paste it just before the &lt;/body&gt; tag in your website's HTML or theme file.<br/>
-            • <strong>Works on Shopify?</strong> Yes — paste into your theme.liquid file before &lt;/body&gt;.<br/>
-            • <strong>Widget not appearing?</strong> Check that the script tag is on every page, not just the homepage.
+          <div id="help-embed" style="display:none;background:var(--accent-bg);border:1px solid rgba(79,70,229,0.2);border-radius:10px;padding:12px 16px;margin:8px 0 16px;font-size:12px;color:var(--accent-text);line-height:1.8;">
+            <strong style="color:var(--accent-text);">Common questions:</strong><br/>
+            - <strong>Where do I paste the code?</strong> Paste it just before the &lt;/body&gt; tag in your website's HTML or theme file.<br/>
+            - <strong>Works on Shopify?</strong> Yes - paste into your theme.liquid file before &lt;/body&gt;.<br/>
+            - <strong>Widget not appearing?</strong> Check that the script tag is on every page, not just the homepage.
           </div>
 
           <div class="card">
@@ -1887,18 +1904,18 @@
             <p style="margin-bottom:14px;">Paste this script tag on your store (before <code>&lt;/body&gt;</code>).</p>
             <div class="embed-box" style="margin-bottom:12px;" id="embed-code-display-2"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="btn btn-primary btn-sm" onclick="copyEmbed()">📋 Copy embed code</button>
-              <button class="btn btn-sm" onclick="(function(){localStorage.setItem('bb_widget_live','1');var b=document.getElementById('go-live-banner');if(b)b.style.display='none';updateActivationUI();updateOnboardingJourney();})()" style="background:rgba(16,185,129,0.18);color:#a7f3d0;border:1px solid rgba(16,185,129,0.35);">✅ I’m live</button>
-              <button class="btn btn-sm" onclick="(function(){localStorage.removeItem('bb_widget_live');var b=document.getElementById('go-live-banner');if(b)b.style.display='flex';updateActivationUI();updateOnboardingJourney();})()" style="background:transparent;color:rgba(167,243,208,0.7);border:1px solid rgba(16,185,129,0.2);">Reset</button>
+              <button class="btn btn-primary btn-sm" onclick="copyEmbed()">Copy embed code</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.setItem('bb_widget_live','1');var b=document.getElementById('go-live-banner');if(b)b.style.display='none';updateActivationUI();updateOnboardingJourney();})()" style="background:var(--success-bg);color:var(--success);border:1px solid rgba(5,150,105,0.3);">Mark as Live</button>
+              <button class="btn btn-sm" onclick="(function(){localStorage.removeItem('bb_widget_live');var b=document.getElementById('go-live-banner');if(b)b.style.display='flex';updateActivationUI();updateOnboardingJourney();})()" style="background:transparent;color:var(--muted);border:1px solid var(--border);">Reset</button>
             </div>
             <div class="alert" id="embed-alert-2"></div>
           </div>
           <div class="card">
             <h2>Live Widget Preview</h2>
             <p style="margin-bottom:12px;">Preview how your widget appears on storefront.</p>
-            <div id="embed-live-preview" style="border:1px solid #d7deee;border-radius:12px;padding:18px;background:#f8faff;position:relative;min-height:160px;">
+            <div id="embed-live-preview" style="border:1px solid var(--border);border-radius:12px;padding:18px;background:var(--surface-2);position:relative;min-height:160px;">
               <div style="font-size:12px;color:var(--muted);">Demo storefront page</div>
-              <div id="embed-preview-bubble" style="position:absolute;right:20px;bottom:18px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:var(--accent);">⚡</div>
+              <div id="embed-preview-bubble" style="position:absolute;right:20px;bottom:18px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:var(--accent);">BB</div>
             </div>
           </div>
         </div>
@@ -1912,8 +1929,8 @@
             <p style="margin-bottom:14px;">Most stores go live in under 2 minutes.</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Go to Go Live</button>
-              <button class="btn btn-sm" onclick="showTab('products')" style="background:var(--border);color:#aaa;">Manage products</button>
-              <button class="btn btn-sm" onclick="showTab('billing')" style="background:var(--border);color:#aaa;">View billing</button>
+              <button class="btn btn-outline btn-sm" onclick="showTab('products')">Manage products</button>
+              <button class="btn btn-outline btn-sm" onclick="showTab('billing')">View billing</button>
             </div>
           </div>
         </div>
@@ -1929,7 +1946,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <h3 id="product-modal-title">+ Add Product</h3>
           <button onclick="closeProductModal()"
-            style="background:none;border:none;color:#555;font-size:22px;cursor:pointer;line-height:1;padding:4px;">✕</button>
+            style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:4px;">x</button>
         </div>
         <p style="font-size:13px;color:var(--muted);margin-bottom:20px;" id="product-modal-sub">
           Add a single product to your catalog.
@@ -1959,13 +1976,13 @@
             <input type="number" id="pm-price" placeholder="e.g. 45000" />
           </div>
           <div class="form-group" style="grid-column:1/-1;">
-            <label class="form-label">Description <span style="color:#555;font-weight:400;">(optional)</span></label>
+            <label class="form-label">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
             <textarea id="pm-description" rows="2" placeholder="Brief description..."></textarea>
           </div>
         </div>
         <div class="modal-btns">
           <button class="btn btn-primary" id="pm-save-btn" onclick="saveProduct()">Save Product</button>
-          <button class="btn" onclick="closeProductModal()" style="background:var(--border);color:#aaa;">Cancel</button>
+          <button class="btn btn-outline" onclick="closeProductModal()">Cancel</button>
         </div>
         <div class="alert" id="pm-alert" style="margin-top:12px;"></div>
       </div>
@@ -1974,15 +1991,15 @@
     <!-- DELETE CONFIRM MODAL -->
     <div class="modal-bg" id="delete-product-modal" style="display:none;">
       <div class="modal" style="max-width:380px;text-align:center;">
-        <div style="font-size:30px;margin-bottom:16px;color:#b42318;">Delete</div>
+        <div style="font-size:30px;margin-bottom:16px;color:var(--danger);">Delete</div>
         <h3 style="margin-bottom:10px;">Delete Product?</h3>
         <p style="font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;">
-          You are about to delete <strong id="delete-product-name" style="color:#fff;"></strong>. This cannot be undone.
+          You are about to delete <strong id="delete-product-name" style="color:var(--text);"></strong>. This cannot be undone.
         </p>
         <div style="display:flex;gap:10px;justify-content:center;">
           <button class="btn btn-danger" onclick="confirmDeleteProduct()" id="delete-confirm-btn">Yes,
             Delete</button>
-          <button class="btn" onclick="closeDeleteModal()" id="delete-cancel-btn" style="background:var(--border);color:#aaa;">Cancel</button>
+          <button class="btn btn-outline" onclick="closeDeleteModal()" id="delete-cancel-btn">Cancel</button>
         </div>
       </div>
     </div>
@@ -1993,11 +2010,11 @@
     <!-- GLOBAL CONFIRM MODAL (reusable) -->
     <div class="modal-bg" id="ui-confirm-modal" style="display:none;">
       <div class="modal" style="max-width:420px;">
-        <h3 id="ui-confirm-title" style="margin-bottom:10px;color:#fff;">Confirm</h3>
+        <h3 id="ui-confirm-title" style="margin-bottom:10px;color:var(--text);">Confirm</h3>
         <p id="ui-confirm-desc" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;"></p>
         <div id="ui-confirm-body"></div>
         <div class="modal-btns" style="justify-content:flex-end;margin-top:18px;">
-          <button class="btn" id="ui-confirm-cancel" style="background:var(--border);color:#aaa;">Cancel</button>
+          <button class="btn btn-outline" id="ui-confirm-cancel">Cancel</button>
           <button class="btn btn-primary" id="ui-confirm-ok">Confirm</button>
         </div>
       </div>
@@ -2053,12 +2070,12 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert('forgot-alert', '✅ ' + data.message, 'success');
+          showAlert('forgot-alert', data.message, 'success');
         } else {
-          showAlert('forgot-alert', '❌ ' + data.error, 'error');
+          showAlert('forgot-alert', data.error, 'error');
         }
       } catch {
-        showAlert('forgot-alert', '❌ Cannot connect to server.', 'error');
+        showAlert('forgot-alert', 'Cannot connect to server.', 'error');
       } finally {
         btn.disabled = false;
         btn.innerText = origText;
@@ -2143,9 +2160,9 @@
 
           const isSignup = !currentStore.plan;
           if (isSignup) {
-            showAlert('signup-alert', '✅ Welcome! Redirecting...', 'success');
+            showAlert('signup-alert', 'Welcome! Redirecting...', 'success');
           } else {
-            showAlert('login-alert', '✅ Login successful!', 'success');
+            showAlert('login-alert', 'Login successful!', 'success');
           }
           setTimeout(() => enterApp(), 1000);
         } else {
@@ -2165,12 +2182,12 @@
       if (!input || !icon) return;
       if (input.type === 'password') {
         input.type = 'text';
-        icon.textContent = '🙈';
+        icon.textContent = 'Hide';
         icon.setAttribute('aria-label', 'Hide password');
         icon.setAttribute('title', 'Hide password');
       } else {
         input.type = 'password';
-        icon.textContent = '👁️';
+        icon.textContent = 'Show';
         icon.setAttribute('aria-label', 'Show password');
         icon.setAttribute('title', 'Show password');
       }
@@ -2197,7 +2214,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert('cp-alert', '✅ Password changed successfully!', 'success');
+          showAlert('cp-alert', 'Password changed successfully!', 'success');
           document.getElementById('cp-current').value = '';
           document.getElementById('cp-new').value = '';
           document.getElementById('cp-confirm').value = '';
@@ -2347,11 +2364,11 @@
       display:flex;align-items:center;gap:10px;
     `;
             warn.innerHTML = `
-      <span style="font-size:20px;">⚠️</span>
+      <span style="font-size:20px;color:var(--warning);">Notice</span>
       <span>You are on the <strong style="color:var(--accent);">Free Trial</strong>.
-      Widget is limited to <strong style="color:#fff;">3 recommendations per day</strong>.
+      Widget is limited to <strong style="color:var(--text);">3 recommendations per day</strong>.
       <a onclick="showTab('billing')" style="color:var(--accent);cursor:pointer;margin-left:6px;">
-      Upgrade to remove limits →</a></span>
+      Upgrade to remove limits</a></span>
     `;
             // Insert before stats grid
             const statsGrid = document.querySelector('.stats-grid');
@@ -2396,7 +2413,8 @@
       document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.mobile-tab').forEach(s => s.classList.remove('active'));
       document.getElementById('tab-content-' + name).style.display = 'block';
-      document.getElementById('tab-' + name).classList.add('active');
+      var navItem = document.getElementById('tab-' + name);
+      if (navItem) navItem.classList.add('active');
       var mobileMap = { home: 0, embed: 1, products: 2, analytics: 3, settings: 4 };
       var mobileTabs = document.querySelectorAll('.mobile-tab');
       if (mobileTabs[mobileMap[name]] != null) mobileTabs[mobileMap[name]].classList.add('active');
@@ -2415,11 +2433,18 @@
         const preferredMode = localStorage.getItem('bb_store_mode') || 'custom';
         switchSettingsTab(preferredMode === 'woo' ? 'store' : 'widget');
       }
+      if (name === 'account') {
+        var em = document.getElementById('account-email');
+        var sn = document.getElementById('account-store-name');
+        if (em && currentStore) em.value = currentStore.email || '';
+        if (sn && currentStore) sn.value = currentStore.name || '';
+      }
       if (name === 'home' || name === 'products' || name === 'embed' || name === 'settings') {
         setTimeout(updateOnboardingJourney, 100);
       }
       if (name === 'billing') updateBillingTrialNote();
       if (name === 'embed' || name === 'home') updateActivationUI();
+      if (name === 'home') refreshOverviewState();
     }
 
     // ─── ANALYTICS ────────────────────────────────────────────
@@ -2427,8 +2452,8 @@
       try {
         const purposeEl = document.getElementById('purpose-chart');
         const dailyEl = document.getElementById('daily-chart');
-        if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
-        if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading…</p>`;
+        if (purposeEl) purposeEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading...</p>`;
+        if (dailyEl) dailyEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Loading...</p>`;
 
         const res = await fetch(`${API}/analytics`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -2441,6 +2466,9 @@
         }
 
         const { stats, productCount } = data;
+        var analyticsEmpty = document.getElementById('analytics-empty-state');
+        var analyticsHasData = (stats.daily && stats.daily.length) || (stats.recent && stats.recent.length) || (stats.byPurpose && stats.byPurpose.length);
+        if (analyticsEmpty) analyticsEmpty.style.display = analyticsHasData ? 'none' : 'block';
 
         // Home stats
         document.getElementById('stat-total').textContent = stats.total.count;
@@ -2511,7 +2539,7 @@
         <tr>
           <td>${r.purpose}</td>
           <td>PKR ${Number(r.budget).toLocaleString()}</td>
-          <td>${r.extras || '—'}</td>
+          <td>${r.extras || '-'}</td>
           <td>${new Date(r.created_at).toLocaleDateString()}</td>
         </tr>`).join('');
         }
@@ -2567,7 +2595,7 @@
         tbody.innerHTML = `
       <tr><td colspan="5">
         <div class="empty-state">
-          <div class="es-ic">📦</div>
+          <div class="es-ic">PR</div>
           <div class="es-title">No products found</div>
           <div class="es-sub">Upload a CSV or add products manually.</div>
         </div>
@@ -2582,11 +2610,11 @@
       onmouseout="this.style.background='transparent'">
 
       <td style="padding:14px 24px;">
-        <div style="font-weight:500;color:#fff;margin-bottom:2px;">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px;">
           ${escHtml(p.name)}
         </div>
         ${p.description
-          ? `<div style="font-size:11px;color:#555;
+          ? `<div style="font-size:11px;color:var(--muted);
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;">
               ${escHtml(p.description)}
              </div>`
@@ -2594,7 +2622,7 @@
       </td>
 
       <td style="padding:14px 16px;">
-        <span style="background:#1a1a3a;color:var(--accent);padding:3px 10px;
+        <span style="background:var(--accent-bg);color:var(--accent);padding:3px 10px;
           border-radius:20px;font-size:11px;font-weight:600;">
           ${escHtml(p.category)}
         </span>
@@ -2612,7 +2640,7 @@
           background:${p.in_stock == 1 ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)'};
           color:${p.in_stock == 1 ? 'var(--success)' : 'var(--danger)'};
           border:1px solid ${p.in_stock == 1 ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'};">
-          ${p.in_stock == 1 ? '✓ In Stock' : '✗ Out of Stock'}
+          ${p.in_stock == 1 ? 'In Stock' : 'Out of Stock'}
         </button>
       </td>
 
@@ -2724,7 +2752,7 @@
         if (data.success) {
           closeProductModal();
           await loadProducts();
-          showAlert('upload-alert', `✅ ${data.message}`, 'success');
+          showAlert('upload-alert', data.message, 'success');
         } else {
           showPmAlert(data.error || 'Something went wrong.', 'error');
         }
@@ -2743,7 +2771,7 @@
 
     // ─── STOCK TOGGLE ─────────────────────────────────────────
     async function toggleStock(id, newStock, btn) {
-      if (btn) setBtnLoading(btn, true, 'Saving…');
+      if (btn) setBtnLoading(btn, true, 'Saving...');
       try {
         const res = await fetch(`${API}/product/${id}/stock`, {
           method: 'PUT',
@@ -2760,7 +2788,7 @@
           if (p) p.in_stock = newStock;
           // Fast visual feedback (in case table is filtered/re-rendered)
           if (btn) {
-            btn.textContent = newStock === 1 ? '✓ In Stock' : '✗ Out of Stock';
+            btn.textContent = newStock === 1 ? 'In Stock' : 'Out of Stock';
             btn.style.background = newStock === 1 ? 'rgba(46,204,113,.12)' : 'rgba(231,76,60,.12)';
             btn.style.color = newStock === 1 ? 'var(--success)' : 'var(--danger)';
             btn.style.border = `1px solid ${newStock === 1 ? 'rgba(46,204,113,.3)' : 'rgba(231,76,60,.3)'}`;
@@ -2792,7 +2820,7 @@
       if (!deletingProductId) return;
       const okBtn = document.getElementById('delete-confirm-btn');
       const cancelBtn = document.getElementById('delete-cancel-btn');
-      if (okBtn) setBtnLoading(okBtn, true, 'Deleting…');
+      if (okBtn) setBtnLoading(okBtn, true, 'Deleting...');
       if (cancelBtn) cancelBtn.disabled = true;
       try {
         const res = await fetch(`${API}/product/${deletingProductId}`, {
@@ -2836,7 +2864,7 @@
 
     function csvSelected(input) {
       if (input.files[0]) {
-        document.getElementById('csv-filename').textContent = '📄 ' + input.files[0].name;
+        document.getElementById('csv-filename').textContent = input.files[0].name;
         document.getElementById('upload-btn').disabled = false;
       }
     }
@@ -2867,9 +2895,9 @@
     }
 
     const toast = {
-      success: (msg, title = 'Success') => showToast('success', title, msg, '✅'),
-      error: (msg, title = 'Error') => showToast('error', title, msg, '⛔'),
-      info: (msg, title = 'Info') => showToast('info', title, msg, 'ℹ️')
+      success: (msg, title = 'Success') => showToast('success', title, msg, 'OK'),
+      error: (msg, title = 'Error') => showToast('error', title, msg, 'ER'),
+      info: (msg, title = 'Info') => showToast('info', title, msg, 'IN')
     };
 
     function showToast(type, title, msg, icon) {
@@ -2885,7 +2913,7 @@
           <div class="toast-tt">${escHtml(title || '')}</div>
           <div class="toast-tx">${escHtml(msg || '')}</div>
         </div>
-        <button class="toast-x" aria-label="Dismiss">✕</button>
+        <button class="toast-x" aria-label="Dismiss">x</button>
       `;
       const close = () => { try { el.remove(); } catch {} };
       el.querySelector('.toast-x')?.addEventListener('click', close);
@@ -2960,7 +2988,7 @@
         if (!ok) return;
       }
 
-      setBtnLoading(uploadBtn, true, 'Uploading…');
+      setBtnLoading(uploadBtn, true, 'Uploading...');
       uploadBtn.disabled = true;
 
       const formData = new FormData();
@@ -3017,14 +3045,14 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert('pay-alert', '✅ ' + data.message, 'success');
+          showAlert('pay-alert', data.message, 'success');
           document.getElementById('pay-ref').value = '';
           loadPaymentHistory();
         } else {
-          showAlert('pay-alert', '❌ ' + data.error, 'error');
+          showAlert('pay-alert', data.error, 'error');
         }
       } catch {
-        showAlert('pay-alert', '❌ Cannot connect to server.', 'error');
+        showAlert('pay-alert', 'Cannot connect to server.', 'error');
       }
     }
 
@@ -3033,7 +3061,7 @@
       if (tbody) {
         tbody.innerHTML = `
           <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:18px;">
-            Loading…
+            Loading...
           </td></tr>
         `;
       }
@@ -3055,7 +3083,7 @@
           tbody.innerHTML = `
             <tr><td colspan="5">
               <div class="empty-state">
-                <div class="es-ic">💳</div>
+                <div class="es-ic">BL</div>
                 <div class="es-title">No payments yet</div>
                 <div class="es-sub">Your submissions will appear here once you request a plan upgrade.</div>
               </div>
@@ -3093,13 +3121,13 @@
           currentStore.brandColor = brandColor;
           currentStore.currency = currency;
           localStorage.setItem('bb_store', JSON.stringify(currentStore));
-          showAlert('settings-alert', '✅ Branding saved!', 'success');
+          showAlert('settings-alert', 'Branding saved!', 'success');
           updateWidgetPreview();
         } else {
-          showAlert('settings-alert', '❌ ' + data.error, 'error');
+          showAlert('settings-alert', data.error, 'error');
         }
       } catch {
-        showAlert('settings-alert', '❌ Cannot connect to server.', 'error');
+        showAlert('settings-alert', 'Cannot connect to server.', 'error');
       }
     }
 
@@ -3109,7 +3137,7 @@
       const buttonText = document.getElementById('button-text-input').value.trim();
 
       if (!widgetTitle || !welcomeMsg || !buttonText)
-        return showAlert('widget-settings-alert', '❌ All fields are required.', 'error');
+        return showAlert('widget-settings-alert', 'All fields are required.', 'error');
 
       try {
         const res = await fetch(`${API}/widget-settings`, {
@@ -3122,19 +3150,19 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert('widget-settings-alert', '✅ Widget settings saved! Refresh your store page to see changes.', 'success');
+          showAlert('widget-settings-alert', 'Widget settings saved. Refresh your store page to see changes.', 'success');
           updateWidgetPreview();
         } else {
-          showAlert('widget-settings-alert', '❌ ' + data.error, 'error');
+          showAlert('widget-settings-alert', data.error, 'error');
         }
       } catch {
-        showAlert('widget-settings-alert', '❌ Cannot connect to server.', 'error');
+        showAlert('widget-settings-alert', 'Cannot connect to server.', 'error');
       }
     }
 
     function resetWidgetDefaults() {
       document.getElementById('widget-title-input').value = 'BuildBot';
-      document.getElementById('welcome-msg-input').value = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
+      document.getElementById('welcome-msg-input').value = 'Tell me your budget and what you need - I will find the best parts from this store for you.';
       document.getElementById('button-text-input').value = 'Get Started';
       updateWidgetPreview();
     }
@@ -3151,10 +3179,10 @@
       const previewBubble = document.getElementById('widget-preview-btn');
       const previewBox = document.querySelector('.widget-preview-box');
 
-      if (previewTitle) previewTitle.textContent = '⚡ ' + title;
+      if (previewTitle) previewTitle.textContent = title;
       if (previewMsg) previewMsg.textContent = msg;
       if (previewBtn) {
-        previewBtn.textContent = btn + ' →';
+        previewBtn.textContent = btn;
         previewBtn.style.background = color;
         // Auto contrast for button text
         const r = parseInt(color.slice(1, 3), 16);
@@ -3179,7 +3207,7 @@
           document.getElementById('button-text-input').value = s.button_text || 'Get Started';
           updateWidgetPreview();
         } else {
-          showAlert('widget-settings-alert', '❌ Could not load widget settings.', 'error');
+          showAlert('widget-settings-alert', 'Could not load widget settings.', 'error');
         }
       } catch (e) { }
     }
@@ -3202,7 +3230,7 @@
         if (data.hasKey && data.secret) {
           pluginSecretKey = data.secret;
           document.getElementById('plugin-secret-display').textContent = data.secret;
-          document.getElementById('generate-key-btn').textContent = '🔄 Regenerate';
+          document.getElementById('generate-key-btn').textContent = 'Regenerate';
           document.getElementById('copy-key-btn').style.display = 'inline-block';
         }
 
@@ -3212,13 +3240,13 @@
           applyStoreModeLayout('woo');
 
           // Show connected state
-          document.getElementById('woo-status-badge').textContent = '✅ Connected';
+          document.getElementById('woo-status-badge').textContent = 'Connected';
           document.getElementById('woo-status-badge').style.background = 'rgba(46,204,113,.12)';
           document.getElementById('woo-status-badge').style.color = 'var(--success)';
           document.getElementById('woo-status-badge').style.border = '1px solid rgba(46,204,113,.3)';
           document.getElementById('woo-connected-view').style.display = 'block';
           document.getElementById('woo-setup-view').style.display = 'none';
-          document.getElementById('woo-url-display').textContent = data.wooUrl || '—';
+          document.getElementById('woo-url-display').textContent = data.wooUrl || '-';
           document.getElementById('woo-count-display').textContent = data.productCount || 0;
           document.getElementById('woo-sync-display').textContent = data.lastSync
             ? timeAgo(data.lastSync) : 'Never';
@@ -3226,8 +3254,8 @@
           const widgetStatus = document.getElementById('woo-widget-status');
           if (widgetStatus) {
             widgetStatus.textContent = data.widgetEnabled
-              ? '✅ Widget is showing on your store'
-              : '⛔ Widget is disabled — enable it from WordPress';
+              ? 'Widget is showing on your store'
+              : 'Widget is disabled - enable it from WordPress';
             widgetStatus.style.color = data.widgetEnabled ? 'var(--success)' : 'var(--danger)';
           }
         } else {
@@ -3258,7 +3286,7 @@
           pluginSecretKey = data.secret;
           document.getElementById('plugin-secret-display').textContent = data.secret;
           document.getElementById('copy-key-btn').style.display = 'inline-block';
-          btn.textContent = '🔄 Regenerate';
+          btn.textContent = 'Regenerate';
         }
       } catch (e) {
         console.error(e);
@@ -3271,8 +3299,8 @@
       if (!pluginSecretKey) return;
       navigator.clipboard.writeText(pluginSecretKey).then(() => {
         const btn = document.getElementById('copy-key-btn');
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => btn.textContent = '📋 Copy', 2000);
+        btn.textContent = 'Copied';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
       });
     }
 
@@ -3280,7 +3308,7 @@
       navigator.clipboard.writeText(currentStore.storeId).then(() => {
         const el = document.getElementById('store-id-for-plugin');
         const original = el.innerHTML;
-        el.innerHTML = `Your Store ID: <strong style="color:var(--success);">${currentStore.storeId}</strong> <span style="color:var(--success);font-size:11px;">✅ Copied!</span>`;
+        el.innerHTML = `Your Store ID: <strong style="color:var(--success);">${currentStore.storeId}</strong> <span style="color:var(--success);font-size:11px;">Copied</span>`;
         setTimeout(() => el.innerHTML = original, 2000);
       });
     }
@@ -3311,7 +3339,7 @@
     function downloadPlugin() {
       if (!pluginSecretKey) {
         showAlert('widget-settings-alert',
-          '⚠️ Please generate your Secret Key first (Step 2), then download the plugin.',
+          'Please generate your Secret Key first (Step 2), then download the plugin.',
           'error'
         );
         generatePluginKey();
@@ -3334,12 +3362,12 @@
         variant: 'danger',
         bodyHtml: `
           <div style="margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 12px;">
-            <div style="font-size:11px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">Type to confirm</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">Type to confirm</div>
             <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
-              Type <strong style="color:#fff;">${escHtml(storeId || 'your store id')}</strong> to enable delete.
+              Type <strong style="color:var(--text);">${escHtml(storeId || 'your store id')}</strong> to enable delete.
             </div>
             <input type="text" id="ui-delete-confirm-input" placeholder="${storeId ? storeId : 'Store ID'}"
-              style="width:100%;padding:11px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:#fff;font-size:13px;outline:none;" />
+              style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;" />
           </div>
         `
       });
@@ -3351,7 +3379,7 @@
         return;
       }
 
-      setBtnLoading(btn, true, 'Deleting…');
+      setBtnLoading(btn, true, 'Deleting...');
 
       try {
         const res = await fetch(`${API}/account`, {
@@ -3389,7 +3417,7 @@
     function copyEmbed() {
       const code = document.getElementById('embed-code-display').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        showAlert('embed-alert', '✅ Embed code copied!', 'success');
+        showAlert('embed-alert', 'Embed code copied.', 'success');
         toast.success('Embed code copied.');
       });
       localStorage.setItem('bb_embed_copied', '1');
@@ -3455,25 +3483,19 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
     })();
 
     function switchSettingsTab(name) {
-      var panels = ['widget', 'store', 'account'];
+      var panels = ['widget', 'store'];
       panels.forEach(function (p) {
         var el = document.getElementById('settings-panel-' + p);
         var btn = document.getElementById('stab-' + p);
         if (el) el.style.display = (p === name) ? 'block' : 'none';
         if (btn) btn.classList.toggle('sts-active', p === name);
       });
-      var accountPanel = document.getElementById('settings-panel-account');
       var securityCard = document.getElementById('settings-security-card');
       var widgetTextCard = document.getElementById('settings-widget-text-card');
       var wooCard = document.getElementById('woo-section');
-      var dangerCard = document.getElementById('settings-danger-card');
-      if (securityCard) securityCard.style.display = (name === 'account') ? 'block' : 'none';
+      if (securityCard) securityCard.style.display = (name === 'widget') ? 'block' : 'none';
       if (widgetTextCard) widgetTextCard.style.display = (name === 'widget') ? 'block' : 'none';
       if (wooCard) wooCard.style.display = (name === 'store') ? 'block' : 'none';
-      if (dangerCard) dangerCard.style.display = (name === 'account') ? 'block' : 'none';
-      if (accountPanel) {
-        accountPanel.style.display = (name === 'widget' || name === 'store' || name === 'account') ? 'block' : 'none';
-      }
       if (name === 'widget') {
         var wp = document.getElementById('settings-panel-widget');
         if (wp) wp.style.display = 'block';
@@ -3492,6 +3514,26 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       loadAnalytics();
     }
 
+    function refreshOverviewState() {
+      var live = localStorage.getItem('bb_widget_live') === '1';
+      var pre = document.getElementById('overview-prelive-state');
+      var active = document.getElementById('overview-live-state');
+      if (pre) pre.style.display = live ? 'none' : 'block';
+      if (active) active.style.display = live ? 'block' : 'none';
+
+      var stepTwoBtn = document.getElementById('journey-step-two-btn');
+      var mode = localStorage.getItem('bb_store_mode') || 'custom';
+      if (stepTwoBtn) {
+        if (mode === 'woo') {
+          stepTwoBtn.textContent = 'Open Store settings';
+          stepTwoBtn.onclick = function () { showTab('settings'); switchSettingsTab('store'); };
+        } else {
+          stepTwoBtn.textContent = 'Manage products';
+          stepTwoBtn.onclick = function () { showTab('products'); };
+        }
+      }
+    }
+
     function toggleContextHelp(id) {
       var el = document.getElementById(id);
       if (!el) return;
@@ -3503,7 +3545,6 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var custom = document.getElementById('products-custom-view');
       if (woo) woo.style.display = (view === 'woo') ? 'block' : 'none';
       if (custom) custom.style.display = (view === 'custom') ? 'block' : 'none';
-      localStorage.setItem('bb_store_mode', view);
       updateSidebarStoreModeUI(view, view === 'woo');
       applyStoreModeLayout(view);
       var b1 = document.getElementById('sts-woo');
@@ -3598,10 +3639,10 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var line = points.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
       var area = `M ${padX} ${height - padY} L ${line.replace(/,/g, ' ')} L ${width - padX} ${height - padY} Z`;
       svg.innerHTML = `
-        <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6366f1" stop-opacity=".30"/><stop offset="100%" stop-color="#6366f1" stop-opacity=".02"/></linearGradient></defs>
+        <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity=".30"/><stop offset="100%" stop-color="var(--accent)" stop-opacity=".02"/></linearGradient></defs>
         <path d="${area}" fill="url(#g1)"></path>
-        <polyline points="${line}" fill="none" stroke="#4f46e5" stroke-width="2.5"></polyline>
-        ${points.map(function (p) { return `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#4f46e5"></circle>`; }).join('')}
+        <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5"></polyline>
+        ${points.map(function (p) { return `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="var(--accent)"></circle>`; }).join('')}
       `;
     }
 
@@ -3615,9 +3656,9 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var prev = daily[daily.length - 2]?.count || 0;
       var growth = prev ? Math.round(((last - prev) / prev) * 100) : 0;
       host.innerHTML = `
-        • Weekly momentum: <strong>${growth >= 0 ? '+' : ''}${growth}%</strong><br/>
-        • Most requested purpose: <strong>${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong><br/>
-        • Highest demand day: <strong>${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong>
+        - Weekly momentum: <strong>${growth >= 0 ? '+' : ''}${growth}%</strong><br/>
+        - Most requested purpose: <strong>${(stats.byPurpose && stats.byPurpose[0] && stats.byPurpose[0].purpose) || 'N/A'}</strong><br/>
+        - Highest demand day: <strong>${daily.slice().sort(function(a,b){return (b.count||0)-(a.count||0);})[0]?.day || 'N/A'}</strong>
       `;
       var ranges = { '<50K': 0, '50K-100K': 0, '100K-200K': 0, '200K+': 0 };
       recent.forEach(function (r) {
@@ -3629,7 +3670,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       });
       table.innerHTML = Object.keys(ranges).map(function (k) {
         var v = ranges[k];
-        return `<tr><td>${k}</td><td>${v}</td><td>${v > 0 ? '↗ Active' : '—'}</td></tr>`;
+        return `<tr><td>${k}</td><td>${v}</td><td>${v > 0 ? 'Active' : '-'}</td></tr>`;
       }).join('') || '<tr><td colspan="3">No data yet.</td></tr>';
     }
 
@@ -3674,19 +3715,19 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
   </script>
   <div class="mobile-tabs">
     <button class="mobile-tab" onclick="showTab('home')">
-      <span class="mobile-tab-icon">🏠</span>Overview
+      <span class="mobile-tab-icon">O</span>Overview
     </button>
     <button class="mobile-tab" onclick="showTab('embed')">
-      <span class="mobile-tab-icon">🔗</span>Embed
+      <span class="mobile-tab-icon">E</span>Embed
     </button>
     <button class="mobile-tab" onclick="showTab('products')">
-      <span class="mobile-tab-icon">📦</span>Products
+      <span class="mobile-tab-icon">P</span>Products
     </button>
     <button class="mobile-tab" onclick="showTab('analytics')">
-      <span class="mobile-tab-icon">📊</span>Analytics
+      <span class="mobile-tab-icon">A</span>Analytics
     </button>
     <button class="mobile-tab" onclick="showTab('settings')">
-      <span class="mobile-tab-icon">⚙️</span>Settings
+      <span class="mobile-tab-icon">S</span>Settings
     </button>
   </div>
 </body>

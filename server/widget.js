@@ -11,6 +11,10 @@
   let WELCOME_MSG  = 'Tell me your budget and what you need — I will find the best parts from this store for you.';
   let BUTTON_TEXT  = 'Get Started';
 
+  // Store build data for PDF access
+  let _lastBuilds = [];
+  let _lastCurrency = 'PKR';
+
   if (!STORE_ID) { console.error('BuildBot: No data-store-id found.'); return; }
 
   // ─── AUTO CONTRAST ────────────────────────────────────────
@@ -39,25 +43,33 @@
   // ─── INIT ─────────────────────────────────────────────────
   async function initWidget() {
     try {
-      const res  = await fetch(`${API}/store-config/${STORE_ID}`);
-      const data = await res.json();
-      if (data.success) {
-        // If store owner disabled the widget, don't show it
-        if (data.widgetEnabled === false) {
-          console.log('BuildBot: Widget is disabled for this store.');
-          return;
-        }
-        BRAND_COLOR  = data.brandColor  || BRAND_COLOR;
-        WIDGET_BG    = data.widgetBg    || WIDGET_BG;
-        CURRENCY     = data.currency    || CURRENCY;
-        WIDGET_TITLE = data.widgetTitle || WIDGET_TITLE;
-        WELCOME_MSG  = data.welcomeMsg  || WELCOME_MSG;
-        BUTTON_TEXT  = data.buttonText  || BUTTON_TEXT;
-      }
+      fetch(`${API}/store-config/${STORE_ID}`)
+        .then(r => r.json())
+        .then(storeConfig => {
+          if (storeConfig.brandColor) BRAND_COLOR = storeConfig.brandColor;
+          if (storeConfig.widgetBg)   WIDGET_BG   = storeConfig.widgetBg;
+          if (storeConfig.currency)    CURRENCY    = storeConfig.currency;
+          if (storeConfig.widgetTitle) WIDGET_TITLE = storeConfig.widgetTitle;
+          if (storeConfig.welcomeMessage) WELCOME_MSG = storeConfig.welcomeMessage;
+          if (storeConfig.buttonText)  BUTTON_TEXT  = storeConfig.buttonText;
+          
+          // Store budget presets for later use
+          if (storeConfig.budgetPresets && Array.isArray(storeConfig.budgetPresets)) {
+            window._bbBudgetPresets = storeConfig.budgetPresets;
+          }
+          
+          injectStyles();
+          injectHTML();
+          bindEvents();
+        })
+        .catch(err => {
+          console.error('Failed to load store config:', err);
+          // Fallback to defaults
+          injectStyles();
+          injectHTML();
+          bindEvents();
+        });
     } catch(e) {}
-    injectStyles();
-    injectHTML();
-    bindEvents();
   }
 
   // ─── STYLES ───────────────────────────────────────────────
@@ -82,13 +94,13 @@
 
     const fontLink = document.createElement('link');
     fontLink.rel  = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
     document.head.appendChild(fontLink);
 
     // Load External CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = API.replace('/api', '/widget.css');
+    link.href = script.getAttribute('data-css-url') || API.replace('/api', '/widget.css');
     document.head.appendChild(link);
 
     // Load html2pdf for PDF generation
@@ -146,14 +158,10 @@
             <div class="bb-currency" id="bb-curr-label">${CURRENCY}</div>
             <input class="bb-input" id="bb-budget" type="number" placeholder="e.g. 80000" style="margin:0;flex:1;"/>
           </div>
+          <div class="bb-field-error" id="bb-budget-error"></div>
           <div class="bb-input-hint">Enter your total budget in ${CURRENCY}. You'll get 3 builds to choose from.</div>
           <div class="bb-label">Quick select</div>
-          <div class="bb-chips" id="bb-budget-chips">
-            <div class="bb-chip" data-val="50000">50,000</div>
-            <div class="bb-chip" data-val="80000">80,000</div>
-            <div class="bb-chip" data-val="120000">1,20,000</div>
-            <div class="bb-chip" data-val="200000">2,00,000</div>
-          </div>
+          <div class="bb-chips" id="bb-budget-chips"></div>
           <button class="bb-btn" id="bb-next-s2">Next →</button>
         </div>
 
@@ -162,15 +170,16 @@
           <button class="bb-back" id="bb-back-s3">← Back</button>
           <div class="bb-step-label">Step 2 of 3</div>
           <div class="bb-screen-title" style="font-size:17px;">What will you build it for?</div>
+          <div class="bb-field-error" id="bb-purpose-error"></div>
           <div class="bb-chips" id="bb-purposes">
-            <div class="bb-chip">🏢 Office Work</div>
-            <div class="bb-chip">📚 Studies</div>
-            <div class="bb-chip">💻 Coding</div>
-            <div class="bb-chip">🎨 Designing</div>
-            <div class="bb-chip">🎬 Video Editing</div>
-            <div class="bb-chip">🎮 Gaming</div>
-            <div class="bb-chip">📡 Streaming</div>
-            <div class="bb-chip">🔁 Mixed Use</div>
+            <button class="bb-chip" aria-pressed="false">🏢 Office Work</button>
+            <button class="bb-chip" aria-pressed="false">📚 Studies</button>
+            <button class="bb-chip" aria-pressed="false">💻 Coding</button>
+            <button class="bb-chip" aria-pressed="false">🎨 Designing</button>
+            <button class="bb-chip" aria-pressed="false">🎬 Video Editing</button>
+            <button class="bb-chip" aria-pressed="false">🎮 Gaming</button>
+            <button class="bb-chip" aria-pressed="false">📡 Streaming</button>
+            <button class="bb-chip" aria-pressed="false">🔁 Mixed Use</button>
           </div>
           <button class="bb-btn" id="bb-next-s3">Next →</button>
         </div>
@@ -180,11 +189,11 @@
           <button class="bb-back" id="bb-back-s4">← Back</button>
           <div class="bb-label">Any extras? (optional)</div>
           <div class="bb-chips" id="bb-extras">
-            <div class="bb-chip">🖥️ Monitor</div>
-            <div class="bb-chip">⌨️ Keyboard</div>
-            <div class="bb-chip">🖱️ Mouse</div>
-            <div class="bb-chip">🎧 Headset</div>
-            <div class="bb-chip">📷 Webcam</div>
+            <button class="bb-chip" aria-pressed="false">🖥️ Monitor</button>
+            <button class="bb-chip" aria-pressed="false">⌨️ Keyboard</button>
+            <button class="bb-chip" aria-pressed="false">🖱️ Mouse</button>
+            <button class="bb-chip" aria-pressed="false">🎧 Headset</button>
+            <button class="bb-chip" aria-pressed="false">📷 Webcam</button>
           </div>
           <div class="bb-label" style="margin-top:4px;">Or type something</div>
           <input class="bb-input" id="bb-extras-text" placeholder="e.g. WiFi card..."/>
@@ -202,6 +211,7 @@
               <div class="bb-load-step active" id="lsA">📦 Scanning your catalog...</div>
               <div class="bb-load-step" id="lsB">🤖 Asking the AI...</div>
               <div class="bb-load-step" id="lsC">⚡ Optimizing builds...</div>
+              <div class="bb-load-step" id="lsD">✅ Finalizing recommendations...</div>
             </div>
           </div>
         </div>
@@ -235,7 +245,10 @@
             <div id="bb-modal-title"></div>
             <div id="bb-modal-tagline"></div>
           </div>
-          <button id="bb-modal-close">✕</button>
+          <div>
+            <button id="bb-modal-download">📄 PDF</button>
+            <button id="bb-modal-close">✕</button>
+          </div>
         </div>
         <div id="bb-modal-body">
           <div id="bb-modal-content"></div>
@@ -249,7 +262,27 @@
   function bindEvents() {
     let selectedPurpose = '';
     let selectedExtras  = [];
+    let _currentBuild = null;
     const $ = id => document.getElementById(id);
+
+    // Helper functions for error handling
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+    function hideError(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    // Initialize budget chips from presets
+    const presets = window._bbBudgetPresets || [50000, 80000, 120000, 200000];
+    const budgetChipsContainer = document.getElementById('bb-budget-chips');
+    if (budgetChipsContainer) {
+      budgetChipsContainer.innerHTML = presets.map(val => 
+        `<button class="bb-chip" data-val="${val}" aria-pressed="false">${Number(val).toLocaleString()}</button>`
+      ).join('');
+    }
 
     $('bb-launcher').onclick = () => {
       $('bb-panel').classList.toggle('open');
@@ -274,34 +307,62 @@
 
     $('bb-start-btn').onclick = () => goTo('s1','s2',1);
 
-    $('bb-budget-chips').querySelectorAll('.bb-chip').forEach(chip => {
-      chip.onclick = () => {
-        $('bb-budget-chips').querySelectorAll('.bb-chip')
-          .forEach(c => c.classList.remove('sel'));
-        chip.classList.add('sel');
-        $('bb-budget').value = chip.dataset.val;
-      };
-    });
+    // Budget chips event handlers
+    if (budgetChipsContainer) {
+      budgetChipsContainer.querySelectorAll('.bb-chip').forEach(chip => {
+        chip.onclick = () => {
+          budgetChipsContainer.querySelectorAll('.bb-chip')
+            .forEach(c => {
+              c.classList.remove('sel');
+              c.setAttribute('aria-pressed', 'false');
+            });
+          chip.classList.add('sel');
+          chip.setAttribute('aria-pressed', 'true');
+          $('bb-budget').value = chip.dataset.val;
+        };
+      });
+    }
 
     $('bb-next-s2').onclick = () => {
-      if (!$('bb-budget').value || $('bb-budget').value <= 0)
-        return alert('Please enter your budget!');
+      const budgetValue = $('bb-budget').value;
+      if (!budgetValue || budgetValue <= 0) {
+        showError('bb-budget-error', 'Please enter your budget!');
+        $('bb-budget').classList.add('error');
+        return;
+      }
+      hideError('bb-budget-error');
+      $('bb-budget').classList.remove('error');
       goTo('s2','s3',2);
     };
 
     $('bb-back-s2').onclick = () => goTo('s2','s1',0);
 
+    // Hide budget error when user types or selects a chip
+    $('bb-budget').oninput = () => {
+      hideError('bb-budget-error');
+      $('bb-budget').classList.remove('error');
+    };
+
     $('bb-purposes').querySelectorAll('.bb-chip').forEach(chip => {
       chip.onclick = () => {
         $('bb-purposes').querySelectorAll('.bb-chip')
-          .forEach(c => c.classList.remove('sel'));
+          .forEach(c => {
+            c.classList.remove('sel');
+            c.setAttribute('aria-pressed', 'false');
+          });
         chip.classList.add('sel');
+        chip.setAttribute('aria-pressed', 'true');
         selectedPurpose = chip.textContent.trim();
+        hideError('bb-purpose-error');
       };
     });
 
     $('bb-next-s3').onclick = () => {
-      if (!selectedPurpose) return alert('Please select a purpose!');
+      if (!selectedPurpose) {
+        showError('bb-purpose-error', 'Please select a purpose!');
+        return;
+      }
+      hideError('bb-purpose-error');
       goTo('s3','s4',3);
     };
 
@@ -311,8 +372,13 @@
       chip.onclick = () => {
         chip.classList.toggle('sel');
         const txt = chip.textContent.trim();
-        if (chip.classList.contains('sel')) selectedExtras.push(txt);
-        else selectedExtras = selectedExtras.filter(e => e !== txt);
+        if (chip.classList.contains('sel')) {
+          selectedExtras.push(txt);
+          chip.setAttribute('aria-pressed', 'true');
+        } else {
+          selectedExtras = selectedExtras.filter(e => e !== txt);
+          chip.setAttribute('aria-pressed', 'false');
+        }
       };
     });
 
@@ -326,17 +392,29 @@
       goTo('s4','s5',4);
 
       // Animate loading steps
-      const steps = ['lsA','lsB','lsC'];
+      const steps = ['lsA','lsB','lsC','lsD'];
       let stepIdx = 0;
-      const stepTimer = setInterval(() => {
-        document.querySelectorAll('.bb-load-step').forEach(s => s.classList.remove('active'));
+      let bbTimer = null;
+      
+      function advanceStep() {
+        // Mark current active step as done
+        const currentActive = document.querySelector('.bb-load-step.active');
+        if (currentActive) {
+          currentActive.classList.remove('active');
+          currentActive.classList.add('done');
+        }
+        
+        // Activate next step
         if (stepIdx < steps.length) {
           const el = document.getElementById(steps[stepIdx]);
           if (el) el.classList.add('active');
           stepIdx++;
         }
-      }, 1200);
-      window._bbStepTimer = stepTimer;
+      }
+      
+      // Start animation
+      advanceStep(); // Run immediately
+      bbTimer = setInterval(advanceStep, 1800);
 
       try {
         const res  = await fetch(`${API}/recommend`, {
@@ -348,13 +426,21 @@
           })
         });
         const data = await res.json();
-        if (window._bbStepTimer) clearInterval(window._bbStepTimer);
+        if (bbTimer) clearInterval(bbTimer);
+        
+        // Mark all steps as complete
+        document.querySelectorAll('.bb-load-step').forEach(s => {
+          s.classList.remove('active');
+          s.classList.add('done');
+        });
         
         $('bb-s5').classList.remove('active');
         $('bb-s6').classList.add('active');
         setProgress(100);
 
         if (data.success) {
+          _lastBuilds = data.builds || [];
+          _lastCurrency = data.currency || CURRENCY;
           renderResults(
             data.builds || [],
             data.currency || CURRENCY,
@@ -365,7 +451,14 @@
           renderError(data.error || 'Something went wrong.', data.limitReached);
         }
       } catch {
-        if (window._bbStepTimer) clearInterval(window._bbStepTimer);
+        if (bbTimer) clearInterval(bbTimer);
+        
+        // Mark all steps as complete
+        document.querySelectorAll('.bb-load-step').forEach(s => {
+          s.classList.remove('active');
+          s.classList.add('done');
+        });
+        
         $('bb-s5').classList.remove('active');
         $('bb-s6').classList.add('active');
         setProgress(100);
@@ -378,69 +471,31 @@
       selectedExtras  = [];
       $('bb-budget').value       = '';
       $('bb-extras-text').value  = '';
-      document.querySelectorAll('.bb-chip').forEach(c => c.classList.remove('sel'));
+      document.querySelectorAll('.bb-chip').forEach(c => {
+        c.classList.remove('sel');
+        c.setAttribute('aria-pressed', 'false');
+      });
       goTo('s6','s1',0);
     };
 
     $('bb-download-btn').onclick = async () => {
-      const btn = $('bb-download-btn');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '⏳ Generating...';
-      btn.style.opacity = '0.7';
-
-      try {
-        if (!window.html2pdf) {
-           console.error("html2pdf library not loaded yet.");
-           btn.innerHTML = originalText;
-           btn.style.opacity = '1';
-           return;
-        }
-        
-        // Use an inline HTML string with styles for html2pdf to ensure it is not blank
-        const resultsHtml = $('bb-results').innerHTML;
-        const pdfContent = document.createElement('div');
-        pdfContent.innerHTML = `
-          <div style="padding: 40px; font-family: 'Montserrat', sans-serif; color: #000; width: 800px; background: #fff;">
-            <style>
-              * { color: #000 !important; }
-              .bb-part { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #f9f9f9; }
-              .bb-total { border: 2px solid #2ecc71; padding: 20px; border-radius: 8px; margin-top: 20px; background: #f0fdf4; }
-              .bb-tips { margin-top: 20px; padding: 15px; border-left: 4px solid #7c6af7; background: #f8f9fa; }
-              .bb-part-cat { font-size: 11px; background: #eee; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
-              .bb-part-top { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; }
-            </style>
-            ${resultsHtml}
-          </div>
-        `;
-
-        const opt = {
-          margin:       0.5,
-          filename:     'BuildBot_Recommendation.pdf',
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true },
-          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
-
-        await window.html2pdf().set(opt).from(pdfContent).save();
-
-        btn.innerHTML = '✅ Downloaded';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-        }, 2000);
-
-      } catch (e) {
-        console.error("PDF Gen Error:", e);
-        btn.innerHTML = '❌ Error';
-        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-      } finally {
-        btn.style.opacity = '1';
-      }
+      await generatePDF(_lastBuilds, _lastCurrency, $('bb-download-btn'), false);
     };
     // Modal close button
     const modalClose = document.getElementById('bb-modal-close');
     if (modalClose) {
       modalClose.onclick = () => {
         document.getElementById('bb-modal-overlay').classList.remove('open');
+      };
+    }
+
+    // Modal download button
+    const modalDownload = document.getElementById('bb-modal-download');
+    if (modalDownload) {
+      modalDownload.onclick = async () => {
+        if (_currentBuild) {
+          await generatePDF([_currentBuild], _lastCurrency, modalDownload, true);
+        }
       };
     }
 
@@ -530,11 +585,20 @@
   function openBuildModal(build, currency) {
     const overlay = document.getElementById('bb-modal-overlay');
     const isOver  = !build.withinBudget;
+    const isCompatible = build.compatible !== false;
+
+    // Set current build for modal download
+    _currentBuild = build;
 
     // Header
     document.getElementById('bb-modal-tier-badge').textContent = build.tier || 'Recommended Build';
     document.getElementById('bb-modal-title').textContent      = build.buildName;
     document.getElementById('bb-modal-tagline').textContent    = build.tagline || '';
+
+    // Compatibility badge
+    const compatibilityBadge = isCompatible 
+      ? `<div class="bb-compatibility-badge compatible">✅ All parts verified compatible</div>`
+      : `<div class="bb-compatibility-badge incompatible">⚠️ ${build.compatibilityNote || 'Compatibility issues detected'}</div>`;
 
     // Parts list
     const partsHtml = (build.parts || []).map(p => {
@@ -546,18 +610,22 @@
           <div class="bb-modal-part-info">
             <div class="bb-modal-part-name">${p.name}</div>
             ${qty > 1 ? `<div class="bb-modal-part-qty">× ${qty} units</div>` : ''}
-            <div class="bb-modal-part-reason">${p.reason || ''}</div>
+            ${p.reason ? `<div class="bb-modal-part-reason">${p.reason}</div>` : ''}
           </div>
           <div class="bb-modal-part-price">${currency} ${Number(totalPrice).toLocaleString()}</div>
         </div>`;
     }).join('');
 
-    const missingHtml = (build.missingCategories || []).length
+    const missingHtml = (build.missingCategories && build.missingCategories.length > 0)
       ? `<div class="bb-modal-missing">⚠️ Not available in store: ${build.missingCategories.join(', ')}</div>`
       : '';
 
     document.getElementById('bb-modal-content').innerHTML = `
-      <div class="bb-modal-summary">${build.summary || ''}</div>
+      ${compatibilityBadge}
+
+      ${build.summary ? `
+        <div class="bb-modal-summary">${build.summary}</div>
+      ` : ''}
 
       <div class="bb-modal-section-label">Components</div>
       ${partsHtml}
@@ -585,6 +653,204 @@
     };
   }
 
+  // ─── PDF GENERATION ───────────────────────────────────────
+  async function generatePDF(builds, currency, btn, singleBuild = false) {
+    // Wait for html2pdf to be loaded
+    if (!window.html2pdf) {
+      btn.innerHTML = '⏳ Loading…';
+      // Poll for html2pdf availability
+      let attempts = 0;
+      const maxAttempts = 20; // Wait up to 2 seconds
+      while (!window.html2pdf && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      if (!window.html2pdf) {
+        btn.innerHTML = '❌ Error';
+        setTimeout(() => { btn.innerHTML = btn.originalText || '📄 PDF'; }, 2000);
+        return;
+      }
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Generating…';
+    btn.disabled = true;
+
+    try {
+      let htmlContent = '';
+
+      if (!singleBuild) {
+        // Cover page for all builds
+        htmlContent += `
+          <div style="page-break-after: always; padding: 60px 40px; font-family: 'Inter', sans-serif; color: #111111; background: #ffffff; min-height: 100vh;">
+            <div style="text-align: center; margin-bottom: 60px;">
+              <h1 style="font-size: 32px; font-weight: 700; color: #111111; margin-bottom: 20px;">Your PC Build Report</h1>
+              <p style="font-size: 16px; color: #666666; margin: 0;">Generated by BuildBot AI</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Generate each build
+      builds.forEach((build, index) => {
+        const isCompatible = build.compatible !== false;
+        const compatibilityBadge = isCompatible 
+          ? `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #edf7f2; color: #1a7a4a; border: 1px solid #1a7a4a; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
+              ✅ All parts verified compatible
+            </div>`
+          : `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef3e2; color: #b45309; border: 1px solid #b45309; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
+              ⚠️ ${build.compatibilityNote || 'Compatibility issues detected'}
+            </div>`;
+
+        const partsTable = (build.parts || []).map(p => {
+          const qty = p.quantity || 1;
+          const totalPrice = p.totalPrice || (p.price * qty);
+          return `
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 8px; vertical-align: top; width: 120px;">
+                <span style="background: #f5f5f5; color: #666666; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                  ${p.category}
+                </span>
+              </td>
+              <td style="padding: 12px 8px; vertical-align: top;">
+                <div style="font-weight: 600; color: #111111; margin-bottom: 4px;">${p.name}</div>
+                ${p.reason ? `<div style="font-size: 11px; color: #666666; line-height: 1.4;">${p.reason}</div>` : ''}
+                ${qty > 1 ? `<div style="display: inline-block; background: #fef3e2; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 4px;">×${qty}</div>` : ''}
+              </td>
+              <td style="padding: 12px 8px; vertical-align: top; text-align: right; width: 120px; font-weight: 600; color: #111111;">
+                ${currency} ${Number(totalPrice).toLocaleString()}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        const missingCategoriesHtml = (build.missingCategories && build.missingCategories.length > 0)
+          ? `<div style="background: #fef3e2; border: 1px solid #b45309; border-radius: 8px; padding: 12px; margin: 16px 0; font-size: 12px; color: #b45309;">
+              ⚠️ Not available in store: ${build.missingCategories.join(', ')}
+            </div>`
+          : '';
+
+        const tipsHtml = build.tips
+          ? `<div style="background: #f8f9fa; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 12px; margin: 16px 0; font-size: 12px; color: #666666; line-height: 1.6;">
+              💡 ${build.tips}
+            </div>`
+          : '';
+
+        const totalBoxStyle = build.withinBudget 
+          ? 'background: #edf7f2; border: 1px solid #1a7a4a; color: #1a7a4a;'
+          : 'background: #fef3e2; border: 1px solid #b45309; color: #b45309;';
+
+        htmlContent += `
+          <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #111111; background: #ffffff; ${singleBuild ? '' : 'page-break-before: always;'}">
+            <!-- Build Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+              <div>
+                <div style="background: rgba(124, 106, 247, 0.1); color: #7c6af7; border: 1px solid rgba(124, 106, 247, 0.2); padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 12px;">
+                  ${build.tier || `Build ${index + 1}`}
+                </div>
+                <h2 style="font-size: 24px; font-weight: 700; color: #111111; margin: 0 0 8px 0;">${build.buildName}</h2>
+                <p style="font-size: 14px; color: #666666; margin: 0; line-height: 1.5;">${build.tagline || build.summary || ''}</p>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 20px; font-weight: 700; color: #111111;">${currency} ${Number(build.totalPrice).toLocaleString()}</div>
+              </div>
+            </div>
+
+            <!-- Compatibility Badge -->
+            ${compatibilityBadge}
+
+            <!-- Why This Build -->
+            ${build.summary ? `
+              <div style="background: #f5f5f5; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 24px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: #111111; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Why This Build?</h3>
+                <p style="font-size: 13px; color: #666666; margin: 0; line-height: 1.6;">${build.summary}</p>
+              </div>
+            ` : ''}
+
+            <!-- Components Table -->
+            <h3 style="font-size: 14px; font-weight: 700; color: #111111; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Components</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background: #f5f5f5;">
+                  <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #111111; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0;">Category</th>
+                  <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #111111; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0;">Part Name + Reason</th>
+                  <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #111111; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0;">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${partsTable}
+              </tbody>
+            </table>
+
+            <!-- Missing Categories -->
+            ${missingCategoriesHtml}
+
+            <!-- Total Cost -->
+            <div style="${totalBoxStyle} border-radius: 12px; padding: 20px; margin: 20px 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 16px; font-weight: 600;">
+                  ${build.withinBudget ? '✅ Total Cost' : '⚠️ Over Budget'}
+                </div>
+                <div style="font-size: 24px; font-weight: 800;">
+                  ${currency} ${Number(build.totalPrice).toLocaleString()}
+                </div>
+              </div>
+              ${build.budgetRemaining > 0 ? `
+                <div style="text-align: right; margin-top: 8px; font-size: 14px; color: #1a7a4a; font-weight: 600;">
+                  ↳ ${currency} ${Number(build.budgetRemaining).toLocaleString()} remains from your budget
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Tips -->
+            ${tipsHtml}
+
+            <!-- Budget Advice -->
+            ${build.budgetAdvice ? `
+              <div style="background: #f8f9fa; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 12px; margin: 16px 0; font-size: 12px; color: #666666; line-height: 1.6;">
+                💰 ${build.budgetAdvice}
+              </div>
+            ` : ''}
+
+            <!-- Footer -->
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666666;">
+              <div>Generated by BuildBot</div>
+              <div>${new Date().toLocaleDateString()}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      const filename = singleBuild 
+        ? `BuildBot_${builds[0]?.buildName?.replace(/[^a-zA-Z0-9]/g, '_') || 'Build'}.pdf`
+        : 'BuildBot_All_Builds.pdf';
+
+      const opt = {
+        margin: 0,
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+      };
+
+      await window.html2pdf().set(opt).from(htmlContent).save();
+
+      btn.innerHTML = '✅ Downloaded!';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }, 2000);
+
+    } catch (e) {
+      console.error("PDF Gen Error:", e);
+      btn.innerHTML = '❌ Error';
+      setTimeout(() => { 
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }, 2000);
+    }
+  }
+
   // ─── RENDER ERROR ─────────────────────────────────────────
   function renderError(msg, limitReached) {
     document.getElementById('bb-results').innerHTML = `
@@ -593,8 +859,21 @@
         <div class="bb-no-builds-title">${limitReached ? 'Limit Reached' : 'Something went wrong'}</div>
         <div class="bb-no-builds-msg">${msg || "We couldn't generate recommendations right now."}</div>
         <div class="bb-no-builds-suggestion">Please try again later or contact the store directly.</div>
+        ${!limitReached ? '<button class="bb-btn" style="margin-top: 16px;" onclick="retryBuild()">Try Again</button>' : ''}
       </div>`;
     document.getElementById('bb-download-btn').style.display = 'none';
+  }
+
+  // Retry function for error state
+  function retryBuild() {
+    const budget = $('bb-budget').value;
+    const extraText = $('bb-extras-text').value;
+    const allExtras = [...selectedExtras, extraText].filter(Boolean).join(', ');
+    
+    if (budget && selectedPurpose) {
+      // Trigger build button click to retry
+      $('bb-build-btn').click();
+    }
   }
 
   initWidget();

@@ -110,11 +110,13 @@ router.post('/recommend', async (req, res) => {
         totalPrice: Math.round(budgetNum * 0.75),
         withinBudget: true,
         budgetRemaining: Math.round(budgetNum * 0.25),
+        compatible: true,
+        compatibilityNote: '',
         parts: [
-          { category: 'CPU',     name: 'Test CPU Budget',   price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3),  reason: 'Good value for ' + purpose },
+          { category: 'CPU',     name: 'Test CPU Budget',   price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3), reason: 'Good value for ' + purpose },
           { category: 'RAM',     name: 'Test RAM 8GB',      price: Math.round(budgetNum*0.15),quantity:1, totalPrice: Math.round(budgetNum*0.15), reason: 'Minimum for smooth use' },
-          { category: 'Storage', name: 'Test HDD 1TB',      price: Math.round(budgetNum*0.1), quantity:1, totalPrice: Math.round(budgetNum*0.1),  reason: 'Affordable storage' },
-          { category: 'PSU',     name: 'Test PSU 450W',     price: Math.round(budgetNum*0.2), quantity:1, totalPrice: Math.round(budgetNum*0.2),  reason: 'Sufficient power' },
+          { category: 'Storage', name: 'Test HDD 1TB',      price: Math.round(budgetNum*0.1), quantity:1, totalPrice: Math.round(budgetNum*0.1), reason: 'Affordable storage' },
+          { category: 'PSU',     name: 'Test PSU 450W',     price: Math.round(budgetNum*0.2), quantity:1, totalPrice: Math.round(budgetNum*0.2), reason: 'Sufficient power' },
         ],
         missingCategories: ['Motherboard', 'Case'],
         summary: 'A basic build that covers the essentials. Best for tight budgets.',
@@ -128,6 +130,8 @@ router.post('/recommend', async (req, res) => {
         totalPrice: Math.round(budgetNum * 0.88),
         withinBudget: true,
         budgetRemaining: Math.round(budgetNum * 0.12),
+        compatible: true,
+        compatibilityNote: '',
         parts: [
           { category: 'CPU',     name: 'Test CPU Mid',      price: Math.round(budgetNum*0.35),quantity:1, totalPrice: Math.round(budgetNum*0.35), reason: 'Great performance for ' + purpose },
           { category: 'RAM',     name: 'Test RAM 16GB',     price: Math.round(budgetNum*0.18),quantity:1, totalPrice: Math.round(budgetNum*0.18), reason: 'Sweet spot for multitasking' },
@@ -146,9 +150,11 @@ router.post('/recommend', async (req, res) => {
         totalPrice: Math.round(budgetNum * 0.97),
         withinBudget: true,
         budgetRemaining: Math.round(budgetNum * 0.03),
+        compatible: true,
+        compatibilityNote: '',
         parts: [
           { category: 'CPU',     name: 'Test CPU High-End', price: Math.round(budgetNum*0.38),quantity:1, totalPrice: Math.round(budgetNum*0.38), reason: 'Top performance for ' + purpose },
-          { category: 'GPU',     name: 'Test GPU',          price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3),  reason: 'Handles demanding tasks' },
+          { category: 'GPU',     name: 'Test GPU',          price: Math.round(budgetNum*0.3), quantity:1, totalPrice: Math.round(budgetNum*0.3), reason: 'Handles demanding tasks' },
           { category: 'RAM',     name: 'Test RAM 32GB',     price: Math.round(budgetNum*0.15),quantity:1, totalPrice: Math.round(budgetNum*0.15), reason: 'Maximum RAM for future proofing' },
           { category: 'Storage', name: 'Test NVMe 1TB',     price: Math.round(budgetNum*0.14),quantity:1, totalPrice: Math.round(budgetNum*0.14), reason: 'Fast and spacious' },
         ],
@@ -177,7 +183,7 @@ router.post('/recommend', async (req, res) => {
   // REAL AI MODE
   const prompt = `You are an expert PC build advisor for a Pakistani PC parts store.
 
-  CUSTOMER REQUIREMENTS:
+CUSTOMER REQUIREMENTS:
   - Budget: ${parsedBudget} ${currency}
   - Purpose: ${purpose}
   - Extras requested: ${extras || 'None'}
@@ -186,19 +192,19 @@ router.post('/recommend', async (req, res) => {
   ${productList}
   
   YOUR TASK:
-  Create exactly THREE different PC build options using ONLY the products listed above.
+  Create exactly THREE different PC build options using ONLY products listed above.
   Each build must be distinct in price tier and component balance.
   
   BUILD TIERS TO CREATE:
-  1. "Budget Build" — Use 70-80% of the budget. Best value. No frills.
-  2. "Balanced Build" — Use 88-95% of the budget. Best performance per rupee.  
+  1. "Budget Build" — Use 70-80% of budget. Best value. No frills.
+  2. "Balanced Build" — Use 88-95% of budget. Best performance per rupee.  
   3. "Max Build" — Use as close to 100% of budget as possible. Best performance within budget.
   
   IMPORTANT RULES:
-  1. ONLY use products that exist EXACTLY in the list above. Never invent products.
-  2. Each build must have different total prices (not the same components rearranged).
+  1. ONLY use products that exist EXACTLY in list above. Never invent products.
+  2. Each build must have different total prices (not just same components rearranged).
   3. If budget is under 30,000 ${currency}: Set canBuild to false and explain in noBuildsReason.
-  4. If the store has no products affordable under budget: Set canBuild to false.
+  4. If store has no products affordable under budget: Set canBuild to false.
   5. If you cannot make 3 distinct builds (e.g. store has too few products), make as many as you can (minimum 1).
   6. QUANTITIES: You can recommend multiple units (e.g. 2x RAM). Multiply price by quantity.
   7. Compatibility: Match CPU socket to motherboard, RAM type to board, PSU wattage to GPU.
@@ -208,6 +214,22 @@ router.post('/recommend', async (req, res) => {
      - Office/Studies: Value CPU, 8GB RAM, SSD — keep it cheap
      - Coding: 16GB RAM, fast CPU, SSD
      - Designing: GPU, RAM, display quality
+
+  COMPATIBILITY CHECKING:
+  When selecting PC components, you MUST verify that all parts are compatible with each other before including them in a build. Specifically check:
+  - CPU socket matches the motherboard socket (e.g. AM5, LGA1700)
+  - RAM type and speed are supported by the motherboard (DDR4 vs DDR5)
+  - PSU wattage covers all components combined with at least 20% headroom
+  - GPU power connectors match what the PSU provides
+  - CPU cooler TDP rating meets or exceeds the CPU TDP
+  - M.2 SSD interface matches the motherboard slot (NVMe vs SATA)
+  - Case form factor supports the motherboard size (ATX, mATX, ITX)
+
+  For each build in your JSON response, include:
+  - "compatible": true or false
+  - "compatibilityNote": a short explanation if compatible is false
+
+  For each part object, include a "reason" field: one sentence explaining why this specific part was chosen and how it works with the other components in this build.
   
   Respond ONLY in this exact JSON format, no extra text, no markdown:
   {
@@ -221,6 +243,8 @@ router.post('/recommend', async (req, res) => {
         "totalPrice": 0,
         "withinBudget": true,
         "budgetRemaining": 0,
+        "compatible": true,
+        "compatibilityNote": "",
         "parts": [
           {
             "category": "CPU",
@@ -228,7 +252,7 @@ router.post('/recommend', async (req, res) => {
             "price": 0,
             "quantity": 1,
             "totalPrice": 0,
-            "reason": "Why this part was chosen for this build"
+            "reason": "Why this part was chosen for this build and how it works with other components"
           }
         ],
         "missingCategories": [],

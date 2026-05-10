@@ -1921,6 +1921,7 @@
       padding: 10px 12px;
       transition: border-color 0.15s, box-shadow 0.15s;
       font-family: 'DM Sans', system-ui, sans-serif;
+      width: 100%;
     }
     #page-signup input::placeholder,
     #page-login input::placeholder,
@@ -1994,6 +1995,7 @@
       box-shadow: none;
       transition: background 0.15s, transform 0.12s;
       justify-content: center;
+      cursor: pointer;
     }
     #page-signup .btn.btn-primary.btn-full:hover,
     #page-login .btn.btn-primary.btn-full:hover,
@@ -2854,6 +2856,57 @@
         btn.innerText = origText;
       }
     }
+    // ─── ENTER KEY FUNCTIONALITY ─────────────────────────────
+    function setupAuthEnterKeyHandlers() {
+      // Signup form
+      const signupInputs = ['signup-name', 'signup-email', 'signup-password'];
+      signupInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const signupBtn = document.querySelector('#page-signup .btn-primary');
+              if (signupBtn && !signupBtn.disabled) {
+                signupBtn.click();
+              }
+            }
+          });
+        }
+      });
+
+      // Login form
+      const loginInputs = ['login-email', 'login-password'];
+      loginInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const loginBtn = document.querySelector('#page-login .btn-primary');
+              if (loginBtn && !loginBtn.disabled) {
+                loginBtn.click();
+              }
+            }
+          });
+        }
+      });
+
+      // Forgot password form
+      const forgotInput = document.getElementById('forgot-email');
+      if (forgotInput) {
+        forgotInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const forgotBtn = document.querySelector('#page-forgot .btn-primary');
+            if (forgotBtn && !forgotBtn.disabled) {
+              forgotBtn.click();
+            }
+          }
+        });
+      }
+    }
+
     // ─── INIT ─────────────────────────────────────────────────
     window.onload = async () => {
       if (!localStorage.getItem('bb_store_mode')) {
@@ -2862,6 +2915,9 @@
       setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
       updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
       applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
+      
+      // Setup Enter key handlers for auth forms
+      setupAuthEnterKeyHandlers();
 
       if (token && currentStore) {
         // Logged-in UI hint: show dashboard link in nav.

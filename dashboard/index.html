@@ -2983,6 +2983,11 @@
         nav.style.display = (name === 'landing') ? 'flex' : 'none';
       }
       
+      // Setup Enter key handlers for auth pages
+      if (name === 'signup' || name === 'login' || name === 'forgot') {
+        setTimeout(() => setupAuthEnterKeyHandlers(), 100);
+      }
+      
       if (name === 'landing') {
         initScrollAnimations();
         initInteractiveEffects();
@@ -3375,7 +3380,7 @@ function escHtml(str) {
 
     function showAlert(id, msg, type) {
       const el = document.getElementById(id);
-      el.textContent = msg;
+      el.innerHTML = msg;
       el.className = `alert alert-${type} show`;
       setTimeout(() => el.className = 'alert', 4000);
     }

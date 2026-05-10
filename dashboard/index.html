@@ -2845,12 +2845,12 @@
         });
         const data = await res.json();
         if (data.success) {
-          showAlert('forgot-alert', '✅ ' + data.message, 'success');
+          showAlert('forgot-alert', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M22 11.08V12a10 10 0 1 1-10 10H10a10 10 0 1 1-10 10v1.92M22 4.92a10 10 0 1 1-10 10v1.92M22 4.92a10 10 0 1 1-10 10v1.92"/></svg> ' + data.message, 'success');
         } else {
-          showAlert('forgot-alert', '❌ ' + data.error, 'error');
+          showAlert('forgot-alert', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> ' + data.error, 'error');
         }
       } catch {
-        showAlert('forgot-alert', '❌ Cannot connect to server.', 'error');
+        showAlert('forgot-alert', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Cannot connect to server.', 'error');
       } finally {
         btn.disabled = false;
         btn.innerText = origText;
@@ -2858,20 +2858,23 @@
     }
     // ─── ENTER KEY FUNCTIONALITY ─────────────────────────────
     function setupAuthEnterKeyHandlers() {
+      // Use keydown instead of keypress for better compatibility
+      const handleEnter = (e, buttonSelector) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const btn = document.querySelector(buttonSelector);
+          if (btn && !btn.disabled) {
+            btn.click();
+          }
+        }
+      };
+
       // Signup form
       const signupInputs = ['signup-name', 'signup-email', 'signup-password'];
       signupInputs.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
-          input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const signupBtn = document.querySelector('#page-signup .btn-primary');
-              if (signupBtn && !signupBtn.disabled) {
-                signupBtn.click();
-              }
-            }
-          });
+          input.addEventListener('keydown', (e) => handleEnter(e, '#page-signup .btn-primary'));
         }
       });
 
@@ -2880,30 +2883,14 @@
       loginInputs.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
-          input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const loginBtn = document.querySelector('#page-login .btn-primary');
-              if (loginBtn && !loginBtn.disabled) {
-                loginBtn.click();
-              }
-            }
-          });
+          input.addEventListener('keydown', (e) => handleEnter(e, '#page-login .btn-primary'));
         }
       });
 
       // Forgot password form
       const forgotInput = document.getElementById('forgot-email');
       if (forgotInput) {
-        forgotInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            const forgotBtn = document.querySelector('#page-forgot .btn-primary');
-            if (forgotBtn && !forgotBtn.disabled) {
-              forgotBtn.click();
-            }
-          }
-        });
+        forgotInput.addEventListener('keydown', (e) => handleEnter(e, '#page-forgot .btn-primary'));
       }
     }
 

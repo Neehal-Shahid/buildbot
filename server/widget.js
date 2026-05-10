@@ -14,6 +14,8 @@
   // Store build data for PDF access
   let _lastBuilds = [];
   let _lastCurrency = 'PKR';
+  let _currentBuild = null;
+  let _budgetPresets = [50000, 80000, 120000, 200000];
 
   if (!STORE_ID) { console.error('BuildBot: No data-store-id found.'); return; }
 
@@ -43,33 +45,31 @@
   // ─── INIT ─────────────────────────────────────────────────
   async function initWidget() {
     try {
-      fetch(`${API}/store-config/${STORE_ID}`)
-        .then(r => r.json())
-        .then(storeConfig => {
-          if (storeConfig.brandColor) BRAND_COLOR = storeConfig.brandColor;
-          if (storeConfig.widgetBg)   WIDGET_BG   = storeConfig.widgetBg;
-          if (storeConfig.currency)    CURRENCY    = storeConfig.currency;
-          if (storeConfig.widgetTitle) WIDGET_TITLE = storeConfig.widgetTitle;
-          if (storeConfig.welcomeMessage) WELCOME_MSG = storeConfig.welcomeMessage;
-          if (storeConfig.buttonText)  BUTTON_TEXT  = storeConfig.buttonText;
-          
-          // Store budget presets for later use
-          if (storeConfig.budgetPresets && Array.isArray(storeConfig.budgetPresets)) {
-            window._bbBudgetPresets = storeConfig.budgetPresets;
-          }
-          
-          injectStyles();
-          injectHTML();
-          bindEvents();
-        })
-        .catch(err => {
-          console.error('Failed to load store config:', err);
-          // Fallback to defaults
-          injectStyles();
-          injectHTML();
-          bindEvents();
-        });
-    } catch(e) {}
+      const res = await fetch(`${API}/store-config/${STORE_ID}`);
+      const storeConfig = await res.json();
+      
+      if (storeConfig.brandColor) BRAND_COLOR = storeConfig.brandColor;
+      if (storeConfig.widgetBg)   WIDGET_BG   = storeConfig.widgetBg;
+      if (storeConfig.currency)    CURRENCY    = storeConfig.currency;
+      if (storeConfig.widgetTitle) WIDGET_TITLE = storeConfig.widgetTitle;
+      if (storeConfig.welcomeMessage) WELCOME_MSG  = storeConfig.welcomeMessage;
+      if (storeConfig.buttonText)  BUTTON_TEXT  = storeConfig.buttonText;
+      
+      // Store budget presets for later use
+      if (storeConfig.budgetPresets && Array.isArray(storeConfig.budgetPresets)) {
+        _budgetPresets = storeConfig.budgetPresets;
+      }
+      
+      injectStyles();
+      injectHTML();
+      bindEvents();
+    } catch (err) {
+      console.error('BuildBot: Failed to load store config, using defaults.', err);
+      // Fallback to defaults
+      injectStyles();
+      injectHTML();
+      bindEvents();
+    }
   }
 
   // ─── STYLES ───────────────────────────────────────────────
@@ -245,7 +245,7 @@
             <div id="bb-modal-title"></div>
             <div id="bb-modal-tagline"></div>
           </div>
-          <div>
+          <div style="display:flex;align-items:center;">
             <button id="bb-modal-download">📄 PDF</button>
             <button id="bb-modal-close">✕</button>
           </div>
@@ -262,7 +262,6 @@
   function bindEvents() {
     let selectedPurpose = '';
     let selectedExtras  = [];
-    let _currentBuild = null;
     const $ = id => document.getElementById(id);
 
     // Helper functions for error handling
@@ -276,7 +275,7 @@
     }
 
     // Initialize budget chips from presets
-    const presets = window._bbBudgetPresets || [50000, 80000, 120000, 200000];
+    const presets = _budgetPresets;
     const budgetChipsContainer = document.getElementById('bb-budget-chips');
     if (budgetChipsContainer) {
       budgetChipsContainer.innerHTML = presets.map(val => 
@@ -462,7 +461,7 @@
         $('bb-s5').classList.remove('active');
         $('bb-s6').classList.add('active');
         setProgress(100);
-        renderError('Could not connect. Please try again.');
+        renderError('Could not connect. Please try again.', false, () => $('bb-build-btn').click());
       }
     };
 
@@ -475,6 +474,7 @@
         c.classList.remove('sel');
         c.setAttribute('aria-pressed', 'false');
       });
+      document.querySelectorAll('.bb-load-step').forEach(s => s.classList.remove('active', 'done'));
       goTo('s6','s1',0);
     };
 
@@ -488,6 +488,13 @@
         document.getElementById('bb-modal-overlay').classList.remove('open');
       };
     }
+
+    // Close modal on overlay click
+    document.getElementById('bb-modal-overlay').onclick = (e) => {
+      if (e.target === document.getElementById('bb-modal-overlay')) {
+        document.getElementById('bb-modal-overlay').classList.remove('open');
+      }
+    };
 
     // Modal download button
     const modalDownload = document.getElementById('bb-modal-download');
@@ -646,11 +653,6 @@
         : ''}`;
 
     overlay.classList.add('open');
-
-    // Close on overlay click
-    overlay.onclick = (e) => {
-      if (e.target === overlay) overlay.classList.remove('open');
-    };
   }
 
   // ─── PDF GENERATION ───────────────────────────────────────
@@ -852,29 +854,21 @@
   }
 
   // ─── RENDER ERROR ─────────────────────────────────────────
-  function renderError(msg, limitReached) {
+  function renderError(msg, limitReached, onRetry) {
     document.getElementById('bb-results').innerHTML = `
       <div class="bb-no-builds">
         <span class="bb-no-builds-icon">${limitReached ? '⏳' : '😔'}</span>
         <div class="bb-no-builds-title">${limitReached ? 'Limit Reached' : 'Something went wrong'}</div>
         <div class="bb-no-builds-msg">${msg || "We couldn't generate recommendations right now."}</div>
         <div class="bb-no-builds-suggestion">Please try again later or contact the store directly.</div>
-        ${!limitReached ? '<button class="bb-btn" style="margin-top: 16px;" onclick="retryBuild()">Try Again</button>' : ''}
+        ${!limitReached ? '<button class="bb-btn bb-retry-btn" style="margin-top: 16px;">Try Again</button>' : ''}
       </div>`;
     document.getElementById('bb-download-btn').style.display = 'none';
-  }
-
-  // Retry function for error state
-  function retryBuild() {
-    const budget = $('bb-budget').value;
-    const extraText = $('bb-extras-text').value;
-    const allExtras = [...selectedExtras, extraText].filter(Boolean).join(', ');
     
-    if (budget && selectedPurpose) {
-      // Trigger build button click to retry
-      $('bb-build-btn').click();
-    }
+    const retryBtn = document.querySelector('.bb-retry-btn');
+    if (retryBtn && onRetry) retryBtn.onclick = onRetry;
   }
 
+  
   initWidget();
 })();

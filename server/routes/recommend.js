@@ -22,6 +22,7 @@ router.post('/recommend', async (req, res) => {
   }
   
   const { budget, purpose, extras, storeId } = req.body;
+const safeExtras = (extras || '').trim().slice(0, 200);
 
   if (!budget || !purpose || !storeId)
     return res.status(400).json({ error: 'budget, purpose and storeId required' });
@@ -79,7 +80,7 @@ router.post('/recommend', async (req, res) => {
   const cachedRec = await analyticsDB.getCachedRecommendation(storeId, parsedBudget, purpose, extras || '');
   if (cachedRec) {
     // We still log it so analytics are accurate, but it costs 0 credits
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', cachedRec);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, cachedRec);
     // If cached rec is old single-build format (has .buildName), wrap it
     const isOldFormat = cachedRec.buildName !== undefined && !cachedRec.builds;
     return res.json({
@@ -164,7 +165,7 @@ router.post('/recommend', async (req, res) => {
         budgetAdvice: 'Budget nearly fully used. You\'re getting the most out of your money.'
       }
     ];
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', fakeBuilds[1]);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, fakeBuilds[1]);
     return res.json({
       success: true,
       builds: fakeBuilds,
@@ -186,7 +187,7 @@ router.post('/recommend', async (req, res) => {
 CUSTOMER REQUIREMENTS:
   - Budget: ${parsedBudget} ${currency}
   - Purpose: ${purpose}
-  - Extras requested: ${extras || 'None'}
+  - Extras requested: ${safeExtras || 'None'}
   
   AVAILABLE PRODUCTS IN THIS STORE:
   ${productList}

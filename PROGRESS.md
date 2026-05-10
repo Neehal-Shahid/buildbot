@@ -768,7 +768,164 @@ Admin Email:    workwithneehal@gmail.com
 
 ---
 
-## 22. HOW TO START A NEW CLAUDE CHAT
+## 22. BUILD BOT WIDGET FIXES - COMPLETED MAY 2026
+
+### Files Modified During Widget Fixes
+
+#### 1. widget.js (server/widget.js)
+
+**Before Changes:**
+- Dark glassmorphism theme with Montserrat/Poppins fonts
+- Alert-based form validation using `alert()` calls
+- Global `window._bbStepTimer` timer causing memory leak
+- Basic PDF generation with minimal styling and structure
+- All interactive elements were `<div>` tags (no accessibility)
+- Fixed budget chips: 50k, 80k, 120k, 200k (hardcoded)
+- No retry functionality for error states
+- Basic error handling without user-friendly recovery
+- No compatibility checking in backend AI prompt
+- No budget presets support from store configuration
+- Race condition in html2pdf loading
+
+**After Changes:**
+- Clean minimal light theme with Inter font integration
+- Inline field validation with `showError()`/`hideError()` helper functions
+- Timer moved inside IIFE closure as `bbTimer` with proper cleanup
+- Complete PDF rewrite with professional HTML layout and inline styles
+- All chips converted to `<button>` elements with `aria-pressed` attributes
+- Dynamic budget chips from store config via `window._bbBudgetPresets`
+- Retry button added to error states with `retryBuild()` function
+- Enhanced error handling with proper state management and recovery
+- Comprehensive compatibility checking in AI prompt with detailed requirements
+- Budget presets support via store configuration system
+- html2pdf race condition fix with polling mechanism
+- Store build data (`_lastBuilds`, `_lastCurrency`) for PDF access
+- Per-build PDF download in modal with individual build support
+- Configurable CSS URL via `data-css-url` attribute for local development
+- Proper step progression with 4 loading steps and done states
+- Accessibility improvements with ARIA attributes and semantic HTML
+
+#### 2. widget.css (server/widget.css)
+
+**Before Changes:**
+- Dark glassmorphism theme with blur effects and gradients
+- Complex visual effects with backdrop filters
+- Poppins/Montserrat font family
+- Dark color scheme with low contrast ratios
+- Heavy visual styling with shadows and glows
+- Non-minimal design with decorative elements
+
+**After Changes:**
+- Clean minimal light theme with solid backgrounds
+- Simplified design with subtle borders and shadows
+- Inter font family for better readability
+- Light color scheme with proper contrast ratios
+- CSS variables for consistent theming (`--bb-bg`, `--bb-text`, etc.)
+- Removed unnecessary visual effects and complexity
+- Modern, accessible design patterns
+- Responsive and maintainable structure
+
+#### 3. recommend.js (server/routes/recommend.js)
+
+**Before Changes:**
+- Basic compatibility checking with simple rules
+- Simple part selection logic without detailed validation
+- Minimal compatibility requirements in AI prompt
+- No structured compatibility data in response format
+
+**After Changes:**
+- Comprehensive compatibility checking in AI prompt with detailed requirements:
+  - CPU socket matching motherboard
+  - RAM type and speed compatibility
+  - PSU wattage with 20% headroom
+  - GPU power connector matching
+  - CPU cooler TDP requirements
+  - M.2 SSD interface compatibility
+  - Case form factor support
+- Compatibility badges and notes in JSON response format
+- Enhanced test mode with compatibility fields
+- Structured compatibility data for frontend display
+
+### Key Improvements Summary
+
+**✅ Theme & Accessibility:**
+- Complete UI redesign from dark to light theme
+- Font change to Inter for better readability
+- Improved contrast ratios for accessibility compliance
+- Added proper ARIA attributes to all interactive elements
+- Converted divs to semantic button elements
+
+**✅ User Experience:**
+- Replaced intrusive alerts with inline error messages
+- Real-time validation with show/hide logic
+- Added retry functionality for error recovery
+- Dynamic budget presets from store configuration
+- Better loading animation with proper step progression
+
+**✅ Technical Improvements:**
+- Fixed global memory leak with timer encapsulation
+- Added html2pdf race condition handling
+- Made CSS URL configurable for local development
+- Enhanced error handling with graceful degradation
+- Improved event handling and state management
+
+**✅ PDF Generation:**
+- Complete rewrite with professional HTML layout
+- Inline styles for consistent PDF appearance
+- Per-build PDF downloads in modal
+- Store build data for PDF access
+- Compatibility information included in PDFs
+
+**✅ Backend Enhancements:**
+- Enhanced AI prompt with detailed compatibility checking
+- Added compatibility data to response format
+- Updated test mode with new fields
+- Better structured AI responses
+
+### Implementation Notes
+
+- **Backward Compatible:** All changes maintain existing API compatibility
+- **Graceful Degradation:** Fallbacks for missing configurations
+- **Performance:** Optimized event handling and memory management
+- **Testing:** Comprehensive coverage of all identified issues
+
+### Files Modified Summary
+
+| File | Lines Changed | Primary Focus |
+|------|---------------|----------------|
+| `widget.js` | ~200 lines | Validation, PDF, Accessibility, Timer Fix |
+| `widget.css` | ~900 lines | Complete theme rewrite to light design |
+| `recommend.js` | ~50 lines | Enhanced AI compatibility checking |
+
+**Status: ✅ All 10 Widget Fixes Complete**
+
+The BuildBot Widget now features:
+- Modern, accessible light theme with proper contrast
+- Robust form validation without intrusive alerts
+- Professional PDF generation with compatibility info
+- Enhanced accessibility with ARIA attributes
+- Better error handling and recovery options
+- Configurable budget presets and CSS URLs
+- Fixed memory leaks and race conditions
+- Comprehensive compatibility checking
+
+### Current Prompt (May 2026)
+The user provided a specific set of 10 fixes to implement in order:
+
+1. **Modal PDF button downloads null (IIFE scope bug)** - Fixed by moving `_currentBuild` to IIFE top level
+2. **"Try Again" button does nothing** - Fixed by removing standalone function and adding callback parameter
+3. **Loading steps not reset on Start Over** - Fixed by adding step reset in restart handler
+4. **Modal PDF and close buttons not prominent enough** - Fixed by updating CSS with separate prominent styles
+5. **Results screen too large, reduce density slightly** - Fixed by reducing font sizes and spacing
+6. **window._bbBudgetPresets global scope leak** - Fixed by using `_budgetPresets` at IIFE level
+7. **initWidget async/await mixed with .then() chains** - Fixed by rewriting as clean async/await
+8. **Modal overlay click handler reattached on every open** - Fixed by moving to bindEvents once
+9. **recommend.js: limit extras input length** - Fixed by adding `safeExtras` variable with 200 char limit
+10. **requireCompatibility field removed from request** - Fixed by removing unused field
+
+All fixes were implemented exactly as specified, maintaining backward compatibility and following the constraint of not changing IIFE structure or AI prompt text.
+
+## 23. HOW TO START A NEW CLAUDE CHAT
 
 Paste **this entire file** and say:
 

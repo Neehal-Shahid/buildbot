@@ -1,6 +1,116 @@
 # BuildBot — Complete Project Documentation
-> Last Updated: May 2026
-> Paste this into any new Claude chat to continue instantly
+> Last Updated: 10 May 2026  
+> This file is the canonical project brain; it may appear as `PROGRESS.md` or `progress.md` depending on the OS.
+
+**Paste the whole file into a new Cursor / ChatGPT / Claude thread** when you want a fresh model to pick up full context. For day-to-day work, read **§0 first**, then §1–4, then the section you are implementing.
+
+---
+
+## 0. AI HANDOFF — CONTEXT, ROADMAP, AND HOW TO CONTINUE
+
+### 0.1 What this product is (one paragraph)
+
+BuildBot is B2B SaaS for PC parts retailers. Store owners configure a catalog (manual CSV/CRUD in the dashboard **or** WooCommerce sync via a WordPress plugin). Shoppers use an embedded **widget** (`server/widget.js` served from Railway) to enter budget, purpose, and extras; the backend (`server/routes/recommend.js`) loads allowed products from Turso, optionally uses caching, calls **Anthropic Claude** (Haiku), and returns **three** tiered builds. Limits apply by plan (trial / Starter / Growth / Pro). Payments are manual JazzCash/EasyPaisa with admin approval. Email goes through **Resend**.
+
+### 0.2 Canonical entry points (do not guess paths)
+
+| Area | File(s) |
+|------|---------|
+| **Landing + login/signup** | `dashboard/index.html` → redirects authenticated users to `dashboard/dashboard.html` |
+| **Logged-in store app** | `dashboard/dashboard.html` (sidebar tabs: Overview, Store & sync, Products, Analytics, Install Widget, Widget Settings, Billing, Account, Help) |
+| **Admin** | `dashboard/admin.html` |
+| **API + widget bundle** | `server/index.js`, `server/widget.js`, `server/routes/*.js` |
+| **WooCommerce plugin** | `plugin/buildbot-woocommerce/buildbot-woocommerce.php` (zip copied to `server/` for download) |
+| **Sample CSV** | `buildbot-template.csv` |
+
+Local API URL switching lives in `dashboard/config.js`.
+
+### 0.3 Catalog modes (critical UX rule — implemented Step 1)
+
+Stores distinguish **Manual / CSV** vs **WooCommerce** using `localStorage` key `bb_store_mode` (`custom` vs `woo`).
+
+- **Manual / CSV:** Owner manages products in BuildBot; **Install Widget** tab shows the `<script>` embed snippet.
+- **WooCommerce:** Widget is injected by the **plugin**; owner uses **Store ID + plugin secret** in WordPress. The **Install Widget** sidebar item and mobile Install tab are **hidden**; `publishWidgetCTA()` sends users to **Store & sync** instead. Direct `showTab('embed')` redirects to Store when mode is Woo.
+
+Implementation anchors in `dashboard/dashboard.html`: `catalogModeIsManual`, `publishWidgetCTA`, `updateInstallWidgetNavVisibility`, guard at top of `showTab`.
+
+### 0.4 System dependency graph
+
+```mermaid
+flowchart TB
+  subgraph clients [Clients]
+    WP[WooCommerce plugin]
+    BR[Shopper browser]
+    DA[Store dashboard]
+    AD[Admin panel]
+  end
+  subgraph railway [Railway API]
+    API[Express]
+    WJS["widget.js + CSS"]
+    REC[recommend.js]
+    PLG[plugin.js]
+    AUTH[auth.js + routes]
+  end
+  subgraph external [External]
+    CLAUDE[Anthropic API]
+    RESEND[Resend]
+    TURSO[(Turso SQLite)]
+  end
+  BR --> WJS
+  WJS --> API
+  DA --> AUTH
+  AD --> AUTH
+  WP --> PLG
+  REC --> CLAUDE
+  REC --> TURSO
+  PLG --> TURSO
+  AUTH --> TURSO
+  AUTH --> RESEND
+```
+
+### 0.5 Recommendation path (widget → AI)
+
+```mermaid
+sequenceDiagram
+  participant U as Customer
+  participant W as Widget
+  participant API as POST /api/recommend
+  participant DB as Turso
+  participant AI as Claude
+  U->>W: budget purpose extras
+  W->>API: JSON body + storeId
+  API->>DB: store limits products
+  alt cache hit
+    API-->>W: cached builds
+  else cache miss
+    API->>AI: prompt + catalog subset
+    AI-->>API: JSON builds
+    API->>DB: persist + cache
+    API-->>W: builds
+  end
+```
+
+### 0.6 Phased roadmap (execute in order; small PR-sized steps)
+
+| Phase | Theme | Examples |
+|-------|--------|----------|
+| **A — Launch credibility** | Production hygiene | Remove `TEST_MODE` / `RESEND_TEST_EMAIL`, verify Resend domain, Railway hobby vs cold start, optional combined settings endpoint |
+| **B — Truth & polish** | Correctness + UX | Apply `widget_bg` in `server/widget.js` (known gap §16), structured AI output + server-side validation of picked SKUs, clearer limit copy in widget |
+| **C — Stickiness** | Retention / insight | Weekly owner emails, “most recommended products,” Woo category mapping UI |
+| **D — Scale** | Enterprise-ish | Shared rate limit store (Redis), REST Woo alternative, teams/roles, white-label |
+
+### 0.7 Step log (what was agreed “step by step”)
+
+- **Step 1 — DONE (May 2026):** Dashboard IA for Install Widget vs WooCommerce (`dashboard/dashboard.html`) + this `PROGRESS.md` refresh (§0, §4, §12, §15).
+- **Step 2 — NEXT (suggested):** Fix **§16 item 7** — wire `widget_bg` from store config into `server/widget.js` init so dashboard preview matches production.
+
+### 0.8 Instructions for the next AI session
+
+1. Read **§0** and **§3–§7** of this file so you know stack, schema, and endpoints.  
+2. Confirm the **current step** with the user (default: **Step 2** above unless they redirect).  
+3. Implement **one step at a time**; after each step, update **§0.7** and **§15/§16** if behavior or bugs changed.  
+4. Prefer editing **`dashboard/dashboard.html`** for store UI and **`server/widget.js`** for the embed bundle (Railway serves from `server/`, not `widget/`).  
+5. Do not assume React — the dashboard is **vanilla JS**.
 
 ---
 
@@ -76,10 +186,11 @@ buildbot/                          ← Root (on Desktop)
 ├── buildbot-template.csv          ← Sample CSV for store owners
 │
 ├── widget/
-│   └── test.html                  ← Local widget test page
+│   └── index.html                 ← Local widget smoke-test page (opens served widget.js)
 │
 ├── dashboard/                     ← Deployed on Vercel
-│   ├── index.html                 ← Landing + Login + Full Dashboard (5 tabs)
+│   ├── index.html                 ← Landing + Login / Signup (routes to dashboard.html when logged in)
+│   ├── dashboard.html             ← Logged-in store owner app (all sidebar tabs)
 │   ├── admin.html                 ← Admin panel (Neehal only)
 │   ├── verify.html                ← Email verification landing page
 │   ├── reset-password.html        ← Password reset page
@@ -345,18 +456,22 @@ Must live in server/widget.js (not widget/widget.js)
 ## 12. DASHBOARD FEATURES
 
 ```
-Landing Page: Hero, features grid, pricing table (3 plans)
+Landing Page (index.html): Hero, features grid, pricing table (3 plans)
 Signup: Strong password enforcement + strength bar + email verification
 Login: JWT stored in localStorage + server validation on every page load
 Forgot Password: Email reset link with 1-hour expiry
 
-5 Dashboard Tabs:
+Logged-in app (dashboard.html) — sidebar tabs:
 
-HOME TAB:
+OVERVIEW (home):
 - Stats: recommendations, products, avg budget, today count
 - Trial limit warning with upgrade link (3/day on trial)
-- Embed code with copy button
+- Getting-started journey (catalog mode aware)
 - Recent activity table
+
+STORE & SYNC:
+- Permanent catalog source: Manual / CSV vs WooCommerce (bb_store_mode)
+- WooCommerce: plugin download, secret key, connection/s sync context
 
 PRODUCTS TAB:
 - Search by name/description
@@ -374,6 +489,11 @@ ANALYTICS TAB:
 - Popular purposes bar chart
 - Daily activity last 7 days bar chart
 
+INSTALL WIDGET TAB:
+- Only visible when catalog mode is Manual / CSV (not WooCommerce)
+- Script snippet + copy; layout preview; “Mark as Live” helpers
+- WooCommerce stores use the WordPress plugin instead (Store & sync)
+
 BILLING TAB:
 - Current plan display with status badge
 - Plan selector (Starter/Growth/Pro)
@@ -381,15 +501,11 @@ BILLING TAB:
 - Transaction ID submission form
 - Payment history table with status badges
 
-SETTINGS TAB:
-- Brand color picker + hex input (live preview)
-- Widget background color picker (glassmorphism)
-- Currency selector (PKR/USD/AED)
-- Widget title input (max 30 chars)
-- Welcome message textarea (max 200 chars)
-- Button text input (max 20 chars)
-- Live widget first-screen preview
-- WooCommerce Auto-Sync section (see below)
+WIDGET SETTINGS + BILLING + ACCOUNT + HELP:
+- Widget Settings: brand/bg colors, currency, title, welcome message, button text, preview
+- Billing: plans, manual payment submission, history
+- Account: profile/security
+- Help & Docs: quick links (Install → publishWidgetCTA routes correctly per catalog mode)
 ```
 
 ---
@@ -497,6 +613,7 @@ Features:
 - [x] Graceful AI Fallback UI in widget (handles Anthropic API downtime gracefully)
 - [x] Premium SaaS UI/UX Redesign for WooCommerce Plugin Admin Dashboard
 - [x] Fixed duplicate product database bug (Syncing now matches strictly by `woo_id`)
+- [x] Install Widget navigation hidden for WooCommerce catalog mode; CTAs use Store & sync (`dashboard/dashboard.html`)
 
 ---
 
@@ -574,9 +691,10 @@ npx serve .
 # Runs at: http://localhost:3000
 
 # URLs:
-# Dashboard:    http://localhost:3000
+# Landing/login: http://localhost:3000/index.html
+# Store app:     http://localhost:3000/dashboard.html
 # Admin:        http://localhost:3000/admin.html
-# Widget test:  http://localhost:3000/test.html
+# Widget smoke test: open widget/index.html in browser (file:// or serve repo root)
 # Verify:       http://localhost:3000/verify.html
 # Reset:        http://localhost:3000/reset-password.html
 ```
@@ -652,9 +770,8 @@ Admin Email:    workwithneehal@gmail.com
 
 ## 22. HOW TO START A NEW CLAUDE CHAT
 
-Paste this entire file and say:
-> "I am building BuildBot. Here is my complete PROGRESS.md documentation.
-> I want to continue from where I left off.
-> Today I want to work on: [SPECIFIC THING]"
+Paste **this entire file** and say:
 
-Claude will read this and immediately understand everything without re-explanation.
+> I am building BuildBot. Here is my PROGRESS.md. Read **§0** first. We work **step by step**. Last completed step is in **§0.7**. Today implement: **[YOUR STEP]** — then update §0.7 and §15/§16 if anything changed.
+
+The model should treat §0 as the authoritative continuation guide.

@@ -1190,7 +1190,7 @@
             Analytics
           </div>
 
-          <div class="sidebar-item" onclick="showTab('embed')" id="tab-embed">
+          <div class="sidebar-item" onclick="publishWidgetCTA()" id="tab-embed">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>
             Install Widget
             <span class="sidebar-status-dot" id="embed-status-dot"></span>
@@ -1281,7 +1281,7 @@
                     <div style="font-size:11px;color:var(--muted);">Step 3</div>
                     <div style="font-size:13px;font-weight:600;color:var(--text);margin:2px 0 6px;">Publish widget</div>
                     <div style="font-size:11px;" id="journey-step-live">Pending</div>
-                    <button class="btn btn-sm" onclick="showTab('embed')" style="margin-top:8px;">Go Live</button>
+                    <button class="btn btn-sm" onclick="publishWidgetCTA()" style="margin-top:8px;">Go Live</button>
                   </div>
                 </div>
               </div>
@@ -1722,7 +1722,7 @@
           <div id="analytics-empty-state" class="card empty-state" style="display:none;">
             <div class="es-title">Analytics populate once your widget is live</div>
             <div class="es-sub">Go live to start collecting session and recommendation metrics.</div>
-            <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Install widget</button>
+            <button class="btn btn-primary btn-sm" onclick="publishWidgetCTA()">Install widget</button>
           </div>
 
           <div class="stats-grid">
@@ -2177,7 +2177,7 @@
             <h2>Getting started</h2>
             <p style="margin-bottom:14px;">Most stores go live in under 2 minutes.</p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="btn btn-primary btn-sm" onclick="showTab('embed')">Install widget</button>
+              <button class="btn btn-primary btn-sm" onclick="publishWidgetCTA()">Install widget</button>
               <button class="btn btn-outline btn-sm" onclick="showTab('store')">Store &amp; sync</button>
               <button class="btn btn-outline btn-sm" onclick="showTab('products')">Manage products</button>
               <button class="btn btn-outline btn-sm" onclick="showTab('billing')">View billing</button>
@@ -2696,23 +2696,30 @@
       }
     }
     
-    function refreshOverviewState() {
-      const isLive = localStorage.getItem('bb_widget_live') === '1';
-      const homeOverview = document.getElementById('home-overview-state');
-      const homeActive = document.getElementById('home-active-state');
-      if (homeOverview && homeActive) {
-        if (isLive) {
-          homeOverview.style.display = 'none';
-          homeActive.style.display = 'block';
-        } else {
-          homeOverview.style.display = 'block';
-          homeActive.style.display = 'none';
-        }
-      }
+// ─── CATALOG MODE (manual vs WooCommerce) ─────────────────
+    function catalogModeIsManual() {
+      return (localStorage.getItem('bb_store_mode') || 'custom') !== 'woo';
+    }
+
+    function publishWidgetCTA() {
+      if (catalogModeIsManual()) showTab('embed');
+      else showTab('store');
+    }
+
+    function updateInstallWidgetNavVisibility() {
+      var manual = catalogModeIsManual();
+      var tabEmbed = document.getElementById('tab-embed');
+      var mobEmbed = document.getElementById('mobile-tab-embed');
+      if (tabEmbed) tabEmbed.style.display = manual ? '' : 'none';
+      if (mobEmbed) mobEmbed.style.display = manual ? '' : 'none';
     }
 
 // ─── TABS ─────────────────────────────────────────────────
     function showTab(name) {
+      if (name === 'embed' && !catalogModeIsManual()) {
+        showTab('store');
+        return;
+      }
       document.querySelectorAll('[id^="tab-content-"]').forEach(t => t.style.display = 'none');
       document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.mobile-tab').forEach(s => s.classList.remove('active'));
@@ -3863,6 +3870,10 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
           document.getElementById('tab-content-store').style.display !== 'none') {
         switchProductView(mode);
       }
+      if (mode === 'woo') {
+        var embedPane = document.getElementById('tab-content-embed');
+        if (embedPane && embedPane.style.display === 'block') showTab('store');
+      }
       toast.success(`Store mode switched to ${mode === 'woo' ? 'WooCommerce' : 'Manual / CSV'}.`);
       updateOnboardingJourney();
     }
@@ -3872,6 +3883,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var wooBtn = document.getElementById('store-mode-woo-btn');
       if (customBtn) customBtn.style.borderColor = mode === 'custom' ? 'var(--border-2)' : '#d7deee';
       if (wooBtn) wooBtn.style.borderColor = mode === 'woo' ? 'var(--border-2)' : '#d7deee';
+      updateInstallWidgetNavVisibility();
     }
 
     function updateTrialChip() {
@@ -3895,7 +3907,14 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var live = localStorage.getItem('bb_widget_live') === '1';
       var k1 = document.getElementById('kpi-embed');
       var k2 = document.getElementById('kpi-live');
-      if (k1) k1.textContent = `Embed copied: ${embedCopied ? 'Yes' : 'No'}`;
+      if (k1) {
+        if (catalogModeIsManual()) {
+          k1.style.display = '';
+          k1.textContent = `Embed copied: ${embedCopied ? 'Yes' : 'No'}`;
+        } else {
+          k1.style.display = 'none';
+        }
+      }
       if (k2) k2.textContent = `Live status: ${live ? 'Live' : 'Pending'}`;
       var cta = document.getElementById('tab-embed');
       if (cta) cta.classList.toggle('cta-glow', !live);
@@ -3992,6 +4011,8 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       if (stepLive) {
         if (live) {
           stepLive.textContent = 'Widget is live on your store';
+        } else if (mode === 'woo') {
+          stepLive.textContent = 'Install plugin, paste Store ID & secret, enable widget in WordPress';
         } else if (embedCopied) {
           stepLive.textContent = 'Embed copied. Paste on website to finish';
         } else {
@@ -4001,7 +4022,10 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       var productsDone = mode === 'woo' ? false : productsCount > 0;
       if (stepStore) stepStore.className = 'journey-step ' + (storeConfigured ? 'step-done' : 'step-pending');
       if (stepProducts) stepProducts.className = 'journey-step ' + (productsDone ? 'step-done' : 'step-pending');
-      if (stepLive) stepLive.className = 'journey-step ' + (live ? 'step-done' : embedCopied ? 'step-active' : 'step-pending');
+      if (stepLive) {
+        var liveStepState = live ? 'step-done' : (mode === 'woo' ? 'step-active' : embedCopied ? 'step-active' : 'step-pending');
+        stepLive.className = 'journey-step ' + liveStepState;
+      }
     }
 
   </script>
@@ -4018,7 +4042,7 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
       <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Products
     </button>
-    <button class="mobile-tab" onclick="showTab('embed')">
+    <button class="mobile-tab" onclick="publishWidgetCTA()" id="mobile-tab-embed">
       <svg class="mobile-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M20.07 4.93a10 10 0 0 1 0 14.14"/><path d="M3.93 19.07a10 10 0 0 1 0-14.14"/></svg>
       Install
     </button>

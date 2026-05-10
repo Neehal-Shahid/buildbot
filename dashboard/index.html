@@ -24,9 +24,9 @@
       --muted: #888;
       --success: #2ecc71;
       --danger: #e74c3c;
-      --auth-bg: #f8f9fb;
+      --auth-bg: #f7f8fa;
       --auth-surface: #ffffff;
-      --auth-border: #e5e7eb;
+      --auth-border: #e4e7ed;
       --auth-border-focus: #4f46e5;
       --auth-text: #111827;
       --auth-muted: #6b7280;
@@ -37,11 +37,11 @@
       --auth-success: #059669;
       --auth-danger: #dc2626;
       --auth-danger-bg: #fef2f2;
-      --auth-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      --auth-shadow: 0 1px 3px rgba(17, 24, 39, 0.05), 0 1px 2px rgba(17, 24, 39, 0.04);
     }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'DM Sans', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -1913,13 +1913,14 @@
     #page-signup input,
     #page-login input,
     #page-forgot input {
-      background: var(--auth-bg);
+      background: var(--auth-surface);
       border: 1px solid var(--auth-border);
-      border-radius: 9px;
+      border-radius: 6px;
       color: var(--auth-text);
-      font-size: 13.5px;
-      padding: 10px 13px;
+      font-size: 14px;
+      padding: 10px 12px;
       transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: 'DM Sans', system-ui, sans-serif;
     }
     #page-signup input::placeholder,
     #page-login input::placeholder,
@@ -2645,7 +2646,6 @@
      SIGNUP
 ═══════════════════════════════════════════════ -->
   <div class="page" id="page-signup">
-    <!-- Back to home -->
     <div class="auth-back" onclick="showPage('landing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Back to home
@@ -2654,28 +2654,9 @@
     <div class="auth-wrap">
       <div class="auth-box">
 
-        <!-- Header -->
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-          <div style="width:32px;height:32px;background:var(--auth-accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          </div>
-          <span style="font-size:15px;font-weight:700;color:var(--auth-text);font-family:'Montserrat',sans-serif;">BuildBot</span>
-        </div>
-
         <h2>Create your account</h2>
-        <p>14-day free trial. No card required.</p>
+        <p>Start your 14-day free trial</p>
 
-        <!-- Google Sign-In -->
-        <div id="g_id_onload" data-client_id="343388814382-ksp0ou4kgv5kalo75vo467f9dhpbef1t.apps.googleusercontent.com"
-          data-context="signup" data-ux_mode="popup" data-callback="handleGoogleCredentialResponse"
-          data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-          data-text="signup_with" data-size="large" data-logo_alignment="left"></div>
-
-        <div class="divider">or continue with email</div>
-
-        <!-- Fields -->
         <div class="form-group">
           <label class="form-label">Store Name</label>
           <input type="text" id="signup-name" placeholder="e.g. TechZone Lahore" autocomplete="organization" />
@@ -2697,22 +2678,6 @@
             <div id="signup-strength-bar" style="height:100%;border-radius:2px;transition:all .3s;width:0;"></div>
           </div>
           <div style="font-size:11px;color:var(--auth-dim);line-height:1.5;">Use uppercase, lowercase, number and special character.</div>
-        </div>
-
-        <!-- Store mode -->
-        <div class="form-group">
-          <label class="form-label">How do you manage products?</label>
-          <div style="display:flex;gap:8px;" id="signup-store-mode-switcher">
-            <button type="button" class="btn btn-sm" id="signup-mode-custom" onclick="setSignupStoreMode('custom')" style="flex:1;justify-content:center;border-radius:9px;border:1.5px solid var(--auth-accent);background:var(--auth-accent-light);color:var(--auth-accent);font-weight:600;font-size:13px;padding:9px 12px;display:flex;align-items:center;gap:6px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Manual / CSV
-            </button>
-            <button type="button" class="btn btn-sm" id="signup-mode-woo" onclick="setSignupStoreMode('woo')" style="flex:1;justify-content:center;border-radius:9px;border:1.5px solid var(--auth-border);background:var(--auth-surface);color:var(--auth-muted);font-weight:500;font-size:13px;padding:9px 12px;display:flex;align-items:center;gap:6px;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-              WooCommerce
-            </button>
-          </div>
-          <div style="font-size:11px;color:var(--auth-dim);margin-top:7px;">You can change this later in settings.</div>
         </div>
 
         <button class="btn btn-primary btn-full" onclick="doSignup(this)">Create account</button>
@@ -2961,13 +2926,20 @@
 
     // ─── PAGE ROUTING ─────────────────────────────────────────
     function showPage(name) {
-      // If someone opened the dedicated dashboard entry, never route to landing.
+      // If someone opened dedicated dashboard entry, never route to landing.
       if (FORCE_DASHBOARD && name === 'landing') name = 'login';
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
       document.body.classList.toggle('landing-mode', name === 'landing');
       document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot');
       document.body.classList.toggle('dashboard-mode', name === 'app');
+      
+      // Hide/show header based on page
+      const nav = document.getElementById('main-nav');
+      if (nav) {
+        nav.style.display = (name === 'landing') ? 'flex' : 'none';
+      }
+      
       if (name === 'landing') {
         initScrollAnimations();
         initInteractiveEffects();

@@ -2857,6 +2857,21 @@
 
     const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
     const FORCE_DASHBOARD = new URLSearchParams(window.location.search).get('dashboard') === '1';
+    function clearSession() {
+      localStorage.removeItem('bb_token');
+      localStorage.removeItem('bb_store');
+      localStorage.removeItem('bb_token_expires');
+    }
+
+    function isSessionExpired() {
+      const expires = localStorage.getItem('bb_token_expires');
+      if (!expires) return false; // old sessions without expiry: don't force logout, let server verify
+      return Date.now() > Number(expires);
+    }
+
+    // Auto-clear expired session before anything else runs
+    if (isSessionExpired()) clearSession();
+
     let token = localStorage.getItem('bb_token');
     function readStoreFromStorage() {
       try {
@@ -2975,9 +2990,19 @@
       setupAuthEnterKeyHandlers();
 
       if (token && currentStore) {
-        // Logged-in UI hint: show dashboard link in nav.
+        // Check session expiry first
+        if (isSessionExpired()) {
+          clearSession();
+          showPage(FORCE_DASHBOARD ? 'login' : 'landing');
+          return;
+        }
+
+        // Update activity timestamp
+        updateLastActivity();
+
+        // Show dashboard link immediately if token exists in storage
         const dashLink = document.getElementById('nav-dashboard-link');
-        if (dashLink) dashLink.style.display = 'inline-flex';
+        if (dashLink && token && currentStore) dashLink.style.display = 'inline-flex';
 
         // Verify token is still valid on server
         try {
@@ -3090,6 +3115,7 @@
         if (data.success) {
           localStorage.setItem('bb_token', data.token);
           localStorage.setItem('bb_store', JSON.stringify(data.store));
+          localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
           token = data.token;
           currentStore = data.store;
 
@@ -3374,6 +3400,7 @@
           localStorage.removeItem('bb_store');
           localStorage.setItem('bb_token', token);
           localStorage.setItem('bb_store', JSON.stringify(currentStore));
+          localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
           window.location.href = 'dashboard.html';
         } else {
           showAlert('signup-alert', data.error, 'error');
@@ -3411,6 +3438,7 @@
           localStorage.removeItem('bb_store');
           localStorage.setItem('bb_token', token);
           localStorage.setItem('bb_store', JSON.stringify(currentStore));
+          localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
           window.location.href = 'dashboard.html';
         } else {
           showAlert('login-alert', data.error, 'error');
@@ -3427,6 +3455,7 @@
       token = null; currentStore = null;
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
+      localStorage.removeItem('bb_token_expires');
       showPage('landing');
       document.getElementById('nav-links').style.display = 'flex';
       document.getElementById('nav-user').style.display = 'none';

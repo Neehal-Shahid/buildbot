@@ -128,7 +128,7 @@ function welcomeEmail(storeName, email) {
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
-        <a href="${APP_URL}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Dashboard</a>
+        <a href="${APP_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Dashboard</a>
       </td>
     </tr></table>
 
@@ -189,7 +189,7 @@ function paymentApprovedEmail(storeName, email, plan) {
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
-        <a href="${APP_URL}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Dashboard</a>
+        <a href="${APP_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Dashboard</a>
       </td>
     </tr></table>
 
@@ -228,7 +228,7 @@ function paymentRejectedEmail(storeName, email, plan) {
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
-        <a href="${APP_URL}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Resubmit Payment</a>
+        <a href="${APP_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Resubmit Payment</a>
       </td>
     </tr></table>
 
@@ -266,7 +266,7 @@ function trialEndingEmail(storeName, email, daysLeft) {
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
-        <a href="${APP_URL}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Upgrade Now</a>
+        <a href="${APP_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Upgrade Now</a>
       </td>
     </tr></table>
 

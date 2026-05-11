@@ -2274,10 +2274,15 @@
 
   <script>
     const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
-    let token = localStorage.getItem('bb_token');
+    const token = localStorage.getItem('bb_token');
+    const tokenExpires = localStorage.getItem('bb_token_expires');
+    const isExpired = tokenExpires && Date.now() > Number(tokenExpires);
     let currentStore = JSON.parse(localStorage.getItem('bb_store') || 'null');
 
-    if (!token || !currentStore) {
+    if (!token || isExpired) {
+      localStorage.removeItem('bb_token');
+      localStorage.removeItem('bb_store');
+      localStorage.removeItem('bb_token_expires');
       window.location.href = 'index.html';
     }
 

@@ -1,11 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BuildBot – Admin Panel</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <style>
+File to edit: dashboard/admin.html only. Do not touch any file in server/. Do not create new files.
+Goal: Redesign the admin panel to match the light theme, design system, and component quality of dashboard.html. Fix all critical bugs. Improve UX. Keep all API calls, function names, and element IDs identical unless a fix explicitly requires changing them.
+
+PART 1 — Design System (Replace all CSS)
+Delete the entire existing <style> block and replace with this design system that mirrors dashboard.html:
+css<style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 *, body, input, select, textarea, button { font-family: 'DM Sans', system-ui, sans-serif; }
 h1, h2, h3, h4 { font-family: 'DM Sans', system-ui, sans-serif; font-weight: 700; }
@@ -305,11 +303,12 @@ input::placeholder { color: var(--dim); }
   .main { padding: 16px; }
 }
 </style>
-  <script src="config.js"></script>
-</head>
-<body>
+Also add this in <head> right after the existing <meta> tags — the Google Font link:
+html<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<div id="admin-login">
+PART 2 — Replace Login HTML
+Find the entire <div id="admin-login"> block and replace it:
+html<div id="admin-login">
   <div class="login-wrap">
 
     <!-- LOGIN FORM -->
@@ -395,10 +394,9 @@ input::placeholder { color: var(--dim); }
   </div>
 </div>
 
-<!-- APP -->
-<div id="admin-app" style="display:none;">
-
-  <nav>
+PART 3 — Replace Nav HTML
+Find the <nav> block and replace it:
+html<nav>
   <div style="display:flex;align-items:center;">
     <div class="nav-logo">
       <div class="nav-logo-mark">
@@ -414,8 +412,9 @@ input::placeholder { color: var(--dim); }
   </div>
 </nav>
 
-  <div class="layout">
-    <div class="sidebar">
+PART 4 — Replace Sidebar HTML
+Find the sidebar div and replace it:
+html<div class="sidebar">
   <div class="sb-sep">Platform</div>
   <div class="sb-item active" onclick="showTab('overview')" id="atab-overview">
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -445,7 +444,9 @@ input::placeholder { color: var(--dim); }
   </div>
 </div>
 
-    <div class="main">
+PART 5 — Replace Main Content HTML
+Replace everything inside <div class="main"> with this. Make sure ALL tab divs are INSIDE .main — this fixes the critical layout bug where settings and dbhealth were outside the layout div:
+html<div class="main">
 
   <!-- OVERVIEW -->
   <div id="tab-overview">
@@ -647,10 +648,10 @@ input::placeholder { color: var(--dim); }
   </div>
 
 </div><!-- end .main -->
-</div>
-</div>
 
-<!-- APPROVE MODAL -->
+PART 6 — Replace Modals HTML
+Replace all three modal divs (approve, disable, delete) with:
+html<!-- APPROVE MODAL -->
 <div class="modal-bg" id="approve-modal">
   <div class="modal">
     <div class="modal-icon" style="background:var(--success-bg);color:var(--success);">
@@ -686,7 +687,7 @@ input::placeholder { color: var(--dim); }
 <div class="modal-bg" id="delete-modal">
   <div class="modal">
     <div class="modal-icon" style="background:var(--danger-bg);color:var(--danger);">
-      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2 2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4"/></svg>
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
     </div>
     <h3>Delete Store Permanently</h3>
     <p>This will permanently delete the store and ALL their products, payments, recommendations and data. This cannot be undone.</p>
@@ -700,27 +701,11 @@ input::placeholder { color: var(--dim); }
 
 <!-- TOAST CONTAINER -->
 <div class="toast-wrap" id="toast-wrap"></div>
-<script>
-const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
-let adminToken = localStorage.getItem('bb_admin_token');
-let allStoresData = [];
-let pendingAction = null;
 
-// ─── INIT ─────────────────────────────────────────────
-window.onload = () => {
-  const params = new URLSearchParams(window.location.search);
-  const resetToken = params.get('reset_token');
-  
-  if (resetToken) {
-    document.getElementById('login-form-box').style.display = 'none';
-    document.getElementById('reset-form-box').style.display = 'block';
-    window.resetTokenVal = resetToken;
-  } else if (adminToken) {
-    enterAdmin();
-  }
-};
-
-function togglePassword(inputId, iconEl) {
+PART 7 — Fix and Replace JavaScript
+In the <script> block, make these specific changes:
+7a. Replace togglePassword function — remove emoji, use SVG:
+jsfunction togglePassword(inputId, iconEl) {
   const input = document.getElementById(inputId);
   const isHidden = input.type === 'password';
   input.type = isHidden ? 'text' : 'password';
@@ -728,8 +713,8 @@ function togglePassword(inputId, iconEl) {
     ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
     : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
 }
-
-function showToast(title, msg, type = 'success') {
+7b. Add showToast function — replace showAlert as primary notification method for actions:
+jsfunction showToast(title, msg, type = 'success') {
   const wrap = document.getElementById('toast-wrap');
   if (!wrap) return;
   const id = 'toast-' + Date.now();
@@ -740,353 +725,19 @@ function showToast(title, msg, type = 'success') {
   wrap.appendChild(el);
   setTimeout(() => { const t = document.getElementById(id); if (t) t.remove(); }, 4000);
 }
-
-function toggleForgot() {
-  const loginBox = document.getElementById('login-form-box');
-  const forgotBox = document.getElementById('forgot-form-box');
-  if (loginBox.style.display === 'none') {
-    loginBox.style.display = 'block';
-    forgotBox.style.display = 'none';
-  } else {
-    loginBox.style.display = 'none';
-    forgotBox.style.display = 'block';
-  }
-}
-
-async function adminForgotPassword() {
-  const email = document.getElementById('forgot-email').value.trim();
-  if (!email) return showAlert('forgot-alert', 'Email is required', 'error');
-  try {
-    const res = await fetch(`${API}/admin/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert('forgot-alert', data.message, 'success');
-    } else {
-      showAlert('forgot-alert', data.error, 'error');
-    }
-  } catch {
-    showAlert('forgot-alert', 'Server error', 'error');
-  }
-}
-
-async function adminResetPassword() {
-  const password = document.getElementById('reset-password').value;
-  if (!password) return showAlert('reset-alert', 'Password is required', 'error');
-  try {
-    const res = await fetch(`${API}/admin/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: window.resetTokenVal, password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert('reset-alert', 'Password reset! You can now login.', 'success');
-      setTimeout(() => window.location.href = 'admin.html', 2000);
-    } else {
-      showAlert('reset-alert', data.error, 'error');
-    }
-  } catch {
-    showAlert('reset-alert', 'Server error', 'error');
-  }
-}
-
-// ─── LOGIN ────────────────────────────────────────────
-async function adminLogin() {
-  const email    = document.getElementById('adm-email').value.trim();
-  const password = document.getElementById('adm-password').value;
-
-  try {
-    const res  = await fetch(`${API}/admin/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      adminToken = data.token;
-      localStorage.setItem('bb_admin_token', adminToken);
-      enterAdmin();
-    } else {
-      showAlert('adm-login-alert', data.error, 'error');
-    }
-  } catch {
-    showAlert('adm-login-alert', 'Cannot connect to server.', 'error');
-  }
-}
-
-function adminLogout() {
-  adminToken = null;
-  localStorage.removeItem('bb_admin_token');
-  document.getElementById('admin-app').style.display   = 'none';
-  document.getElementById('admin-login').style.display = 'block';
-}
-
-function handleAdminAuthError(data) {
-  const msg = (data && (data.error || data.message) || '').toLowerCase();
-  if (msg.includes('token') || msg.includes('unauthorized') || msg.includes('invalid')) {
-    showAlert('adm-login-alert', 'Session expired. Please login again.', 'error');
-    adminLogout();
-    return true;
-  }
-  return false;
-}
-
-function enterAdmin() {
-  document.getElementById('admin-login').style.display = 'none';
-  document.getElementById('admin-app').style.display   = 'block';
-  loadOverview();
-  // Show admin name in nav
-  fetch(`${API}/admin/me`, { headers: { 'Authorization': `Bearer ${adminToken}` } })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success && d.admin) {
-        const el = document.getElementById('nav-admin-name');
-        if (el) el.textContent = d.admin.name;
-      }
-    }).catch(() => {});
-}
-
-// ─── TABS ─────────────────────────────────────────────
-function showTab(name) {
-  ['overview','stores','payments','analytics','settings','dbhealth'].forEach(t => {
-    document.getElementById(`tab-${t}`).style.display   = 'none';
-    document.getElementById(`atab-${t}`).classList.remove('active');
+7c. Fix rejectPayment — add missing storeId and plan parameters:
+Replace the existing rejectPayment function with:
+jsasync function rejectPayment(id, storeId, plan) {
+  await fetch(`${API}/admin/reject-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+    body: JSON.stringify({ id, storeId, plan })
   });
-  document.getElementById(`tab-${name}`).style.display = 'block';
-  document.getElementById(`atab-${name}`).classList.add('active');
-
-  if (name === 'overview')  loadOverview();
-  if (name === 'stores')    loadStores();
-  if (name === 'payments')  loadPayments();
-  if (name === 'analytics') loadPlatformAnalytics();
-  if (name === 'settings')  loadAdminSettings();
+  showToast('Payment rejected', 'The store has been notified.', 'warning');
+  loadPayments();
 }
-
-async function runDbAudit() {
-  const out = document.getElementById('db-audit-out');
-  const meta = document.getElementById('db-audit-meta');
-  if (meta) { meta.style.display = 'block'; meta.textContent = 'Running…'; }
-  if (out) out.textContent = 'Running DB integrity audit…';
-
-  try {
-    const res = await fetch(`${API}/admin/db-audit`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) throw new Error(data.error || 'Audit failed');
-
-    const ts = new Date().toLocaleString();
-    if (meta) meta.textContent = `Last run: ${ts}`;
-
-    const lines = [];
-    lines.push('COUNTS');
-    for (const [k, v] of Object.entries(data.counts || {})) lines.push(`- ${k}: ${v}`);
-    lines.push('');
-    lines.push('ORPHANS (should be 0)');
-    lines.push(`- products: ${data.orphans?.products ?? 0}`);
-    lines.push(`- recommendations: ${data.orphans?.recommendations ?? 0}`);
-    lines.push(`- payments: ${data.orphans?.payments ?? 0}`);
-    lines.push(`- trial_emails_sent: ${data.orphans?.trialEmailsSent ?? 0}`);
-    if ((data.orphans?.orphanProductsTop || []).length) {
-      lines.push('');
-      lines.push('Top orphan product store_ids:');
-      for (const row of data.orphans.orphanProductsTop) lines.push(`- ${row.store_id}: ${row.c}`);
-    }
-    lines.push('');
-    lines.push('TOKENS');
-    lines.push(`- expired: ${data.tokens?.expired ?? 0}`);
-    lines.push(`- used: ${data.tokens?.used ?? 0}`);
-    lines.push('');
-    lines.push('NOTES');
-    for (const n of (data.notes || [])) lines.push(`- ${n}`);
-
-    if (out) out.textContent = lines.join('\n');
-  } catch (err) {
-    if (meta) meta.textContent = 'Failed';
-    if (out) out.textContent = `Audit failed: ${err.message}`;
-  }
-}
-
-async function loadAdminSettings() {
-  try {
-    const res = await fetch(`${API}/admin/me`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (data.success && data.admin) {
-      document.getElementById('prof-name').value = data.admin.name || '';
-      document.getElementById('prof-email').value = data.admin.email || '';
-    }
-  } catch (e) { }
-}
-
-async function saveAdminProfile() {
-  const name = document.getElementById('prof-name').value.trim();
-  const email = document.getElementById('prof-email').value.trim();
-  try {
-    const res = await fetch(`${API}/admin/profile`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
-      body: JSON.stringify({ name, email })
-    });
-    const data = await res.json();
-    if (data.success) showAlert('prof-alert', 'Profile saved successfully!', 'success');
-    else showAlert('prof-alert', data.error, 'error');
-  } catch (e) {
-    showAlert('prof-alert', 'Server error', 'error');
-  }
-}
-
-async function saveAdminPassword() {
-  const currentPassword = document.getElementById('cp-current').value;
-  const newPassword = document.getElementById('cp-new').value;
-  try {
-    const res = await fetch(`${API}/admin/password`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
-      body: JSON.stringify({ currentPassword, newPassword })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showAlert('cp-alert', 'Password changed successfully!', 'success');
-      document.getElementById('cp-current').value = '';
-      document.getElementById('cp-new').value = '';
-    } else {
-      showAlert('cp-alert', data.error, 'error');
-    }
-  } catch (e) {
-    showAlert('cp-alert', 'Server error', 'error');
-  }
-}
-
-// ─── OVERVIEW ─────────────────────────────────────────
-async function loadOverview() {
-  try {
-    const res  = await fetch(`${API}/admin/overview`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
-
-    const { stores, totalRecs, revenue, pending } = data;
-
-    document.getElementById('ov-stores').textContent  = stores.length;
-    document.getElementById('ov-recs').textContent    = totalRecs;
-    document.getElementById('ov-revenue').textContent =
-      'Rs ' + Number(revenue).toLocaleString();
-    document.getElementById('ov-pending').textContent = pending.length;
-
-    // Pending badge and sidebar count
-    const pendingCount = pending.length;
-    const badge = document.getElementById('pending-badge');
-    const sbCount = document.getElementById('sb-pending-count');
-    if (badge) {
-      badge.textContent = `${pendingCount} pending`;
-      badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
-    }
-    if (sbCount) {
-      sbCount.textContent = pendingCount;
-      sbCount.style.display = pendingCount > 0 ? 'inline-flex' : 'none';
-    }
-    
-    if (pendingCount > 0) {
-      document.getElementById('pending-alert-card').style.display = 'block';
-      document.getElementById('ov-pending-table').innerHTML =
-        pending.map(p => `
-          <tr>
-            <td>${safeText(p.name)}</td>
-            <td><span class="badge badge-primary">${p.plan}</span></td>
-            <td>Rs ${Number(p.amount).toLocaleString()}</td>
-            <td>${safeText(p.method)}</td>
-            <td style="font-family:monospace;">${safeText(p.transaction_ref)}</td>
-            <td>
-              <button class="btn btn-success btn-sm"
-                onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
-                ✅ Approve
-              </button>
-            </td>
-          </tr>`).join('');
-    } else {
-      document.getElementById('pending-alert-card').style.display = 'none';
-      document.getElementById('ov-pending-table').innerHTML = '';
-    }
-
-    // Recent stores
-    document.getElementById('ov-stores-table').innerHTML =
-      stores.length > 0
-      ? stores.slice(0, 8).map(s => `
-        <tr>
-          <td><strong>${safeText(s.name)}</strong></td>
-          <td>${safeText(s.email)}</td>
-          <td>${planBadge(s.plan)}</td>
-          <td>${new Date(s.created_at).toLocaleDateString()}</td>
-          <td>
-            <button class="btn btn-sm" style="background:#2a2d3e;color:#fff;"
-              onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
-              ⛔ Disable
-            </button>
-          </td>
-        </tr>`).join('')
-      : `<tr><td colspan="5" class="table-empty">No stores registered yet.</td></tr>`;
-
-  } catch(e) { console.error(e); }
-}
-
-// ─── STORES ───────────────────────────────────────────
-async function loadStores() {
-  try {
-    const res  = await fetch(`${API}/admin/stores`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
-    allStoresData = data.stores;
-    renderStores(allStoresData);
-  } catch(e) {}
-}
-
-function renderStores(stores) {
-  const sub = document.getElementById('stores-count-sub');
-  if (sub) sub.textContent = `${stores.length} store${stores.length !== 1 ? 's' : ''} registered`;
-  
-  document.getElementById('stores-table').innerHTML =
-    stores.length > 0
-    ? stores.map(s => `
-      <tr>
-        <td><strong>${safeText(s.name)}</strong></td>
-        <td>${safeText(s.email)}</td>
-        <td>${planBadge(s.plan)}</td>
-        <td><span class="badge ${s.plan_status==='active'?'badge-success':'badge-danger'}">
-          ${s.plan_status}</span></td>
-        <td>${s.product_count || 0}</td>
-        <td>${s.rec_count || 0}</td>
-        <td>${new Date(s.created_at).toLocaleDateString()}</td>
-        <td style="display:flex;gap:6px;">
-          <button class="btn btn-success btn-sm"
-            onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')">✅ Activate</button>
-          <button class="btn btn-danger btn-sm"
-            onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">⛔ Disable</button>
-            <button class="btn btn-danger btn-sm" style="background:#5a1a1a;"
-            onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">🗑️ Delete</button>
-        </td>
-      </tr>`).join('')
-    : `<tr><td colspan="8" class="table-empty">No stores registered yet.</td></tr>`;
-}
-function openDelete(storeId, name) {
+7d. Add missing openDelete and confirmDelete functions:
+jsfunction openDelete(storeId, name) {
   pendingAction = { storeId };
   const decodedName = decodeURIComponent(name || '');
   document.getElementById('delete-details').innerHTML =
@@ -1115,236 +766,75 @@ async function confirmDelete() {
     showToast('Error', 'Could not connect to server.', 'error');
   }
 }
-function filterStores() {
-  const q = document.getElementById('store-search').value.toLowerCase();
-  const filtered = allStoresData.filter(s =>
-    (s.name || '').toLowerCase().includes(q) ||
-    (s.email || '').toLowerCase().includes(q)
-  );
-  renderStores(filtered);
+7e. Fix filterStores — make search case-insensitive:
+Find filterStores and change the filter condition to:
+jsconst q = document.getElementById('store-search').value.toLowerCase();
+const filtered = allStoresData.filter(s =>
+  (s.name || '').toLowerCase().includes(q) ||
+  (s.email || '').toLowerCase().includes(q)
+);
+7f. Update loadStores table render — remove Store ID column (too wide), add delete button, pass storeId and plan to rejectPayment in payments table, update stores count subtitle:
+In the loadStores function, after allStoresData = stores, add:
+jsconst sub = document.getElementById('stores-count-sub');
+if (sub) sub.textContent = `${stores.length} store${stores.length !== 1 ? 's' : ''} registered`;
+In the stores table row HTML, change the actions column buttons so delete calls openDelete:
+js// Change the delete button in the stores table from:
+onclick="openDelete(..."
+// to ensure it passes name encoded:
+onclick="openDelete('${safeText(s.store_id)}', '${encodeURIComponent(s.name || '')}')"
+7g. Update pending payments table render — pass storeId and plan to rejectPayment:
+In loadPayments, in the pending table row HTML, find the reject button and change:
+jsonclick="rejectPayment(${p.id})"
+// to:
+onclick="rejectPayment(${p.id}, '${safeText(p.store_id)}', '${safeText(p.plan)}')"
+7h. Update enterAdmin to show admin name in nav:
+After the existing enterAdmin function body, add a fetch to populate the name:
+jsfunction enterAdmin() {
+  document.getElementById('admin-login').style.display = 'none';
+  document.getElementById('admin-app').style.display = 'block';
+  loadOverview();
+  // Show admin name in nav
+  fetch(`${API}/admin/me`, { headers: { 'Authorization': `Bearer ${adminToken}` } })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success && d.admin) {
+        const el = document.getElementById('nav-admin-name');
+        if (el) el.textContent = d.admin.name;
+      }
+    }).catch(() => {});
 }
-
-// ─── PAYMENTS ─────────────────────────────────────────
-async function loadPayments() {
-  try {
-    const res  = await fetch(`${API}/admin/payments`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
-
-    const pending = data.payments.filter(p => p.status === 'pending');
-    const all     = data.payments;
-
-    document.getElementById('pending-table').innerHTML =
-      pending.length
-        ? pending.map(p => `
-            <tr>
-              <td><strong>${safeText(p.name)}</strong></td>
-              <td>${safeText(p.email)}</td>
-              <td>${planBadge(p.plan)}</td>
-              <td>Rs ${Number(p.amount).toLocaleString()}</td>
-              <td>${safeText(p.method)}</td>
-              <td style="font-family:monospace;">${safeText(p.transaction_ref)}</td>
-              <td>${new Date(p.created_at).toLocaleDateString()}</td>
-              <td style="display:flex;gap:6px;">
-                <button class="btn btn-success btn-sm"
-                  onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
-                  ✅ Approve
-                </button>
-                <button class="btn btn-danger btn-sm"
-                  onclick="rejectPayment(${p.id}, '${safeText(p.store_id)}', '${safeText(p.plan)}')">
-                  ❌ Reject
-                </button>
-              </td>
-            </tr>`).join('')
-        : `<tr><td colspan="8" class="table-empty">No pending payments 🎉</td></tr>`;
-
-    document.getElementById('all-payments-table').innerHTML =
-      all.length > 0
-      ? all.map(p => `
-        <tr>
-          <td>${safeText(p.name)}</td>
-          <td>${planBadge(p.plan)}</td>
-          <td>Rs ${Number(p.amount).toLocaleString()}</td>
-          <td>${safeText(p.method)}</td>
-          <td style="font-family:monospace;font-size:11px;">${safeText(p.transaction_ref)}</td>
-          <td><span class="badge ${
-            p.status==='approved'?'badge-success':
-            p.status==='pending'?'badge-warning':'badge-danger'}">
-            ${p.status}</span></td>
-          <td>${new Date(p.created_at).toLocaleDateString()}</td>
-        </tr>`).join('')
-      : `<tr><td colspan="7" class="table-empty">No payment history.</td></tr>`;
-
-  } catch(e) { console.error(e); }
+7i. Update loadOverview to update pending badge and sidebar count:
+Inside loadOverview, after getting pending count, add:
+jsconst pendingCount = pending || 0;
+const badge = document.getElementById('pending-badge');
+const sbCount = document.getElementById('sb-pending-count');
+if (badge) {
+  badge.textContent = `${pendingCount} pending`;
+  badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
 }
-
-// ─── PLATFORM ANALYTICS ───────────────────────────────
-async function loadPlatformAnalytics() {
-  try {
-    const res  = await fetch(`${API}/admin/overview`, {
-      headers: { 'Authorization': `Bearer ${adminToken}` }
-    });
-    const data = await res.json();
-    if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
-
-    const { stores, totalRecs, revenue } = data;
-
-    const trial = stores.filter(s => s.plan === 'trial').length;
-    const paid  = stores.filter(s => s.plan !== 'trial').length;
-
-    document.getElementById('an-stores').textContent = stores.length;
-    document.getElementById('an-trial').textContent  = trial;
-    document.getElementById('an-paid').textContent   = paid;
-    document.getElementById('an-rev').textContent    = 'Rs ' + Number(revenue).toLocaleString();
-
-    // Top stores
-    const sorted = [...stores].sort((a,b) => (b.rec_count||0) - (a.rec_count||0));
-    document.getElementById('top-stores-table').innerHTML =
-      sorted.length > 0
-      ? sorted.slice(0, 8).map(s => `
-        <tr>
-          <td><strong>${safeText(s.name)}</strong></td>
-          <td>${s.rec_count || 0}</td>
-          <td>${planBadge(s.plan)}</td>
-        </tr>`).join('')
-      : `<tr><td colspan="3" class="table-empty">No stores with recommendations yet.</td></tr>`;
-
-    // Plan distribution
-    const planCounts = {};
-    stores.forEach(s => { planCounts[s.plan] = (planCounts[s.plan]||0) + 1; });
-    const maxPlan = Math.max(...Object.values(planCounts));
-    document.getElementById('plan-dist').innerHTML =
-      Object.entries(planCounts).map(([plan, count]) => `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <div style="width:80px;font-size:12px;color:var(--muted);text-transform:capitalize;">
-            ${plan}</div>
-          <div style="flex:1;background:#0f1117;border-radius:4px;height:20px;overflow:hidden;">
-            <div style="height:100%;background:var(--primary);border-radius:4px;
-              width:${(count/maxPlan*100)}%;transition:width .6s;"></div>
-          </div>
-          <div style="font-size:12px;color:var(--muted);width:20px;">${count}</div>
-        </div>`).join('');
-
-  } catch(e) { console.error(e); }
+if (sbCount) {
+  sbCount.textContent = pendingCount;
+  sbCount.style.display = pendingCount > 0 ? 'inline-flex' : 'none';
 }
+7j. Update confirmApprove to use toast:
+After closeModal() in confirmApprove, add:
+jsshowToast('Payment approved', 'Store plan activated and email sent.', 'success');
+7k. Update confirmDisable to use toast:
+After closeModal() in confirmDisable, add:
+jsshowToast('Store disabled', 'The store widget has been deactivated.', 'warning');
 
-// ─── APPROVE MODAL ────────────────────────────────────
-function openApprove(id, storeId, plan, name, amount) {
-  pendingAction = { id, storeId, plan };
-  const decodedName = decodeURIComponent(name || '');
-  document.getElementById('approve-details').innerHTML = `
-    <div>🏪 Store: <strong>${safeText(decodedName)}</strong></div>
-    <div>📋 Plan: <strong>${safeText(plan)}</strong></div>
-    <div>💰 Amount: <strong>Rs ${Number(amount).toLocaleString()}</strong></div>
-  `;
-  document.getElementById('approve-modal').classList.add('open');
-}
+PART 8 — Add Empty States to Tables
+In the loadStores function, change the empty tbody fallback from nothing to:
+js`<tr><td colspan="8" class="table-empty">No stores registered yet.</td></tr>`
+In loadPayments pending table, change empty to:
+js`<tr><td colspan="8" class="table-empty">No pending payments.</td></tr>`
+In loadPayments all-payments table, change empty to:
+js`<tr><td colspan="7" class="table-empty">No payment history yet.</td></tr>`
 
-async function confirmApprove() {
-  if (!pendingAction) return;
-  try {
-    const res = await fetch(`${API}/admin/approve-payment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
-      body: JSON.stringify(pendingAction)
-    });
-    const data = await res.json();
-    closeModal();
-    if (data.success) {
-      showToast('Payment approved', 'Store plan activated and email sent.', 'success');
-      loadOverview();
-      loadPayments();
-    }
-  } catch(e) {}
-}
+Do NOT Change
 
-// ─── DISABLE MODAL ────────────────────────────────────
-function openDisable(storeId, name) {
-  pendingAction = { storeId };
-  const decodedName = decodeURIComponent(name || '');
-  document.getElementById('disable-details').innerHTML =
-    `🏪 Store: <strong>${safeText(decodedName)}</strong> (${safeText(storeId)})`;
-  document.getElementById('disable-modal').classList.add('open');
-}
-
-async function confirmDisable() {
-  if (!pendingAction) return;
-  try {
-    await fetch(`${API}/admin/disable-store`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
-      body: JSON.stringify({ storeId: pendingAction.storeId })
-    });
-    closeModal();
-    showToast('Store disabled', 'The store widget has been deactivated.', 'warning');
-    loadStores();
-    loadOverview();
-  } catch(e) {}
-}
-
-async function activateStore(storeId, plan) {
-  await fetch(`${API}/admin/activate-store`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${adminToken}`
-    },
-    body: JSON.stringify({ storeId, plan })
-  });
-  loadStores();
-}
-
-async function rejectPayment(id, storeId, plan) {
-  await fetch(`${API}/admin/reject-payment`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-    body: JSON.stringify({ id, storeId, plan })
-  });
-  showToast('Payment rejected', 'The store has been notified.', 'warning');
-  loadPayments();
-}
-
-function closeModal() {
-  document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
-  pendingAction = null;
-}
-
-// ─── HELPERS ──────────────────────────────────────────
-function planBadge(plan) {
-  const map = {
-    trial:   'badge-muted',
-    starter: 'badge-primary',
-    growth:  'badge-success',
-    pro:     'badge-warning'
-  };
-  return `<span class="badge ${map[plan]||'badge-muted'}">${plan}</span>`;
-}
-
-function safeText(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function showAlert(id, msg, type) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.className = `alert alert-${type} show`;
-  setTimeout(() => el.className = 'alert', 4000);
-}
-</script>
-</body>
-</html>
+All function names: adminLogin, adminLogout, adminForgotPassword, adminResetPassword, toggleForgot, showTab, loadOverview, loadStores, loadPayments, loadPlatformAnalytics, loadAdminSettings, saveAdminProfile, saveAdminPassword, openApprove, confirmApprove, openDisable, confirmDisable, activateStore, closeModal, runDbAudit, planBadge, safeText, showAlert, filterStores, handleAdminAuthError
+All element IDs used by existing JS
+All API endpoint URLs
+config.js script tag
+Any fetch call logic — only add parameters where specified, never remove or change endpoint URLs

@@ -3718,6 +3718,7 @@
         if (data.success) {
           localStorage.removeItem('bb_token');
           localStorage.removeItem('bb_store');
+          localStorage.removeItem('bb_token_expires');
           toast.success('Account deleted.');
           setTimeout(() => location.reload(), 600);
         } else {

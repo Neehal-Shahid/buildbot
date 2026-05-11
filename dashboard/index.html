@@ -2989,6 +2989,10 @@
       // Setup Enter key handlers for auth forms
       setupAuthEnterKeyHandlers();
 
+      // Show dashboard link immediately from localStorage, before any async call
+      const dashLink = document.getElementById('nav-dashboard-link');
+      if (dashLink && token && currentStore) dashLink.style.display = 'inline-flex';
+
       if (token && currentStore) {
         // Check session expiry first
         if (isSessionExpired()) {
@@ -2996,13 +3000,6 @@
           showPage(FORCE_DASHBOARD ? 'login' : 'landing');
           return;
         }
-
-        // Update activity timestamp
-        updateLastActivity();
-
-        // Show dashboard link immediately if token exists in storage
-        const dashLink = document.getElementById('nav-dashboard-link');
-        if (dashLink && token && currentStore) dashLink.style.display = 'inline-flex';
 
         // Verify token is still valid on server
         try {

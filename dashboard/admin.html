@@ -720,7 +720,7 @@ let pendingAction = null;
 window.onload = () => {
   const params = new URLSearchParams(window.location.search);
   const resetToken = params.get('reset_token');
-  
+
   if (resetToken) {
     document.getElementById('login-form-box').style.display = 'none';
     document.getElementById('reset-form-box').style.display = 'block';
@@ -728,6 +728,26 @@ window.onload = () => {
   } else if (adminToken) {
     enterAdmin();
   }
+
+  // Enter key — login page
+  ['adm-email', 'adm-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') adminLogin();
+    });
+  });
+
+  // Enter key — forgot password page
+  const forgotEl = document.getElementById('forgot-email');
+  if (forgotEl) forgotEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') adminForgotPassword();
+  });
+
+  // Enter key — reset password page
+  const resetEl = document.getElementById('reset-password');
+  if (resetEl) resetEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') adminResetPassword();
+  });
 };
 
 function togglePassword(inputId, iconEl) {
@@ -828,6 +848,7 @@ async function adminLogin() {
     if (data.success) {
       adminToken = data.token;
       localStorage.setItem('bb_admin_token', adminToken);
+      setBtnLoading(btn, false);
       enterAdmin();
     } else {
       setBtnLoading(btn, false);
@@ -1436,19 +1457,6 @@ function showAlert(id, msg, type) {
   setTimeout(() => el.className = 'alert', 4000);
 }
 
-function showToast(title, msg, type) {
-  const toast = document.getElementById('toast');
-  toast.innerHTML = `
-    <div class="toast-header">
-      <strong class="me-auto">${title}</strong>
-      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-    </div>
-    <div class="toast-body">${msg}</div>
-  `;
-  toast.className = `toast align-items-center text-white bg-${type} border-0`;
-  const bsToast = new bootstrap.Toast(toast);
-  bsToast.show();
-}
 </script>
 </body>
 </html>

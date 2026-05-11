@@ -1134,23 +1134,35 @@ function renderStores(stores) {
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
         <td>
   <div style="display:flex;align-items:center;gap:5px;">
-    <button class="action-btn act-activate" data-tip="Activate"
-      onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <button
+      title="Activate"
+      onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--success-border);background:var(--success-bg);color:var(--success);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--success)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--success-bg)';this.style.color='var(--success)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
       </svg>
     </button>
-    <button class="action-btn act-disable" data-tip="Disable"
-      onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <button
+      title="Disable"
+      onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--warning)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--warning-bg)';this.style.color='var(--warning)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
       </svg>
     </button>
-    <button class="action-btn act-delete" data-tip="Delete permanently"
-      onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <button
+      title="Delete"
+      onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--danger)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--danger-bg)';this.style.color='var(--danger)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="3 6 5 6 21 6"/>
         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
         <path d="M10 11v6"/>

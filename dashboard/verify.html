@@ -4,25 +4,39 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Verify Email — BuildBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'Segoe UI',sans-serif;background:#0f1117;
-      color:#e0e0e0;min-height:100vh;display:flex;
+    body{font-family:'DM Sans', 'Segoe UI', sans-serif;background:#f7f8fa;
+      color:#111827;min-height:100vh;display:flex;
       align-items:center;justify-content:center;}
-    .box{background:#1a1d27;border:1px solid #2a2d3e;border-radius:18px;
-      padding:48px;text-align:center;max-width:420px;width:100%;}
-    .icon{font-size:56px;margin-bottom:20px;}
-    h2{font-size:22px;color:#fff;margin-bottom:10px;}
-    p{font-size:14px;color:#888;margin-bottom:24px;line-height:1.6;}
-    .btn{display:inline-block;background:#7c6af7;color:#fff;padding:12px 28px;
-      border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;}
-    .success{color:#2ecc71;}
-    .error{color:#e74c3c;}
+    .box{background:#ffffff;border:1px solid #e4e7ed;border-radius:16px;
+      padding:48px;text-align:center;max-width:420px;width:100%;box-shadow:0 4px 12px rgba(17,24,39,0.08);}
+    .icon{font-size:48px;margin-bottom:20px;}
+    .logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:24px;}
+    .logo-icon{width:32px;height:32px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+    .logo-icon svg{width:20px;height:20px;}
+    .logo-text{font-size:20px;font-weight:700;color:#111827;}
+    h2{font-size:22px;color:#111827;margin-bottom:10px;font-weight:700;}
+    p{font-size:14px;color:#6b7280;margin-bottom:24px;line-height:1.6;}
+    .btn{display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 28px;
+      border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;transition:background 0.15s;}
+    .btn:hover{background:#4338ca;}
+    .success{color:#059669;}
+    .error{color:#dc2626;}
   </style>
   <script src="config.js"></script>
 </head>
 <body>
 <div class="box" id="box">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    </div>
+    <div class="logo-text">BuildBot</div>
+  </div>
   <div class="icon">⏳</div>
   <h2>Verifying your email...</h2>
   <p>Please wait a moment.</p>
@@ -36,6 +50,14 @@ async function verify() {
 
   if (!token) {
     box.innerHTML = `
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
+        <div class="logo-text">BuildBot</div>
+      </div>
       <div class="icon">❌</div>
       <h2 class="error">Invalid Link</h2>
       <p>This verification link is invalid.</p>
@@ -48,12 +70,28 @@ async function verify() {
     const data = await res.json();
     if (data.success) {
       box.innerHTML = `
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <div class="logo-text">BuildBot</div>
+        </div>
         <div class="icon">✅</div>
         <h2 class="success">Email Verified!</h2>
         <p>Your email has been verified. You can now login.</p>
         <a href="/" class="btn">Login Now →</a>`;
     } else {
       box.innerHTML = `
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <div class="logo-text">BuildBot</div>
+        </div>
         <div class="icon">❌</div>
         <h2 class="error">Link Expired</h2>
         <p>${data.error || 'This link has expired. Please signup again.'}</p>
@@ -61,6 +99,14 @@ async function verify() {
     }
   } catch {
     box.innerHTML = `
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
+        <div class="logo-text">BuildBot</div>
+      </div>
       <div class="icon">⚠️</div>
       <h2>Something went wrong</h2>
       <p>Could not connect to server. Try again later.</p>

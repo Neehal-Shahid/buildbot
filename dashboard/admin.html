@@ -297,11 +297,21 @@ input::placeholder { color: var(--dim); }
   background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px;
 }
 @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
-@media(max-width: 768px) {
-  .stats { grid-template-columns: repeat(2,1fr); }
-  .two-col { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+/* ── ACTION BUTTON TOOLTIPS ── */
+.action-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  border: 1px solid transparent;
   .main { padding: 16px; }
 }
 </style>
@@ -660,7 +670,7 @@ input::placeholder { color: var(--dim); }
     <p>This will immediately activate the store's selected plan and send them a confirmation email.</p>
     <div class="modal-detail" id="approve-details"></div>
     <div class="modal-btns">
-      <button class="btn btn-success" onclick="confirmApprove()">Approve & Activate</button>
+      <button class="btn btn-success" id="approve-confirm-btn" onclick="confirmApprove()">Approve & Activate</button>
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -676,7 +686,7 @@ input::placeholder { color: var(--dim); }
     <p>This will deactivate the store's widget. Their customers will see an error. You can re-enable at any time.</p>
     <div class="modal-detail" id="disable-details"></div>
     <div class="modal-btns">
-      <button class="btn btn-warning" onclick="confirmDisable()">Disable Store</button>
+      <button class="btn btn-warning" id="disable-confirm-btn" onclick="confirmDisable()">Disable Store</button>
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -692,7 +702,7 @@ input::placeholder { color: var(--dim); }
     <p>This will permanently delete the store and ALL their products, payments, recommendations and data. This cannot be undone.</p>
     <div class="modal-detail" id="delete-details"></div>
     <div class="modal-btns">
-      <button class="btn btn-danger" onclick="confirmDelete()">Delete Permanently</button>
+      <button class="btn btn-danger" id="delete-confirm-btn" onclick="confirmDelete()">Delete Permanently</button>
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -756,6 +766,9 @@ function toggleForgot() {
 async function adminForgotPassword() {
   const email = document.getElementById('forgot-email').value.trim();
   if (!email) return showAlert('forgot-alert', 'Email is required', 'error');
+  const btn = document.querySelector('#forgot-form-box .btn-primary');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/forgot-password`, {
       method: 'POST',
@@ -763,12 +776,11 @@ async function adminForgotPassword() {
       body: JSON.stringify({ email })
     });
     const data = await res.json();
-    if (data.success) {
-      showAlert('forgot-alert', data.message, 'success');
-    } else {
-      showAlert('forgot-alert', data.error, 'error');
-    }
+    setBtnLoading(btn, false);
+    if (data.success) showAlert('forgot-alert', data.message, 'success');
+    else showAlert('forgot-alert', data.error, 'error');
   } catch {
+    setBtnLoading(btn, false);
     showAlert('forgot-alert', 'Server error', 'error');
   }
 }
@@ -776,6 +788,9 @@ async function adminForgotPassword() {
 async function adminResetPassword() {
   const password = document.getElementById('reset-password').value;
   if (!password) return showAlert('reset-alert', 'Password is required', 'error');
+  const btn = document.querySelector('#reset-form-box .btn-primary');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/reset-password`, {
       method: 'POST',
@@ -783,13 +798,15 @@ async function adminResetPassword() {
       body: JSON.stringify({ token: window.resetTokenVal, password })
     });
     const data = await res.json();
+    setBtnLoading(btn, false);
     if (data.success) {
-      showAlert('reset-alert', 'Password reset! You can now login.', 'success');
+      showAlert('reset-alert', 'Password reset! Redirecting to login…', 'success');
       setTimeout(() => window.location.href = 'admin.html', 2000);
     } else {
       showAlert('reset-alert', data.error, 'error');
     }
   } catch {
+    setBtnLoading(btn, false);
     showAlert('reset-alert', 'Server error', 'error');
   }
 }
@@ -798,6 +815,8 @@ async function adminResetPassword() {
 async function adminLogin() {
   const email    = document.getElementById('adm-email').value.trim();
   const password = document.getElementById('adm-password').value;
+  const btn = document.querySelector('#login-form-box .btn-primary');
+  setBtnLoading(btn, true);
 
   try {
     const res  = await fetch(`${API}/admin/login`, {
@@ -811,9 +830,11 @@ async function adminLogin() {
       localStorage.setItem('bb_admin_token', adminToken);
       enterAdmin();
     } else {
+      setBtnLoading(btn, false);
       showAlert('adm-login-alert', data.error, 'error');
     }
   } catch {
+    setBtnLoading(btn, false);
     showAlert('adm-login-alert', 'Cannot connect to server.', 'error');
   }
 }
@@ -927,46 +948,50 @@ async function loadAdminSettings() {
 }
 
 async function saveAdminProfile() {
-  const name = document.getElementById('prof-name').value.trim();
+  const name  = document.getElementById('prof-name').value.trim();
   const email = document.getElementById('prof-email').value.trim();
+  const btn   = document.querySelector('#tab-settings .card:first-child .btn-primary');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/profile`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
       body: JSON.stringify({ name, email })
     });
     const data = await res.json();
+    setBtnLoading(btn, false);
     if (data.success) showAlert('prof-alert', 'Profile saved successfully!', 'success');
     else showAlert('prof-alert', data.error, 'error');
-  } catch (e) {
+  } catch {
+    setBtnLoading(btn, false);
     showAlert('prof-alert', 'Server error', 'error');
   }
 }
 
 async function saveAdminPassword() {
   const currentPassword = document.getElementById('cp-current').value;
-  const newPassword = document.getElementById('cp-new').value;
+  const newPassword     = document.getElementById('cp-new').value;
+  const btn             = document.querySelector('#tab-settings .card:last-child .btn-primary');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/password`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
       body: JSON.stringify({ currentPassword, newPassword })
     });
     const data = await res.json();
+    setBtnLoading(btn, false);
     if (data.success) {
       showAlert('cp-alert', 'Password changed successfully!', 'success');
       document.getElementById('cp-current').value = '';
-      document.getElementById('cp-new').value = '';
+      document.getElementById('cp-new').value     = '';
     } else {
       showAlert('cp-alert', data.error, 'error');
     }
-  } catch (e) {
+  } catch {
+    setBtnLoading(btn, false);
     showAlert('cp-alert', 'Server error', 'error');
   }
 }
@@ -1075,29 +1100,29 @@ function renderStores(stores) {
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
         <td>
   <div style="display:flex;align-items:center;gap:5px;">
-    <button
-      title="Activate"
-      onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')"
-      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--success-border);background:var(--success-bg);color:var(--success);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
-      onmouseover="this.style.background='var(--success)';this.style.color='#fff';"
-      onmouseout="this.style.background='var(--success-bg)';this.style.color='var(--success)';">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <button class="action-btn act-activate" data-tip="Activate"
+      onclick="activateStore('${safeText(s.store_id)}','${safeText(s.plan)}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+      </svg>
     </button>
-    <button
-      title="Disable"
-      onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
-      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
-      onmouseover="this.style.background='var(--warning)';this.style.color='#fff';"
-      onmouseout="this.style.background='var(--warning-bg)';this.style.color='var(--warning)';">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+    <button class="action-btn act-disable" data-tip="Disable"
+      onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
     </button>
-    <button
-      title="Delete"
-      onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
-      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
-      onmouseover="this.style.background='var(--danger)';this.style.color='#fff';"
-      onmouseout="this.style.background='var(--danger-bg)';this.style.color='var(--danger)';">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    <button class="action-btn act-delete" data-tip="Delete permanently"
+      onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        <path d="M10 11v6"/>
+        <path d="M14 11v6"/>
+        <path d="M9 6V4h6v2"/>
+      </svg>
     </button>
   </div>
 </td>
@@ -1114,6 +1139,9 @@ function openDelete(storeId, name) {
 
 async function confirmDelete() {
   if (!pendingAction) return;
+  const btn = document.getElementById('delete-confirm-btn');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/delete-store`, {
       method: 'POST',
@@ -1121,6 +1149,7 @@ async function confirmDelete() {
       body: JSON.stringify({ storeId: pendingAction.storeId })
     });
     const data = await res.json();
+    setBtnLoading(btn, false);
     closeModal();
     if (data.success) {
       showToast('Store deleted', 'All store data has been permanently removed.', 'success');
@@ -1130,6 +1159,7 @@ async function confirmDelete() {
       showToast('Delete failed', data.error || 'Something went wrong.', 'error');
     }
   } catch {
+    setBtnLoading(btn, false);
     showToast('Error', 'Could not connect to server.', 'error');
   }
 }
@@ -1274,6 +1304,9 @@ function openApprove(id, storeId, plan, name, amount) {
 
 async function confirmApprove() {
   if (!pendingAction) return;
+  const btn = document.getElementById('approve-confirm-btn');
+  setBtnLoading(btn, true);
+
   try {
     const res = await fetch(`${API}/admin/approve-payment`, {
       method: 'POST',
@@ -1284,13 +1317,19 @@ async function confirmApprove() {
       body: JSON.stringify(pendingAction)
     });
     const data = await res.json();
+    setBtnLoading(btn, false);
     closeModal();
     if (data.success) {
       showToast('Payment approved', 'Store plan activated and email sent.', 'success');
       loadOverview();
       loadPayments();
+    } else {
+      showToast('Approval failed', data.error || 'Something went wrong.', 'error');
     }
-  } catch(e) {}
+  } catch {
+    setBtnLoading(btn, false);
+    showToast('Error', 'Could not connect to server.', 'error');
+  }
 }
 
 // ─── DISABLE MODAL ────────────────────────────────────
@@ -1304,6 +1343,9 @@ function openDisable(storeId, name) {
 
 async function confirmDisable() {
   if (!pendingAction) return;
+  const btn = document.getElementById('disable-confirm-btn');
+  setBtnLoading(btn, true);
+
   try {
     await fetch(`${API}/admin/disable-store`, {
       method: 'POST',
@@ -1313,33 +1355,46 @@ async function confirmDisable() {
       },
       body: JSON.stringify({ storeId: pendingAction.storeId })
     });
+    setBtnLoading(btn, false);
     closeModal();
     showToast('Store disabled', 'The store widget has been deactivated.', 'warning');
     loadStores();
     loadOverview();
-  } catch(e) {}
+  } catch {
+    setBtnLoading(btn, false);
+    showToast('Error', 'Could not connect to server.', 'error');
+  }
 }
 
 async function activateStore(storeId, plan) {
-  await fetch(`${API}/admin/activate-store`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${adminToken}`
-    },
-    body: JSON.stringify({ storeId, plan })
-  });
-  loadStores();
+  try {
+    await fetch(`${API}/admin/activate-store`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ storeId, plan })
+    });
+    showToast('Store activated', 'The store has been enabled.', 'success');
+    loadStores();
+  } catch {
+    showToast('Error', 'Could not activate store.', 'error');
+  }
 }
 
 async function rejectPayment(id, storeId, plan) {
-  await fetch(`${API}/admin/reject-payment`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
-    body: JSON.stringify({ id, storeId, plan })
-  });
-  showToast('Payment rejected', 'The store has been notified.', 'warning');
-  loadPayments();
+  try {
+    await fetch(`${API}/admin/reject-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ id, storeId, plan })
+    });
+    showToast('Payment rejected', 'The store has been notified.', 'warning');
+    loadPayments();
+  } catch {
+    showToast('Error', 'Could not reject payment.', 'error');
+  }
 }
 
 function closeModal() {
@@ -1358,13 +1413,20 @@ function planBadge(plan) {
   return `<span class="badge ${map[plan]||'badge-muted'}">${plan}</span>`;
 }
 
-function safeText(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function setBtnLoading(btn, loading, originalHTML) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;flex-shrink:0;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`;
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.style.pointerEvents = 'none';
+  } else {
+    btn.innerHTML = originalHTML || btn.dataset.originalHtml || btn.innerHTML;
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
+  }
 }
 
 function showAlert(id, msg, type) {
@@ -1372,6 +1434,20 @@ function showAlert(id, msg, type) {
   el.textContent = msg;
   el.className = `alert alert-${type} show`;
   setTimeout(() => el.className = 'alert', 4000);
+}
+
+function showToast(title, msg, type) {
+  const toast = document.getElementById('toast');
+  toast.innerHTML = `
+    <div class="toast-header">
+      <strong class="me-auto">${title}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">${msg}</div>
+  `;
+  toast.className = `toast align-items-center text-white bg-${type} border-0`;
+  const bsToast = new bootstrap.Toast(toast);
+  bsToast.show();
 }
 </script>
 </body>

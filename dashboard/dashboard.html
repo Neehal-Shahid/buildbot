@@ -2276,10 +2276,13 @@
     const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
     const token = localStorage.getItem('bb_token');
     const tokenExpires = localStorage.getItem('bb_token_expires');
-    const isExpired = tokenExpires && Date.now() > Number(tokenExpires);
-    let currentStore = JSON.parse(localStorage.getItem('bb_store') || 'null');
+    const isExpired = tokenExpires ? Date.now() > Number(tokenExpires) : false;
+    let currentStore = (() => {
+      try { return JSON.parse(localStorage.getItem('bb_store') || 'null'); }
+      catch { return null; }
+    })();
 
-    if (!token || isExpired) {
+    if (!token || !currentStore || isExpired) {
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
       localStorage.removeItem('bb_token_expires');
@@ -2393,6 +2396,8 @@
         });
         const data = await res.json();
         if (data.success) {
+          // Refresh 3-day expiry timestamp on every successful server verification
+          localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
           enterApp();
         } else {
           localStorage.removeItem('bb_token');
@@ -2400,9 +2405,11 @@
           window.location.href = 'index.html';
         }
       } catch {
-        localStorage.removeItem('bb_token');
-        localStorage.removeItem('bb_store');
-        window.location.href = 'index.html';
+        // Server unreachable (Railway cold start or network issue).
+        // Do NOT clear the session — the token is likely still valid.
+        // Just enter the app using the locally stored session.
+        // The next successful API call will confirm the token is valid.
+        enterApp();
       }
 
 
@@ -2603,6 +2610,7 @@
       token = null; currentStore = null;
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
+      localStorage.removeItem('bb_token_expires');
       window.location.href = 'index.html';
     }
 

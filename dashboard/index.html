@@ -2335,8 +2335,8 @@
       <div class="nav-link" onclick="scrollToLandingSection('pricing');">Pricing
       </div>
       <div class="nav-link" id="nav-dashboard-link" style="display:none" onclick="window.location.href='dashboard.html'">Dashboard</div>
-      <div class="nav-link" onclick="showPage('login')">Login</div>
-      <div class="nav-link btn-primary btn" onclick="showPage('signup')">Start Free Trial</div>
+      <div class="nav-link" id="nav-login-link" onclick="showPage('login')">Login</div>
+      <div class="nav-link btn-primary btn" id="nav-signup-link" onclick="showPage('signup')">Start Free Trial</div>
     </div>
     <div class="nav-user" id="nav-user" style="display:none"></div>
   </nav>
@@ -2989,9 +2989,15 @@
       // Setup Enter key handlers for auth forms
       setupAuthEnterKeyHandlers();
 
-      // Show dashboard link immediately from localStorage, before any async call
+      // Show/hide nav links immediately from localStorage — no server call needed
       const dashLink = document.getElementById('nav-dashboard-link');
-      if (dashLink && token && currentStore) dashLink.style.display = 'inline-flex';
+      const loginLink = document.getElementById('nav-login-link');
+      const signupLink = document.getElementById('nav-signup-link');
+      if (token && currentStore && !isSessionExpired()) {
+        if (dashLink) dashLink.style.display = 'inline-flex';
+        if (loginLink) loginLink.style.display = 'none';
+        if (signupLink) signupLink.style.display = 'none';
+      }
 
       if (token && currentStore) {
         // Check session expiry first
@@ -3018,8 +3024,14 @@
             showPage(FORCE_DASHBOARD ? 'login' : 'landing');
           }
         } catch {
-          // Server unreachable — show landing (or login if dashboard-only entry)
-          showPage(FORCE_DASHBOARD ? 'login' : 'landing');
+          // Server unreachable (Railway cold start).
+          // If local session looks valid, trust it and redirect to dashboard.
+          // Dashboard handles its own token verification independently.
+          if (token && currentStore && !isSessionExpired()) {
+            window.location.href = 'dashboard.html';
+          } else {
+            showPage(FORCE_DASHBOARD ? 'login' : 'landing');
+          }
         }
       } else {
         showPage(FORCE_DASHBOARD ? 'login' : 'landing');
@@ -3122,7 +3134,7 @@
           } else {
             showAlert('login-alert', '✅ Login successful!', 'success');
           }
-          setTimeout(() => enterApp(), 1000);
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
         } else {
           showAlert('login-alert', data.error || 'Google Login failed.', 'error');
           showAlert('signup-alert', data.error || 'Google Login failed.', 'error');

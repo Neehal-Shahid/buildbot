@@ -2361,7 +2361,6 @@
           <button class="landing-btn primary" onclick="showPage('signup')">Start Free Trial — 14 Days Free</button>
           <button class="landing-btn secondary" onclick="scrollToLandingSection('how-it-works');">See How It Works
             →</button>
-          <button class="landing-btn secondary" id="hero-dashboard-btn" style="display:none" onclick="window.location.href='dashboard.html'">Go to Dashboard →</button>
         </div>
         <div class="hero-trust">No credit card required  ·  14 days free  ·  Cancel anytime</div>
         <div class="hero-mockup">
@@ -2963,27 +2962,6 @@
       }
     }
 
-    // ─── SESSION MANAGEMENT ─────────────────────────────────────────
-    function updateLastActivity() {
-      localStorage.setItem('bb_last_activity', Date.now().toString());
-    }
-
-    function isSessionExpired() {
-      const lastActivity = localStorage.getItem('bb_last_activity');
-      if (!lastActivity) return false;
-      const now = Date.now();
-      const SESSION_DURATION = 3 * 24 * 60 * 60 * 1000; // 3 days
-      return (now - parseInt(lastActivity)) > SESSION_DURATION;
-    }
-
-    function clearExpiredSession() {
-      localStorage.removeItem('bb_token');
-      localStorage.removeItem('bb_store');
-      localStorage.removeItem('bb_last_activity');
-      token = null;
-      currentStore = null;
-    }
-
     // ─── INIT ─────────────────────────────────────────────────
     window.onload = async () => {
       if (!localStorage.getItem('bb_store_mode')) {
@@ -2997,23 +2975,9 @@
       setupAuthEnterKeyHandlers();
 
       if (token && currentStore) {
-        // Check session expiry first
-        if (isSessionExpired()) {
-          clearExpiredSession();
-          showPage(FORCE_DASHBOARD ? 'login' : 'landing');
-          return;
-        }
-
-        // Update activity timestamp
-        updateLastActivity();
-
         // Logged-in UI hint: show dashboard link in nav.
         const dashLink = document.getElementById('nav-dashboard-link');
         if (dashLink) dashLink.style.display = 'inline-flex';
-
-        // Show dashboard button in hero section
-        const heroDashBtn = document.getElementById('hero-dashboard-btn');
-        if (heroDashBtn) heroDashBtn.style.display = 'inline-block';
 
         // Verify token is still valid on server
         try {
@@ -3025,7 +2989,10 @@
             window.location.href = 'dashboard.html';
           } else {
             // Token invalid or account deleted — force logout
-            clearExpiredSession();
+            localStorage.removeItem('bb_token');
+            localStorage.removeItem('bb_store');
+            token = null;
+            currentStore = null;
             showPage(FORCE_DASHBOARD ? 'login' : 'landing');
           }
         } catch {

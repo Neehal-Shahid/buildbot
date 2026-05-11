@@ -1020,12 +1020,17 @@ async function saveAdminPassword() {
 // ─── OVERVIEW ─────────────────────────────────────────
 async function loadOverview() {
   try {
+    console.log('Loading overview with token:', adminToken ? 'present' : 'missing');
     const res  = await fetch(`${API}/admin/overview`, {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    console.log('Overview API response:', data);
     if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
+    if (!data.success) {
+      console.log('Overview API returned success=false');
+      return;
+    }
 
     const { stores, totalRecs, revenue, pending } = data;
 
@@ -1092,15 +1097,23 @@ async function loadOverview() {
 // ─── STORES ───────────────────────────────────────────
 async function loadStores() {
   try {
+    console.log('Loading stores with token:', adminToken ? 'present' : 'missing');
     const res  = await fetch(`${API}/admin/stores`, {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    console.log('Stores API response:', data);
     if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
+    if (!data.success) {
+      console.log('Stores API returned success=false');
+      return;
+    }
     allStoresData = data.stores;
+    console.log('Rendering stores:', allStoresData.length, 'stores');
     renderStores(allStoresData);
-  } catch(e) {}
+  } catch(e) {
+    console.error('Error loading stores:', e);
+  }
 }
 
 function renderStores(stores) {
@@ -1196,12 +1209,17 @@ function filterStores() {
 // ─── PAYMENTS ─────────────────────────────────────────
 async function loadPayments() {
   try {
+    console.log('Loading payments with token:', adminToken ? 'present' : 'missing');
     const res  = await fetch(`${API}/admin/payments`, {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    console.log('Payments API response:', data);
     if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
+    if (!data.success) {
+      console.log('Payments API returned success=false');
+      return;
+    }
 
     const pending = data.payments.filter(p => p.status === 'pending');
     const all     = data.payments;
@@ -1253,12 +1271,17 @@ async function loadPayments() {
 // ─── PLATFORM ANALYTICS ───────────────────────────────
 async function loadPlatformAnalytics() {
   try {
+    console.log('Loading platform analytics with token:', adminToken ? 'present' : 'missing');
     const res  = await fetch(`${API}/admin/overview`, {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
     const data = await res.json();
+    console.log('Platform analytics API response:', data);
     if (!data.success && handleAdminAuthError(data)) return;
-    if (!data.success) return;
+    if (!data.success) {
+      console.log('Platform analytics API returned success=false');
+      return;
+    }
 
     const { stores, totalRecs, revenue } = data;
 
@@ -1432,6 +1455,16 @@ function planBadge(plan) {
     pro:     'badge-warning'
   };
   return `<span class="badge ${map[plan]||'badge-muted'}">${plan}</span>`;
+}
+
+function safeText(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function setBtnLoading(btn, loading, originalHTML) {

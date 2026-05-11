@@ -1,67 +1,140 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Verify Email — BuildBot</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'DM Sans', 'Segoe UI', sans-serif;background:#f7f8fa;
-      color:#111827;min-height:100vh;display:flex;
-      align-items:center;justify-content:center;}
-    .box{background:#ffffff;border:1px solid #e4e7ed;border-radius:16px;
-      padding:48px;text-align:center;max-width:420px;width:100%;box-shadow:0 4px 12px rgba(17,24,39,0.08);}
-    .icon{font-size:48px;margin-bottom:20px;}
-    .logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:24px;}
-    .logo-icon{width:32px;height:32px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;}
-    .logo-icon svg{width:20px;height:20px;}
-    .logo-text{font-size:20px;font-weight:700;color:#111827;}
-    h2{font-size:22px;color:#111827;margin-bottom:10px;font-weight:700;}
-    p{font-size:14px;color:#6b7280;margin-bottom:24px;line-height:1.6;}
-    .btn{display:inline-block;background:#4f46e5;color:#ffffff;padding:12px 28px;
-      border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;transition:background 0.15s;}
-    .btn:hover{background:#4338ca;}
-    .success{color:#059669;}
-    .error{color:#dc2626;}
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #f7f8fa;
+      color: #111827;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e4e7ed;
+      border-radius: 16px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(17,24,39,0.07), 0 4px 16px rgba(17,24,39,0.04);
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 28px;
+    }
+    .logo-mark {
+      width: 30px;
+      height: 30px;
+      background: #4f46e5;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-mark svg { width: 15px; height: 15px; }
+    .logo-text { font-size: 15px; font-weight: 700; color: #111827; letter-spacing: -0.2px; }
+    .status-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .status-icon svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .status-icon.loading { background: #eef2ff; color: #4f46e5; }
+    .status-icon.success { background: #ecfdf5; color: #059669; }
+    .status-icon.error   { background: #fef2f2; color: #dc2626; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    h2 { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px; letter-spacing: -0.2px; }
+    p  { font-size: 13px; color: #6b7280; line-height: 1.6; margin-bottom: 24px; }
+    .btn {
+      display: inline-block;
+      background: #4f46e5;
+      color: #fff;
+      padding: 11px 24px;
+      border-radius: 9px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #4338ca; }
+  </style>
 </head>
 <body>
-<div class="box" id="box">
+<div class="card" id="card">
+
   <div class="logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
       </svg>
     </div>
-    <div class="logo-text">BuildBot</div>
+    <span class="logo-text">BuildBot</span>
   </div>
-  <div class="icon">⏳</div>
-  <h2>Verifying your email...</h2>
+
+  <div class="status-icon loading">
+    <svg viewBox="0 0 24 24" class="spin">
+      <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+      <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+      <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+    </svg>
+  </div>
+  <h2>Verifying your email…</h2>
   <p>Please wait a moment.</p>
+
 </div>
 <script>
 const API = window.BB_API || 'https://buildbot-production.up.railway.app/api';
 
+function setCard({ type, title, message, btnText, btnHref }) {
+  const iconSvg = {
+    success: `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+    error:   `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  };
+  document.getElementById('card').innerHTML = `
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
+      <span class="logo-text">BuildBot</span>
+    </div>
+    <div class="status-icon ${type}">${iconSvg[type] || ''}</div>
+    <h2>${title}</h2>
+    <p>${message}</p>
+    <a href="${btnHref}" class="btn">${btnText}</a>
+  `;
+}
+
 async function verify() {
   const token = new URLSearchParams(window.location.search).get('token');
-  const box   = document.getElementById('box');
 
   if (!token) {
-    box.innerHTML = `
-      <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </div>
-        <div class="logo-text">BuildBot</div>
-      </div>
-      <div class="icon">❌</div>
-      <h2 class="error">Invalid Link</h2>
-      <p>This verification link is invalid.</p>
-      <a href="/" class="btn">Go to Dashboard</a>`;
+    setCard({
+      type: 'error',
+      title: 'Invalid link',
+      message: 'This verification link is missing a token. Please use the link from your email.',
+      btnText: 'Back to home',
+      btnHref: '/'
+    });
     return;
   }
 
@@ -69,50 +142,33 @@ async function verify() {
     const res  = await fetch(`${API}/verify-email?token=${token}`);
     const data = await res.json();
     if (data.success) {
-      box.innerHTML = `
-        <div class="logo">
-          <div class="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </div>
-          <div class="logo-text">BuildBot</div>
-        </div>
-        <div class="icon">✅</div>
-        <h2 class="success">Email Verified!</h2>
-        <p>Your email has been verified. You can now login.</p>
-        <a href="/" class="btn">Login Now →</a>`;
+      setCard({
+        type: 'success',
+        title: 'Email verified',
+        message: 'Your email address has been confirmed. You can now sign in to your dashboard.',
+        btnText: 'Sign in now',
+        btnHref: '/'
+      });
     } else {
-      box.innerHTML = `
-        <div class="logo">
-          <div class="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </div>
-          <div class="logo-text">BuildBot</div>
-        </div>
-        <div class="icon">❌</div>
-        <h2 class="error">Link Expired</h2>
-        <p>${data.error || 'This link has expired. Please signup again.'}</p>
-        <a href="/" class="btn">Go to Dashboard</a>`;
+      setCard({
+        type: 'error',
+        title: 'Link expired',
+        message: data.error || 'This verification link has expired. Please sign up again to get a new one.',
+        btnText: 'Back to home',
+        btnHref: '/'
+      });
     }
   } catch {
-    box.innerHTML = `
-      <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-        </div>
-        <div class="logo-text">BuildBot</div>
-      </div>
-      <div class="icon">⚠️</div>
-      <h2>Something went wrong</h2>
-      <p>Could not connect to server. Try again later.</p>
-      <a href="/" class="btn">Go to Dashboard</a>`;
+    setCard({
+      type: 'error',
+      title: 'Connection error',
+      message: 'Could not connect to the server. Please check your connection and try again.',
+      btnText: 'Try again',
+      btnHref: window.location.href
+    });
   }
 }
+
 verify();
 </script>
 </body>

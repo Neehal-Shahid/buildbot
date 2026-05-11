@@ -2375,11 +2375,42 @@
       applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
       switchProductView(localStorage.getItem('bb_store_mode') || 'custom');
 
-      // This file is dashboard-only. If there is no session, send the user to login on index.html.
+      // ─── SESSION MANAGEMENT ─────────────────────────────────────────
+      function updateLastActivity() {
+        localStorage.setItem('bb_last_activity', Date.now().toString());
+      }
+
+      function isSessionExpired() {
+        const lastActivity = localStorage.getItem('bb_last_activity');
+        if (!lastActivity) return false;
+        const now = Date.now();
+        const SESSION_DURATION = 3 * 24 * 60 * 60 * 1000; // 3 days
+        return (now - parseInt(lastActivity)) > SESSION_DURATION;
+      }
+
+      function clearExpiredSession() {
+        localStorage.removeItem('bb_token');
+        localStorage.removeItem('bb_store');
+        localStorage.removeItem('bb_last_activity');
+        token = null;
+        currentStore = null;
+      }
+
+      // This file is dashboard-only. If there is no session, send to user to login on index.html.
       if (!token || !currentStore) {
         window.location.href = 'index.html';
         return;
       }
+
+      // Check session expiry first
+      if (isSessionExpired()) {
+        clearExpiredSession();
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Update activity timestamp
+      updateLastActivity();
 
       // Verify token is still valid on server, then enter app.
       try {
@@ -2390,16 +2421,13 @@
         if (data.success) {
           enterApp();
         } else {
-          localStorage.removeItem('bb_token');
-          localStorage.removeItem('bb_store');
+          clearExpiredSession();
           window.location.href = 'index.html';
         }
       } catch {
-        localStorage.removeItem('bb_token');
-        localStorage.removeItem('bb_store');
+        clearExpiredSession();
         window.location.href = 'index.html';
       }
-
 
       // Color picker sync
       document.getElementById('brand-color')?.addEventListener('input', (e) => {
@@ -2598,6 +2626,7 @@
       token = null; currentStore = null;
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
+      localStorage.removeItem('bb_last_activity');
       window.location.href = 'index.html';
     }
 
@@ -2608,6 +2637,9 @@
         doLogout();
         return;
       }
+      
+      // Update activity timestamp when entering app
+      updateLastActivity();
 
       try {
         const res = await fetch(`${API}/me`, {
@@ -2695,8 +2727,8 @@
         window.location.href = 'index.html';
       }
     }
-    
-// ─── CATALOG MODE (manual vs WooCommerce) ─────────────────
+
+    // ─── CATALOG MODE (manual vs WooCommerce) ─────────────────
     function catalogModeIsManual() {
       return (localStorage.getItem('bb_store_mode') || 'custom') !== 'woo';
     }

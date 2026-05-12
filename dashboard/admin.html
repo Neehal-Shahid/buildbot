@@ -521,6 +521,10 @@ input::placeholder { color: var(--dim); }
     <div class="card">
       <div class="card-head">
         <div><h2>Recently Joined Stores</h2><div class="card-sub">Newest store registrations</div></div>
+        <button class="btn btn-primary btn-sm" onclick="openBroadcastModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          Broadcast
+        </button>
       </div>
       <table>
         <thead><tr><th>Store</th><th>Email</th><th>Plan</th><th>Status</th><th>Joined</th></tr></thead>
@@ -536,8 +540,18 @@ input::placeholder { color: var(--dim); }
     <div class="card">
       <div class="card-head">
         <div><h2>Stores</h2><div class="card-sub" id="stores-count-sub">Loading…</div></div>
-        <input type="text" id="store-search" placeholder="Search by name or email…"
-          style="width:220px;" oninput="filterStores()"/>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="store-search" placeholder="Search by name or email…"
+            style="width:220px;" oninput="filterStores()"/>
+          <button class="btn btn-primary btn-sm" onclick="openBroadcastModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            Broadcast
+          </button>
+          <button class="btn btn-warning btn-sm" onclick="runDripEmails()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Run Drip
+          </button>
+        </div>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -731,13 +745,103 @@ input::placeholder { color: var(--dim); }
 <div class="modal-bg" id="delete-modal">
   <div class="modal">
     <div class="modal-icon" style="background:var(--danger-bg);color:var(--danger);">
-      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2 2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4"/></svg>
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4"/></svg>
     </div>
     <h3>Delete Store Permanently</h3>
     <p>This will permanently delete the store and ALL their products, payments, recommendations and data. This cannot be undone.</p>
     <div class="modal-detail" id="delete-details"></div>
     <div class="modal-btns">
       <button class="btn btn-danger" id="delete-confirm-btn" onclick="confirmDelete()">Delete Permanently</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE STORE MODAL -->
+<div class="modal-bg" id="manage-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-icon" style="background:var(--accent-light);color:var(--accent);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M1.54 9.96l4.24 4.24M1.54 14.04l4.24-4.24M18.46 14.04l-4.24-4.24"/></svg>
+    </div>
+    <h3>Manage Store</h3>
+    <p>Override plan, extend trial, or send a manual email to this store.</p>
+    <div class="modal-detail" id="manage-details"></div>
+    <div class="two-col" style="margin-top:16px;">
+      <div class="form-group">
+        <label class="form-label">Plan Override</label>
+        <select id="manage-plan" style="width:100%;">
+          <option value="trial">Trial</option>
+          <option value="starter">Starter</option>
+          <option value="growth">Growth</option>
+          <option value="pro">Pro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan Status</label>
+        <select id="manage-status" style="width:100%;">
+          <option value="active">Active</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px;">
+      <label class="form-label">Extend Trial (days)</label>
+      <input type="number" id="manage-trial-days" min="1" max="90" placeholder="Leave 0 to not extend" style="width:100%;"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Internal Admin Notes</label>
+      <textarea id="manage-notes" rows="3" maxlength="1000" placeholder="Internal notes about this store (not visible to store)" style="width:100%;font-family:system-ui,sans-serif;font-size:13px;resize:vertical;"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="manage-save-btn" onclick="confirmManageStore()">Save Changes</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCTS CATALOG MODAL -->
+<div class="modal-bg" id="products-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-icon" style="background:var(--success-bg);color:var(--success);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    </div>
+    <h3>Product Catalog</h3>
+    <p>All products for this store.</p>
+    <div class="modal-detail" id="products-details"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- BROADCAST MODAL -->
+<div class="modal-bg" id="broadcast-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-icon" style="background:var(--accent-light);color:var(--accent);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </div>
+    <h3>Broadcast Email</h3>
+    <p>Send an email to all stores or filter by plan.</p>
+    <div class="form-group">
+      <label class="form-label">Subject</label>
+      <input type="text" id="broadcast-subject" maxlength="150" placeholder="Email subject" style="width:100%;"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message</label>
+      <textarea id="broadcast-message" rows="6" maxlength="2000" placeholder="Email message (supports line breaks)" style="width:100%;font-family:system-ui,sans-serif;font-size:13px;resize:vertical;"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Plan (optional)</label>
+      <select id="broadcast-target-plan" style="width:100%;">
+        <option value="">All stores</option>
+        <option value="trial">Trial only</option>
+        <option value="starter">Starter only</option>
+        <option value="growth">Growth only</option>
+        <option value="pro">Pro only</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" id="broadcast-send-btn" onclick="confirmBroadcast()">Send Broadcast</button>
       <button class="btn" onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -1179,39 +1283,61 @@ function renderStores(stores) {
         <td>
   <div style="display:flex;align-items:center;gap:5px;">
     <button
+      title="Manage"
+      onclick="openManageModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}','${safeText(s.plan)}','${safeText(s.plan_status)}','${safeText(s.admin_notes || '')}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--accent-border);background:var(--accent-light);color:var(--accent);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--accent)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--accent-light)';this.style.color='var(--accent)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M1.54 9.96l4.24 4.24M1.54 14.04l4.24-4.24M18.46 14.04l-4.24-4.24"/>
+      </svg>
+    </button>
+    <button
+      title="View Catalog"
+      onclick="openProductsModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--success-border);background:var(--success-bg);color:var(--success);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--success)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--success-bg)';this.style.color='var(--success)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+    </button>
+    <button
       title="Activate"
       onclick="activateStore('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
       style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--success-border);background:var(--success-bg);color:var(--success);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
       onmouseover="this.style.background='var(--success)';this.style.color='#fff';"
       onmouseout="this.style.background='var(--success-bg)';this.style.color='var(--success)';">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
-      </svg>
-    </button>
-    <button
-      title="Disable"
-      onclick="openDisable('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
-      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--warning-border);background:var(--warning-bg);color:var(--warning);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
-      onmouseover="this.style.background='var(--warning)';this.style.color='#fff';"
-      onmouseout="this.style.background='var(--warning-bg)';this.style.color='var(--warning)';">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-      </svg>
-    </button>
-    <button
-      title="Delete"
-      onclick="openDelete('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
-      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
-      onmouseover="this.style.background='var(--danger)';this.style.color='#fff';"
-      onmouseout="this.style.background='var(--danger-bg)';this.style.color='var(--danger)';">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="3 6 5 6 21 6"/>
         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
         <path d="M10 11v6"/>
         <path d="M14 11v6"/>
-        <path d="M9 6V4h6v2"/>
+        <path d="M9 6V4"/>
+      </svg>
+    </button>
+    <button
+      title="Broadcast"
+      onclick="openBroadcastModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--accent-border);background:var(--accent-light);color:var(--accent);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--accent)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--accent-light)';this.style.color='var(--accent)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="14" r="3"/>
+      </svg>
+    </button>
+    <button
+      title="Run Drip"
+      onclick="openRunDripModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')"
+      style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--success-border);background:var(--success-bg);color:var(--success);cursor:pointer;flex-shrink:0;transition:background 0.15s,color 0.15s;"
+      onmouseover="this.style.background='var(--success)';this.style.color='#fff';"
+      onmouseout="this.style.background='var(--success-bg)';this.style.color='var(--success)';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
     </button>
   </div>
@@ -1447,6 +1573,209 @@ async function confirmApprove() {
   } catch {
     setBtnLoading(btn, false);
     showToast('Error', 'Could not connect to server.', 'error');
+  }
+}
+
+// ─── MANAGE STORE MODAL ───────────────────────────────
+function openManageModal(storeId, name, email, plan, planStatus, adminNotes) {
+  pendingAction = { storeId };
+  const decodedName = decodeURIComponent(name || '');
+  const decodedEmail = decodeURIComponent(email || '');
+  const decodedNotes = decodeURIComponent(adminNotes || '');
+  document.getElementById('manage-details').innerHTML = `
+    <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedName)}</strong></div>
+    <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Email</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedEmail)}</strong></div>
+    <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store ID</div><strong style="color:var(--text);font-size:14px;">${safeText(storeId)}</strong></div>
+  `;
+  document.getElementById('manage-plan').value = plan || 'trial';
+  document.getElementById('manage-status').value = planStatus || 'active';
+  document.getElementById('manage-trial-days').value = '';
+  document.getElementById('manage-notes').value = decodedNotes;
+  document.getElementById('manage-modal').classList.add('open');
+}
+
+async function confirmManageStore() {
+  if (!pendingAction) return;
+  const btn = document.getElementById('manage-save-btn');
+  setBtnLoading(btn, true);
+  const plan = document.getElementById('manage-plan').value;
+  const planStatus = document.getElementById('manage-status').value;
+  const trialDays = parseInt(document.getElementById('manage-trial-days').value) || 0;
+  const notes = document.getElementById('manage-notes').value.trim();
+
+  try {
+    // Set plan and status
+    await fetch(`${API}/admin/set-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ storeId: pendingAction.storeId, plan, planStatus })
+    });
+    // Extend trial if days > 0
+    if (trialDays > 0) {
+      await fetch(`${API}/admin/extend-trial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+        body: JSON.stringify({ storeId: pendingAction.storeId, days: trialDays })
+      });
+    }
+    // Save notes
+    await fetch(`${API}/admin/save-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify({ storeId: pendingAction.storeId, notes })
+    });
+    setBtnLoading(btn, false);
+    closeModal();
+    showToast('Store updated', 'Changes saved successfully.', 'success');
+    loadStores();
+    loadOverview();
+  } catch (e) {
+    setBtnLoading(btn, false);
+    showToast('Error', 'Could not update store.', 'error');
+  }
+}
+
+// ─── PRODUCTS CATALOG MODAL ─────────────────────────────
+function openProductsModal(storeId, name) {
+  const decodedName = decodeURIComponent(name || '');
+  document.getElementById('products-details').innerHTML = `
+    <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedName)}</strong></div>
+    <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store ID</div><strong style="color:var(--text);font-size:14px;">${safeText(storeId)}</strong></div>
+  `;
+  // Load products
+  loadStoreProducts(storeId);
+  document.getElementById('products-modal').classList.add('open');
+}
+
+async function loadStoreProducts(storeId) {
+  const productsTable = document.getElementById('products-details');
+  productsTable.innerHTML = '<div style="text-align:center;padding:24px;color:var(--dim);font-size:13px;">Loading products…</div>';
+  try {
+    const res = await fetch(`${API}/admin/store-products/${storeId}`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
+    if (!data.success) throw new Error(data.error || 'Failed to load products');
+    
+    if (data.products && data.products.length > 0) {
+      productsTable.innerHTML = `
+        <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:8px;">
+          <table style="width:100%;">
+            <thead><tr><th style="padding:8px 10px;background:var(--surface-2);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">SKU</th><th style="padding:8px 10px;background:var(--surface-2);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Name</th><th style="padding:8px 10px;background:var(--surface-2);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Price</th><th style="padding:8px 10px;background:var(--surface-2);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Category</th></tr></thead>
+            <tbody>${data.products.map(p => `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px 10px;font-size:12px;font-family:monospace;">${safeText(p.sku || '')}</td>
+                <td style="padding:8px 10px;font-size:12px;">${safeText(p.name || '')}</td>
+                <td style="padding:8px 10px;font-size:12px;">${p.price ? 'Rs ' + Number(p.price).toLocaleString() : ''}</td>
+                <td style="padding:8px 10px;font-size:12px;">${safeText(p.category || '')}</td>
+              </tr>
+            `).join('')}</tbody>
+          </table>
+        </div>
+      `;
+    } else {
+      productsTable.innerHTML = '<div style="text-align:center;padding:24px;color:var(--dim);font-size:13px;">No products found for this store.</div>';
+    }
+  } catch (e) {
+    productsTable.innerHTML = '<div style="text-align:center;padding:24px;color:var(--danger);font-size:13px;">Failed to load products.</div>';
+  }
+}
+
+// ─── BROADCAST MODAL ──────────────────────────────────
+function openBroadcastModal(storeId, name) {
+  const decodedName = decodeURIComponent(name || '');
+  if (storeId && decodedName) {
+    // Single store broadcast - prefill target
+    document.getElementById('broadcast-details').innerHTML = `
+      <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Send to</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedName)}</strong></div>
+      <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store ID</div><strong style="color:var(--text);font-size:14px;">${safeText(storeId)}</strong></div>
+    `;
+    pendingAction = { storeId, singleStore: true };
+  } else {
+    // Broadcast to all stores
+    document.getElementById('broadcast-details').innerHTML = '<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Send to</div><strong style="color:var(--text);font-size:14px;">All stores</strong></div>';
+    pendingAction = { singleStore: false };
+  }
+  document.getElementById('broadcast-subject').value = '';
+  document.getElementById('broadcast-message').value = '';
+  document.getElementById('broadcast-target-plan').value = '';
+  document.getElementById('broadcast-modal').classList.add('open');
+}
+
+async function confirmBroadcast() {
+  const btn = document.getElementById('broadcast-send-btn');
+  const subject = document.getElementById('broadcast-subject').value.trim();
+  const message = document.getElementById('broadcast-message').value.trim();
+  const targetPlan = document.getElementById('broadcast-target-plan').value;
+  
+  if (!subject || !message) {
+    showToast('Missing fields', 'Subject and message are required.', 'error');
+    return;
+  }
+  
+  setBtnLoading(btn, true);
+  
+  try {
+    const body = { subject, message };
+    if (targetPlan) body.targetPlan = targetPlan;
+    
+    const res = await fetch(`${API}/admin/broadcast`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    setBtnLoading(btn, false);
+    closeModal();
+    if (data.success) {
+      showToast('Broadcast sent', data.message || 'Email sent successfully.', 'success');
+    } else {
+      showToast('Broadcast failed', data.error || 'Something went wrong.', 'error');
+    }
+  } catch (e) {
+    setBtnLoading(btn, false);
+    showToast('Error', 'Could not send broadcast.', 'error');
+  }
+}
+
+// ─── RUN DRIP EMAILS ─────────────────────────────────
+function runDripEmails(storeId, name) {
+  const decodedName = decodeURIComponent(name || '');
+  if (storeId && decodedName) {
+    // Single store drip
+    pendingAction = { storeId, singleStore: true };
+    showToast('Run Drip', `Triggering drip emails for ${decodedName}...`, 'warning');
+  } else {
+    // Global drip
+    pendingAction = { singleStore: false };
+    showToast('Run Drip', 'Triggering drip emails for all stores...', 'warning');
+  }
+  // Execute drip
+  executeRunDrip();
+}
+
+async function executeRunDrip() {
+  try {
+    const res = await fetch(`${API}/admin/run-drip`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    if (!data.success && handleAdminAuthError(data)) return;
+    if (!data.success) throw new Error(data.error || 'Failed to run drip');
+    
+    const results = data.results;
+    const summary = `
+      Trial warnings: ${results.trialWarnings}
+      Onboarding: ${results.onboarding}
+      Dunning: ${results.dunning}
+      Stale payments: ${results.stalePayments}
+      Errors: ${results.errors.length}
+    `;
+    showToast('Drip completed', summary, results.errors.length > 0 ? 'error' : 'success');
+  } catch (e) {
+    showToast('Error', 'Failed to run drip emails.', 'error');
   }
 }
 

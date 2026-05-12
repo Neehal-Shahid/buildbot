@@ -76,6 +76,10 @@ router.post('/signup', async (req, res) => {
     // Send welcome email
     sendEmail(welcomeEmail(name, email));
 
+    // Notify admin of new store registration
+    const { adminNewStoreEmail } = require('../email');
+    sendEmail(adminNewStoreEmail(name, email, storeId));
+
     const token = jwt.sign(
       { storeId: store.store_id, email: store.email, name: store.name },
       JWT_SECRET, { expiresIn: '7d' }
@@ -359,6 +363,30 @@ router.put('/widget-settings', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Widget settings saved!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── PAYMENT (DASHBOARD) ───────────────────────────────
+router.post('/payment', authMiddleware, async (req, res) => {
+  const { amount, method, transactionRef, plan } = req.body;
+  if (!amount || !method || !transactionRef || !plan)
+    return res.status(400).json({ error: 'All fields are required' });
+
+  try {
+    await paymentDB.create(req.store.storeId, amount, method, transactionRef, plan);
+    
+    // Notify admin of new payment submission
+    try {
+      const store = await storeDB.findById(req.store.storeId);
+      if (store) {
+        const { sendEmail: _sendEmail, adminNewPaymentEmail } = require('../email');
+        _sendEmail(adminNewPaymentEmail(store.name, store.email, plan, amount, method, transactionRef));
+      }
+    } catch {}
+
+    res.json({ success: true, message: 'Payment submitted! We will verify and activate your plan.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Payment submission failed: ' + err.message });
   }
 });
 

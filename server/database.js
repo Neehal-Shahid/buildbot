@@ -96,7 +96,9 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN widget_enabled INTEGER DEFAULT 1`,
     `ALTER TABLE stores ADD COLUMN catalog_last_updated TEXT DEFAULT ''`,
     `ALTER TABLE products ADD COLUMN woo_id INTEGER DEFAULT NULL`,
-    `ALTER TABLE stores ADD COLUMN google_id TEXT DEFAULT NULL`
+    `ALTER TABLE stores ADD COLUMN google_id TEXT DEFAULT NULL`,
+    `ALTER TABLE stores ADD COLUMN plan_ends TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN admin_notes TEXT DEFAULT ''`
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch(e) {}
@@ -263,6 +265,77 @@ const storeDB = {
     ], 'write');
 
     return true;
+  },
+
+  // Set plan manually with optional plan_ends date (admin override)
+  setPlan: async (storeId, plan, planStatus, planEnds = null) => {
+    if (planEnds) {
+      return await client.execute({
+        sql: 'UPDATE stores SET plan = ?, plan_status = ?, plan_ends = ? WHERE store_id = ?',
+        args: [plan, planStatus, planEnds, storeId]
+      });
+    }
+    return await client.execute({
+      sql: 'UPDATE stores SET plan = ?, plan_status = ? WHERE store_id = ?',
+      args: [plan, planStatus, storeId]
+    });
+  },
+
+  // Extend trial by N days from today or current trial_ends, whichever is later
+  extendTrial: async (storeId, days) => {
+    return await client.execute({
+      sql: `UPDATE stores SET
+              trial_ends = date(MAX(COALESCE(NULLIF(trial_ends,''), date('now')), date('now')), '+${days} days'),
+              plan = 'trial',
+              plan_status = 'active'
+            WHERE store_id = ?`,
+      args: [storeId]
+    });
+  },
+
+  // Save internal admin notes for a store
+  setNotes: async (storeId, notes) => {
+    return await client.execute({
+      sql: 'UPDATE stores SET admin_notes = ? WHERE store_id = ?',
+      args: [notes, storeId]
+    });
+  },
+
+  // Get trial stores expiring in exactly N days — used for trial warning emails
+  getTrialEndingIn: async (days) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM stores
+            WHERE plan = 'trial'
+            AND plan_status = 'active'
+            AND date(trial_ends) = date('now', '+${days} days')`,
+      args: []
+    });
+    return res.rows;
+  },
+
+  // Get paid stores whose plan_ends was exactly N days ago — used for dunning emails
+  // plan_ends is set when a payment is approved. Requires plan_ends column (migration added above).
+  getPlanLapsedBy: async (days) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM stores
+            WHERE plan != 'trial'
+            AND plan_status = 'active'
+            AND plan_ends != ''
+            AND plan_ends IS NOT NULL
+            AND date(plan_ends) = date('now', '-${days} days')`,
+      args: []
+    });
+    return res.rows;
+  },
+
+  // Get stores that created their account exactly N days ago — used for onboarding drip
+  getSignedUpDaysAgo: async (days) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM stores
+            WHERE date(created_at) = date('now', '-${days} days')`,
+      args: []
+    });
+    return res.rows;
   }
 };
 
@@ -488,8 +561,11 @@ const paymentDB = {
       sql:  "UPDATE payments SET status = 'approved' WHERE id = ?",
       args: [paymentId]
     });
+    // Set plan and record plan_ends as 30 days from today for dunning tracking
     await client.execute({
-      sql:  "UPDATE stores SET plan = ?, plan_status = 'active' WHERE store_id = ?",
+      sql: `UPDATE stores 
+            SET plan = ?, plan_status = 'active', plan_ends = date('now', '+30 days')
+            WHERE store_id = ?`,
       args: [plan, storeId]
     });
   },
@@ -532,6 +608,18 @@ const paymentDB = {
       "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'approved'"
     );
     return res.rows[0].total;
+  },
+
+  // Get pending payments older than N hours — used for admin stale payment alert
+  getStalePending: async (hours) => {
+    const res = await client.execute({
+      sql: `SELECT p.*, s.name, s.email FROM payments p
+            JOIN stores s ON p.store_id = s.store_id
+            WHERE p.status = 'pending'
+            AND p.created_at <= datetime('now', '-${hours} hours')`,
+      args: []
+    });
+    return res.rows;
   }
 
 };

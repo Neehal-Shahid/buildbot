@@ -607,85 +607,7 @@
             .alert.show {
                 display: block;
             }
-            /* Action button expand-on-hover system */
-            .action-btn .ab-text {
-                font-size: 11px;
-                font-weight: 600;
-                max-width: 0;
-                overflow: hidden;
-                opacity: 0;
-                transition:
-                    max-width 0.22s ease,
-                    opacity 0.18s ease,
-                    margin-left 0.22s ease;
-                margin-left: 0;
-                display: inline-block;
-                vertical-align: middle;
-            }
-            .action-btn:hover .ab-text {
-                max-width: 60px;
-                opacity: 1;
-                margin-left: 5px;
-            }
-            .action-btn svg {
-                flex-shrink: 0;
-            }
-
-            /* Activate — accent/indigo */
-            .action-btn.act-activate {
-                background: var(--accent-light);
-                color: var(--accent);
-                border-color: var(--accent-border);
-            }
-            .action-btn.act-activate:hover {
-                background: var(--accent);
-                color: #fff;
-                border-color: var(--accent);
-                padding: 0 10px;
-                width: auto;
-            }
-
-            /* Disable — amber/warning */
-            .action-btn.act-disable {
-                background: var(--warning-bg);
-                color: var(--warning);
-                border-color: var(--warning-border);
-            }
-            .action-btn.act-disable:hover {
-                background: var(--warning);
-                color: #fff;
-                border-color: var(--warning);
-                padding: 0 10px;
-                width: auto;
-            }
-
-            /* Delete — red/danger */
-            .action-btn.act-delete {
-                background: var(--danger-bg);
-                color: var(--danger);
-                border-color: var(--danger-border);
-            }
-            .action-btn.act-delete:hover {
-                background: var(--danger);
-                color: #fff;
-                border-color: var(--danger);
-                padding: 0 10px;
-                width: auto;
-            }
-
-            /* Manage — neutral */
-            .action-btn.act-manage {
-                background: var(--surface-2);
-                color: var(--muted);
-                border-color: var(--border-2);
-            }
-            .action-btn.act-manage:hover {
-                background: var(--text);
-                color: #fff;
-                border-color: var(--text);
-                padding: 0 10px;
-                width: auto;
-            }
+            /* ── ACTION BUTTONS — EXPAND ON HOVER ── */
 
             /* ── SECTION ── */
             .section-title {
@@ -915,21 +837,93 @@
                 }
             }
 
-            /* ── ACTION BUTTON TOOLTIPS ── */
             .action-btn {
                 position: relative;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 28px;
                 height: 28px;
+                min-width: 28px;
+                width: 28px;
                 border-radius: 6px;
                 cursor: pointer;
                 flex-shrink: 0;
-                transition: all 0.18s ease;
                 border: 1px solid transparent;
                 overflow: hidden;
                 white-space: nowrap;
+                transition:
+                    min-width 0.2s ease,
+                    background 0.15s ease,
+                    color 0.15s ease,
+                    border-color 0.15s ease;
+                padding: 0 7px;
+                box-sizing: border-box;
+            }
+            .action-btn .ab-text {
+                font-size: 11px;
+                font-weight: 600;
+                max-width: 0;
+                overflow: hidden;
+                opacity: 0;
+                transition:
+                    max-width 0.2s ease,
+                    opacity 0.15s ease,
+                    margin-left 0.2s ease;
+                margin-left: 0;
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .action-btn:hover {
+                min-width: 80px;
+                width: auto;
+            }
+            .action-btn:hover .ab-text {
+                max-width: 56px;
+                opacity: 1;
+                margin-left: 5px;
+            }
+            .action-btn svg {
+                flex-shrink: 0;
+            }
+            .action-btn.act-activate {
+                background: var(--accent-light);
+                color: var(--accent);
+                border-color: var(--accent-border);
+            }
+            .action-btn.act-activate:hover {
+                background: var(--accent);
+                color: #fff;
+                border-color: var(--accent);
+            }
+            .action-btn.act-disable {
+                background: var(--warning-bg);
+                color: var(--warning);
+                border-color: var(--warning-border);
+            }
+            .action-btn.act-disable:hover {
+                background: var(--warning);
+                color: #fff;
+                border-color: var(--warning);
+            }
+            .action-btn.act-delete {
+                background: var(--danger-bg);
+                color: var(--danger);
+                border-color: var(--danger-border);
+            }
+            .action-btn.act-delete:hover {
+                background: var(--danger);
+                color: #fff;
+                border-color: var(--danger);
+            }
+            .action-btn.act-manage {
+                background: var(--surface-2);
+                color: var(--muted);
+                border-color: var(--border-2);
+            }
+            .action-btn.act-manage:hover {
+                background: var(--text);
+                color: #fff;
+                border-color: var(--text);
             }
 
             /* ── TABLE LOADING STATES ── */
@@ -2080,57 +2074,69 @@
                                 </div>
                             </div>
 
-                            <!-- Store search -->
-                            <div
-                                style="
-                                    display: flex;
-                                    gap: 10px;
-                                    margin-bottom: 16px;
-                                "
-                            >
-                                <input
-                                    type="text"
-                                    id="single-store-search"
-                                    placeholder="Search by store name or email…"
-                                    oninput="searchStoresForEmail()"
-                                    style="flex: 1"
-                                />
-                                <button
-                                    class="btn btn-sm"
-                                    onclick="clearSingleStoreSearch()"
-                                    style="flex-shrink: 0"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-
-                            <!-- Search results -->
-                            <div
-                                id="single-store-results"
-                                style="margin-bottom: 16px; display: none"
-                            >
-                                <div
-                                    style="
-                                        font-size: 11px;
-                                        font-weight: 700;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.06em;
-                                        color: var(--muted);
-                                        margin-bottom: 8px;
-                                    "
-                                >
-                                    Select a store:
+                            <!-- Store dropdown selector -->
+                            <div class="form-group" style="position: relative">
+                                <label class="form-label">Select Store</label>
+                                <div style="position: relative">
+                                    <input
+                                        type="text"
+                                        id="single-store-search"
+                                        placeholder="Search or select a store…"
+                                        autocomplete="off"
+                                        onfocus="openStoreDropdown()"
+                                        oninput="filterStoreDropdown()"
+                                        onblur="scheduleCloseDropdown()"
+                                        style="
+                                            width: 100%;
+                                            padding-right: 36px;
+                                            cursor: pointer;
+                                        "
+                                    />
+                                    <div
+                                        style="
+                                            position: absolute;
+                                            right: 10px;
+                                            top: 50%;
+                                            transform: translateY(-50%);
+                                            pointer-events: none;
+                                            color: var(--muted);
+                                        "
+                                    >
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        >
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </div>
+                                    <div
+                                        id="single-store-dropdown"
+                                        style="
+                                            display: none;
+                                            position: absolute;
+                                            top: calc(100% + 4px);
+                                            left: 0;
+                                            right: 0;
+                                            background: var(--surface);
+                                            border: 1px solid var(--border-2);
+                                            border-radius: var(--r-md);
+                                            box-shadow: var(--shadow-md);
+                                            z-index: 1000;
+                                            max-height: 240px;
+                                            overflow-y: auto;
+                                        "
+                                    >
+                                        <div
+                                            id="single-store-dropdown-list"
+                                        ></div>
+                                    </div>
                                 </div>
-                                <div
-                                    id="single-store-list"
-                                    style="
-                                        display: flex;
-                                        flex-direction: column;
-                                        gap: 6px;
-                                        max-height: 220px;
-                                        overflow-y: auto;
-                                    "
-                                ></div>
                             </div>
 
                             <!-- Selected store display -->
@@ -3171,8 +3177,8 @@
         <td>${s.product_count || 0}</td>
         <td>${s.rec_count || 0}</td>
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
-        <td>
-  <div style="display:flex;align-items:center;gap:5px;">
+        <td style="min-width:160px;white-space:nowrap;">
+  <div style="display:flex;align-items:center;gap:5px;flex-wrap:nowrap;">
     <button class="action-btn act-activate" style="height:28px;"
       onclick="activateStore('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3693,56 +3699,86 @@
             let _selectedStoreId = null;
             let _selectedStoreEmail = null;
 
-            function searchStoresForEmail() {
+            let _dropdownCloseTimer = null;
+
+            function openStoreDropdown() {
+                if (_dropdownCloseTimer) {
+                    clearTimeout(_dropdownCloseTimer);
+                    _dropdownCloseTimer = null;
+                }
+                renderStoreDropdown(allStoresData);
+                document.getElementById("single-store-dropdown").style.display =
+                    "block";
+            }
+
+            function filterStoreDropdown() {
                 const q = document
                     .getElementById("single-store-search")
                     .value.toLowerCase()
                     .trim();
-                const resultsEl = document.getElementById(
-                    "single-store-results",
+                const filtered =
+                    q.length === 0
+                        ? allStoresData
+                        : allStoresData.filter(
+                              (s) =>
+                                  (s.name || "").toLowerCase().includes(q) ||
+                                  (s.email || "").toLowerCase().includes(q),
+                          );
+                renderStoreDropdown(filtered);
+                document.getElementById("single-store-dropdown").style.display =
+                    "block";
+            }
+
+            function renderStoreDropdown(stores) {
+                const list = document.getElementById(
+                    "single-store-dropdown-list",
                 );
-                const listEl = document.getElementById("single-store-list");
-
-                if (!q || q.length < 2) {
-                    resultsEl.style.display = "none";
+                if (!stores.length) {
+                    list.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--dim);">No stores found.</div>`;
                     return;
                 }
-
-                const matches = allStoresData
-                    .filter(
-                        (s) =>
-                            (s.name || "").toLowerCase().includes(q) ||
-                            (s.email || "").toLowerCase().includes(q),
-                    )
-                    .slice(0, 8);
-
-                if (matches.length === 0) {
-                    listEl.innerHTML = `<div style="font-size:13px;color:var(--muted);padding:10px 0;">No stores found.</div>`;
-                    resultsEl.style.display = "block";
-                    return;
-                }
-
-                listEl.innerHTML = matches
+                list.innerHTML = stores
                     .map(
                         (s) => `
-                <div onclick="selectStoreForEmail('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}')"
-                  style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;transition:border-color 0.12s;"
-                  onmouseover="this.style.borderColor='var(--accent)'"
-                  onmouseout="this.style.borderColor='var(--border)'">
+                <div
+                  onmousedown="selectStoreForEmail('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}')"
+                  style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s;"
+                  onmouseover="this.style.background='var(--surface-2)'"
+                  onmouseout="this.style.background='transparent'"
+                >
                   <div style="font-size:13px;font-weight:600;color:var(--text);">${safeText(s.name)}</div>
-                  <div style="font-size:11px;color:var(--muted);margin-top:2px;">${safeText(s.email)} · ${planBadge(s.plan)}</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:8px;">
+                    <span>${safeText(s.email)}</span>
+                    <span>·</span>
+                    ${planBadge(s.plan)}
+                  </div>
                 </div>
               `,
                     )
                     .join("");
+            }
 
-                resultsEl.style.display = "block";
+            function scheduleCloseDropdown() {
+                _dropdownCloseTimer = setTimeout(() => {
+                    const dd = document.getElementById("single-store-dropdown");
+                    if (dd) dd.style.display = "none";
+                }, 180);
             }
 
             function selectStoreForEmail(storeId, name, email) {
+                if (_dropdownCloseTimer) {
+                    clearTimeout(_dropdownCloseTimer);
+                    _dropdownCloseTimer = null;
+                }
                 _selectedStoreId = storeId;
                 _selectedStoreEmail = decodeURIComponent(email);
                 const decodedName = decodeURIComponent(name);
+
+                const input = document.getElementById("single-store-search");
+                if (input) input.value = decodedName;
+
+                const dd = document.getElementById("single-store-dropdown");
+                if (dd) dd.style.display = "none";
 
                 document.getElementById("single-store-name").textContent =
                     decodedName;
@@ -3753,25 +3789,21 @@
                     "block";
                 document.getElementById("single-store-form").style.display =
                     "block";
-                document.getElementById("single-store-results").style.display =
-                    "none";
-                document.getElementById("single-store-search").value = "";
             }
 
             function clearSelectedStore() {
                 _selectedStoreId = null;
                 _selectedStoreEmail = null;
+                const input = document.getElementById("single-store-search");
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
                 document.getElementById("single-store-selected").style.display =
                     "none";
                 document.getElementById("single-store-form").style.display =
                     "none";
-                document.getElementById("single-store-search").value = "";
-                document.getElementById("single-store-search").focus();
-            }
-
-            function clearSingleStoreSearch() {
-                document.getElementById("single-store-search").value = "";
-                document.getElementById("single-store-results").style.display =
+                document.getElementById("single-store-dropdown").style.display =
                     "none";
             }
 

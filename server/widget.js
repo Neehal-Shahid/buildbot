@@ -2,7 +2,7 @@
   const script    = document.currentScript ||
                     document.querySelector('script[data-store-id]');
   const STORE_ID  = script ? script.getAttribute('data-store-id') : null;
-  const API       = 'https://buildbot-production.up.railway.app/api';
+  const API       = 'https://buildbot-production-8faa.up.railway.app/api';
 
   let BRAND_COLOR  = '#7c6af7';
   let WIDGET_BG    = '#0f1117'; // Default; can be overridden per-store via store-config

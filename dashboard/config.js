@@ -8,7 +8,7 @@ const useLocalApi =
 
 const BUILDBOT_API = useLocalApi
   ? 'http://localhost:3001/api'
-  : 'https://buildbot-production.up.railway.app/api';
+  : 'https://buildbot-production-8faa.up.railway.app/api';
 
 window.BB_API = BUILDBOT_API;
 

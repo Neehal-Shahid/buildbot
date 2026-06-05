@@ -65,7 +65,16 @@ app.get('/', (req, res) => {
 });
 
 // Start server only after DB is ready
-initDB().then(() => {
+initDB().then(async () => {
+
+  // Clean up stale unverified accounts (typo'd emails, abandoned signups)
+  try {
+    const { storeDB } = require('./database');
+    const removed = await storeDB.deleteUnverifiedOlderThan(7);
+    if (removed > 0) console.log(`Cleaned up ${removed} unverified account(s) older than 7 days`);
+  } catch (e) {
+    console.error('Unverified account cleanup failed:', e.message);
+  }
 
   app.listen(PORT, () => {
     console.log(`BuildBot server running on http://localhost:${PORT}`);

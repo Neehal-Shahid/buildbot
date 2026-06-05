@@ -749,7 +749,8 @@
 
     #page-signup.active,
     #page-login.active,
-    #page-forgot.active {
+    #page-forgot.active,
+    #page-verify-pending.active {
       height: calc(100vh - 72px);
       overflow: hidden;
     }
@@ -802,7 +803,8 @@
 
     #page-signup.active,
     #page-login.active,
-    #page-forgot.active {
+    #page-forgot.active,
+    #page-verify-pending.active {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -2733,6 +2735,10 @@
         <input type="email" id="signup-email" placeholder="you@yourstore.com" autocomplete="email" />
       </div>
       <div class="form-group">
+        <label class="form-label">Confirm Email</label>
+        <input type="email" id="signup-email-confirm" placeholder="Re-enter your email" autocomplete="email" />
+      </div>
+      <div class="form-group">
         <label class="form-label">Password</label>
         <div class="pwd-wrap">
           <input type="password" id="signup-password" placeholder="Min 8 characters"
@@ -2753,6 +2759,49 @@
       <div class="alert" id="signup-alert"></div>
 
       <div class="auth-switch">Already have an account? <a onclick="showPage('login')">Sign in</a></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VERIFY PENDING
+═══════════════════════════════════════════════ -->
+<div class="page" id="page-verify-pending">
+  <div class="auth-back" onclick="showPage('landing')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to home
+  </div>
+  <div class="auth-wrap">
+    <div class="auth-box" style="text-align:center;">
+
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;justify-content:center;">
+        <div style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
+      </div>
+
+      <div style="width:56px;height:56px;background:#eef2ff;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </div>
+
+      <h2>Check your email</h2>
+      <p style="margin-bottom:8px;">We sent a verification link to:</p>
+      <p id="verify-pending-email" style="font-weight:600;color:#111827;margin-bottom:16px;"></p>
+      <p style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:20px;">
+        Click the link in that email to activate your account. You won't be able to access the dashboard until your email is verified.
+      </p>
+
+      <div class="alert" id="verify-pending-alert"></div>
+
+      <button class="btn btn-primary btn-full" id="verify-resend-btn" onclick="resendVerification(this)" style="margin-bottom:12px;">
+        Resend verification email
+      </button>
+
+      <div class="auth-switch">Wrong email? <a onclick="showPage('signup')">Sign up again</a> · <a onclick="showPage('login')">Sign in</a></div>
 
     </div>
   </div>
@@ -2883,6 +2932,8 @@
     }
     let currentStore = readStoreFromStorage();
     let selectedPlan = 'starter';
+    let pendingVerificationEmail = '';
+    let pendingVerificationPassword = '';
 
     // Safety net: ensure landing content reveals on initial load even if the normal
     // routing/onload flow is interrupted (landing uses [data-reveal] which starts hidden).
@@ -2953,7 +3004,7 @@
       };
 
       // Signup form
-      const signupInputs = ['signup-name', 'signup-email', 'signup-password'];
+      const signupInputs = ['signup-name', 'signup-email', 'signup-email-confirm', 'signup-password'];
       signupInputs.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
@@ -3015,10 +3066,15 @@
           const data = await res.json();
           if (data.success) {
             window.location.href = 'dashboard.html';
+          } else if (res.status === 403 && data.requiresVerification) {
+            pendingVerificationEmail = currentStore?.email || '';
+            clearSession();
+            token = null;
+            currentStore = null;
+            showVerifyPending(pendingVerificationEmail, data.error);
           } else {
             // Token invalid or account deleted — force logout
-            localStorage.removeItem('bb_token');
-            localStorage.removeItem('bb_store');
+            clearSession();
             token = null;
             currentStore = null;
             showPage(FORCE_DASHBOARD ? 'login' : 'landing');
@@ -3034,7 +3090,13 @@
           }
         }
       } else {
-        showPage(FORCE_DASHBOARD ? 'login' : 'landing');
+        const verifyParam = new URLSearchParams(window.location.search).get('verify');
+        if (verifyParam === 'required') {
+          showPage('login');
+          showAlert('login-alert', 'Please verify your email before accessing the dashboard.', 'error');
+        } else {
+          showPage(FORCE_DASHBOARD ? 'login' : 'landing');
+        }
       }
 
 
@@ -3076,7 +3138,7 @@
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
       document.body.classList.toggle('landing-mode', name === 'landing');
-      document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot');
+      document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot' || name === 'verify-pending');
       document.body.classList.toggle('dashboard-mode', name === 'app');
       
       // Hide/show header based on page
@@ -3089,7 +3151,6 @@
       if (name === 'signup' || name === 'login' || name === 'forgot') {
         setTimeout(() => setupAuthEnterKeyHandlers(), 100);
       }
-      
       if (name === 'landing') {
         initScrollAnimations();
         initInteractiveEffects();
@@ -3384,11 +3445,15 @@
     async function doSignup(btn) {
       const name = document.getElementById('signup-name').value.trim();
       const email = document.getElementById('signup-email').value.trim();
+      const emailConfirm = document.getElementById('signup-email-confirm').value.trim();
       const password = document.getElementById('signup-password').value;
       const signupMode = localStorage.getItem('bb_signup_store_mode') || 'custom';
 
-      if (!name || !email || !password)
+      if (!name || !email || !emailConfirm || !password)
         return showAlert('signup-alert', 'Please fill all fields.', 'error');
+
+      if (email !== emailConfirm)
+        return showAlert('signup-alert', 'Email addresses do not match. Please check for typos.', 'error');
 
       const origText = btn.innerText;
       btn.disabled = true;
@@ -3401,21 +3466,60 @@
           body: JSON.stringify({ name, email, password })
         });
         const data = await res.json();
-        if (data.success) {
-          token = data.token;
-          currentStore = data.store;
+        if (data.success && data.requiresVerification) {
           localStorage.setItem('bb_store_mode', signupMode);
-          localStorage.removeItem('bb_token');
-          localStorage.removeItem('bb_store');
-          localStorage.setItem('bb_token', token);
-          localStorage.setItem('bb_store', JSON.stringify(currentStore));
-          localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
-          window.location.href = 'dashboard.html';
+          pendingVerificationEmail = data.email || email;
+          pendingVerificationPassword = password;
+          showVerifyPending(pendingVerificationEmail, data.message);
+        } else if (data.success) {
+          showAlert('signup-alert', data.message || 'Account created.', 'success');
         } else {
           showAlert('signup-alert', data.error, 'error');
         }
       } catch {
         showAlert('signup-alert', 'Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+
+    function showVerifyPending(email, message) {
+      pendingVerificationEmail = email || pendingVerificationEmail;
+      const emailEl = document.getElementById('verify-pending-email');
+      if (emailEl) emailEl.textContent = pendingVerificationEmail;
+      if (message) showAlert('verify-pending-alert', message, 'success');
+      showPage('verify-pending');
+    }
+
+    async function resendVerification(btn) {
+      const email = pendingVerificationEmail;
+      const password = pendingVerificationPassword;
+
+      if (!email || !password) {
+        showPage('login');
+        showAlert('login-alert', 'Sign in with your email and password, then use resend if needed.', 'error');
+        return;
+      }
+
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = 'Sending...';
+
+      try {
+        const res = await fetch(`${API}/resend-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('verify-pending-alert', data.message, 'success');
+        } else {
+          showAlert('verify-pending-alert', data.error || 'Could not resend email.', 'error');
+        }
+      } catch {
+        showAlert('verify-pending-alert', 'Cannot connect to server.', 'error');
       } finally {
         btn.disabled = false;
         btn.innerText = origText;
@@ -3449,6 +3553,10 @@
           localStorage.setItem('bb_store', JSON.stringify(currentStore));
           localStorage.setItem('bb_token_expires', String(Date.now() + 3 * 24 * 60 * 60 * 1000));
           window.location.href = 'dashboard.html';
+        } else if (res.status === 403 && data.requiresVerification) {
+          pendingVerificationEmail = email;
+          pendingVerificationPassword = password;
+          showVerifyPending(email, data.error);
         } else {
           showAlert('login-alert', data.error, 'error');
         }

@@ -224,6 +224,26 @@ const storeDB = {
       args: [hashedPassword, email],
     });
   },
+
+  updateUnverifiedAccount: async (storeId, name, hashedPassword) => {
+    return await client.execute({
+      sql: "UPDATE stores SET name = ?, password = ?, email_verified = 0 WHERE store_id = ?",
+      args: [name, hashedPassword, storeId],
+    });
+  },
+
+  deleteUnverifiedOlderThan: async (days = 7) => {
+    const res = await client.execute({
+      sql: `SELECT store_id FROM stores
+            WHERE email_verified = 0
+            AND datetime(created_at) < datetime('now', '-${days} days')`,
+      args: [],
+    });
+    for (const row of res.rows) {
+      await storeDB.deleteStoreAndData(row.store_id);
+    }
+    return res.rows.length;
+  },
   updatePluginKey: async (storeId, pluginSecret) => {
     return await client.execute({
       sql: "UPDATE stores SET plugin_secret = ? WHERE store_id = ?",

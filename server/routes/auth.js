@@ -23,16 +23,35 @@ function isStrongPassword(password) {
   return hasUpper && hasLower && hasNumber && hasSpecial && isLong;
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function sendVerificationEmail(name, email) {
+  const verifyToken = crypto.randomBytes(32).toString('hex');
+  await tokenDB.save(email, verifyToken, 'verify');
+  sendEmail(emailVerificationEmail(name, email, verifyToken));
+}
+
 // ─── AUTH MIDDLEWARE ──────────────────────────────────────
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const token = req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
   try {
     req.store = jwt.verify(token, JWT_SECRET);
-    next();
   } catch {
-    res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
+
+  const isVerified = await verifyDB.isVerified(req.store.email);
+  if (!isVerified) {
+    return res.status(403).json({
+      error: 'Please verify your email before accessing the dashboard.',
+      requiresVerification: true
+    });
+  }
+
+  next();
 }
 
 // ─── SIGNUP ───────────────────────────────────────────────
@@ -41,6 +60,9 @@ router.post('/signup', async (req, res) => {
 
   if (!name || !email || !password)
     return res.status(400).json({ error: 'All fields are required' });
+
+  if (!isValidEmail(email))
+    return res.status(400).json({ error: 'Please enter a valid email address' });
 
   if (password.length < 8)
     return res.status(400).json({
@@ -53,8 +75,27 @@ router.post('/signup', async (req, res) => {
     });
 
   const existing = await storeDB.findByEmail(email);
-  if (existing)
-    return res.status(400).json({ error: 'Email already registered' });
+  if (existing) {
+    const isVerified = await verifyDB.isVerified(email);
+    if (isVerified)
+      return res.status(400).json({ error: 'Email already registered' });
+
+    // Unverified account — update credentials and resend verification
+    const hashedPassword = await bcrypt.hash(password, 10);
+    try {
+      await storeDB.updateUnverifiedAccount(existing.store_id, name, hashedPassword);
+      await sendVerificationEmail(name, email);
+
+      return res.json({
+        success: true,
+        requiresVerification: true,
+        email,
+        message: 'Account already exists but is not verified. We sent a new verification link to your email.'
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'Could not update account: ' + err.message });
+    }
+  }
 
   const baseSlug = name.toLowerCase()
     .replace(/\s+/g, '-')
@@ -66,39 +107,43 @@ router.post('/signup', async (req, res) => {
 
   try {
     await storeDB.create(storeId, name, email, hashedPassword);
-    const store = await storeDB.findByEmail(email);
-
-    // Send verification email
-    const verifyToken = crypto.randomBytes(32).toString('hex');
-    await tokenDB.save(email, verifyToken, 'verify');
-    sendEmail(emailVerificationEmail(name, email, verifyToken));
-
-    // Send welcome email
-    sendEmail(welcomeEmail(name, email));
-
-    // Notify admin of new store registration
-    const { adminNewStoreEmail } = require('../email');
-    sendEmail(adminNewStoreEmail(name, email, storeId));
-
-    const token = jwt.sign(
-      { storeId: store.store_id, email: store.email, name: store.name },
-      JWT_SECRET, { expiresIn: '7d' }
-    );
+    await sendVerificationEmail(name, email);
 
     res.json({
-      success: true, token,
-      message: 'Account created! Please check your email to verify your address.',
-      store: {
-        storeId:   store.store_id,
-        name:      store.name,
-        email:     store.email,
-        plan:      store.plan,
-        trialEnds: store.trial_ends
-      }
+      success: true,
+      requiresVerification: true,
+      email,
+      message: 'Account created! Please check your email and click the verification link before signing in.'
     });
   } catch (err) {
     res.status(500).json({ error: 'Could not create account: ' + err.message });
   }
+});
+
+// ─── RESEND VERIFICATION ──────────────────────────────────
+router.post('/resend-verification', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ error: 'Email and password are required' });
+
+  const store = await storeDB.findByEmail(email);
+  if (!store)
+    return res.status(400).json({ error: 'No account found with this email' });
+
+  const valid = await bcrypt.compare(password, store.password);
+  if (!valid)
+    return res.status(400).json({ error: 'Incorrect password' });
+
+  const isVerified = await verifyDB.isVerified(email);
+  if (isVerified)
+    return res.json({ success: true, message: 'Your email is already verified. You can sign in now.' });
+
+  await sendVerificationEmail(store.name, email);
+
+  res.json({
+    success: true,
+    message: 'Verification email sent! Check your inbox and spam folder.'
+  });
 });
 
 // ─── VERIFY EMAIL ─────────────────────────────────────────
@@ -114,7 +159,14 @@ router.get('/verify-email', async (req, res) => {
   await verifyDB.setVerified(record.email);
   await tokenDB.markUsed(token);
 
-  res.json({ success: true, message: 'Email verified! You can now login.' });
+  const store = await storeDB.findByEmail(record.email);
+  if (store) {
+    sendEmail(welcomeEmail(store.name, store.email));
+    const { adminNewStoreEmail } = require('../email');
+    sendEmail(adminNewStoreEmail(store.name, store.email, store.store_id));
+  }
+
+  res.json({ success: true, message: 'Email verified! You can now sign in.' });
 });
 
 // ─── LOGIN ────────────────────────────────────────────────
@@ -134,7 +186,8 @@ router.post('/login', async (req, res) => {
   const isVerified = await verifyDB.isVerified(email);
   if (!isVerified) {
     return res.status(403).json({
-      error: 'Please verify your email before logging in. Check your inbox for the verification link.'
+      error: 'Please verify your email before logging in. Check your inbox for the verification link.',
+      requiresVerification: true
     });
   }
 

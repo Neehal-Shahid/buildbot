@@ -5722,6 +5722,11 @@
                             String(Date.now() + 3 * 24 * 60 * 60 * 1000),
                         );
                         enterApp(data);
+                    } else if (res.status === 403 && data.requiresVerification) {
+                        localStorage.removeItem("bb_token");
+                        localStorage.removeItem("bb_store");
+                        localStorage.removeItem("bb_token_expires");
+                        window.location.href = "index.html?verify=required";
                     } else {
                         localStorage.removeItem("bb_token");
                         localStorage.removeItem("bb_store");
@@ -5937,18 +5942,11 @@
                         body: JSON.stringify({ name, email, password }),
                     });
                     const data = await res.json();
-                    if (data.success) {
-                        token = data.token;
-                        currentStore = data.store;
+                    if (data.success && data.requiresVerification) {
                         localStorage.setItem("bb_store_mode", signupMode);
-                        localStorage.removeItem("bb_token");
-                        localStorage.removeItem("bb_store");
-                        localStorage.setItem("bb_token", token);
-                        localStorage.setItem(
-                            "bb_store",
-                            JSON.stringify(currentStore),
-                        );
-                        enterApp();
+                        window.location.href = "index.html?verify=required";
+                    } else if (data.success) {
+                        showAlert("signup-alert", data.message || "Account created.", "success");
                     } else {
                         showAlert("signup-alert", data.error, "error");
                     }
@@ -6000,6 +5998,8 @@
                             JSON.stringify(currentStore),
                         );
                         enterApp();
+                    } else if (res.status === 403 && data.requiresVerification) {
+                        window.location.href = "index.html?verify=required";
                     } else {
                         showAlert("login-alert", data.error, "error");
                     }

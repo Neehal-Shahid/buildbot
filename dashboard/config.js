@@ -11,6 +11,7 @@ const BUILDBOT_API = useLocalApi
   : 'https://buildbot-production-8faa.up.railway.app/api';
 
 window.BB_API = BUILDBOT_API;
+window.BB_SUPPORT_EMAIL = 'workwithneehal@gmail.com';
 
 // Global Loader Interceptor
 let fetchCount = 0;

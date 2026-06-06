@@ -85,6 +85,27 @@ async function initDB() {
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
 )`,
+      `CREATE TABLE IF NOT EXISTS email_send_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id   TEXT NOT NULL DEFAULT '',
+      recipient  TEXT NOT NULL,
+      email_type TEXT NOT NULL,
+      subject    TEXT DEFAULT '',
+      status     TEXT DEFAULT 'sent',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(store_id, email_type)
+    )`,
+      `CREATE TABLE IF NOT EXISTS support_tickets (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id    TEXT NOT NULL,
+      store_name  TEXT DEFAULT '',
+      store_email TEXT NOT NULL,
+      subject     TEXT NOT NULL,
+      message     TEXT NOT NULL,
+      status      TEXT DEFAULT 'open',
+      created_at  TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+    )`,
     ],
     "write",
   );
@@ -106,6 +127,30 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN google_id TEXT DEFAULT NULL`,
     `ALTER TABLE stores ADD COLUMN plan_ends TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN admin_notes TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN marketing_emails_enabled INTEGER DEFAULT 1`,
+    `ALTER TABLE stores ADD COLUMN drip_emails_paused INTEGER DEFAULT 0`,
+    `ALTER TABLE tokens ADD COLUMN attempt_count INTEGER DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS email_send_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id TEXT NOT NULL DEFAULT '',
+      recipient TEXT NOT NULL,
+      email_type TEXT NOT NULL,
+      subject TEXT DEFAULT '',
+      status TEXT DEFAULT 'sent',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(store_id, email_type)
+    )`,
+    `CREATE TABLE IF NOT EXISTS support_tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id TEXT NOT NULL,
+      store_name TEXT DEFAULT '',
+      store_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+    )`,
     `CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES
   ('trial_days', '14'),
@@ -386,6 +431,52 @@ const storeDB = {
       args: [],
     });
     return res.rows;
+  },
+
+  // Day-N signups eligible for marketing drip (verified, not paused, opted in)
+  getSignedUpDaysAgoForDrip: async (days) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM stores
+            WHERE date(created_at) = date('now', '-${days} days')
+            AND email_verified = 1
+            AND COALESCE(marketing_emails_enabled, 1) = 1
+            AND COALESCE(drip_emails_paused, 0) = 0
+            AND plan_status != 'disabled'`,
+      args: [],
+    });
+    return res.rows;
+  },
+
+  // Day 4 — widget not live: no products and WooCommerce not connected
+  getSignedUpDaysAgoNotLive: async (days) => {
+    const res = await client.execute({
+      sql: `SELECT s.* FROM stores s
+            WHERE date(s.created_at) = date('now', '-${days} days')
+            AND s.email_verified = 1
+            AND COALESCE(s.marketing_emails_enabled, 1) = 1
+            AND COALESCE(s.drip_emails_paused, 0) = 0
+            AND s.plan_status != 'disabled'
+            AND COALESCE(s.woo_connected, 0) = 0
+            AND NOT EXISTS (
+              SELECT 1 FROM products p WHERE p.store_id = s.store_id LIMIT 1
+            )`,
+      args: [],
+    });
+    return res.rows;
+  },
+
+  setMarketingEmails: async (storeId, enabled) => {
+    return await client.execute({
+      sql: "UPDATE stores SET marketing_emails_enabled = ? WHERE store_id = ?",
+      args: [enabled ? 1 : 0, storeId],
+    });
+  },
+
+  setDripPaused: async (storeId, paused) => {
+    return await client.execute({
+      sql: "UPDATE stores SET drip_emails_paused = ? WHERE store_id = ?",
+      args: [paused ? 1 : 0, storeId],
+    });
   },
 };
 
@@ -700,6 +791,56 @@ const tokenDB = {
       args: [token],
     });
   },
+
+  saveOtp: async (email, hashedOtp) => {
+    await client.execute({
+      sql: "DELETE FROM tokens WHERE email = ? AND type = 'verify_otp'",
+      args: [email],
+    });
+    await client.execute({
+      sql: `INSERT INTO tokens (email, token, type, expires_at, attempt_count)
+             VALUES (?, ?, 'verify_otp', datetime('now', '+15 minutes'), 0)`,
+      args: [email, hashedOtp],
+    });
+  },
+
+  getActiveOtp: async (email) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM tokens
+             WHERE email = ? AND type = 'verify_otp' AND used = 0
+             AND expires_at > datetime('now')
+             ORDER BY id DESC LIMIT 1`,
+      args: [email],
+    });
+    return res.rows[0] || null;
+  },
+
+  incrementOtpAttempts: async (email) => {
+    await client.execute({
+      sql: `UPDATE tokens SET attempt_count = attempt_count + 1
+             WHERE email = ? AND type = 'verify_otp' AND used = 0
+             AND expires_at > datetime('now')`,
+      args: [email],
+    });
+  },
+
+  invalidateOtp: async (email) => {
+    await client.execute({
+      sql: "UPDATE tokens SET used = 1 WHERE email = ? AND type = 'verify_otp'",
+      args: [email],
+    });
+  },
+
+  recentlyCreated: async (email, type, withinSeconds) => {
+    const res = await client.execute({
+      sql: `SELECT id FROM tokens
+             WHERE email = ? AND type = ?
+             AND datetime(created_at) > datetime('now', '-${withinSeconds} seconds')
+             LIMIT 1`,
+      args: [email, type],
+    });
+    return !!res.rows[0];
+  },
 };
 
 // ─── VERIFICATION STATUS ──────────────────────────────────
@@ -803,6 +944,94 @@ const configDB = {
   },
 };
 
+// ─── EMAIL SEND LOG (dedup + audit) ───────────────────────
+const emailLogDB = {
+  // Returns true if this send is allowed (first time for store_id + email_type)
+  tryClaim: async (storeId, emailType, recipient, subject = "") => {
+    try {
+      const res = await client.execute({
+        sql: `INSERT INTO email_send_log (store_id, recipient, email_type, subject)
+               VALUES (?, ?, ?, ?)`,
+        args: [storeId || "", emailType, recipient, subject],
+      });
+      return (res.rowsAffected ?? 1) > 0;
+    } catch (e) {
+      if (String(e.message).includes("UNIQUE")) return false;
+      throw e;
+    }
+  },
+
+  logSend: async (storeId, emailType, recipient, subject, status = "sent") => {
+    try {
+      await client.execute({
+        sql: `INSERT INTO email_send_log (store_id, recipient, email_type, subject, status)
+               VALUES (?, ?, ?, ?, ?)`,
+        args: [storeId || "", emailType, recipient, subject, status],
+      });
+    } catch (e) {
+      if (!String(e.message).includes("UNIQUE")) throw e;
+    }
+  },
+
+  getRecent: async (limit = 100) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM email_send_log ORDER BY created_at DESC LIMIT ?`,
+      args: [limit],
+    });
+    return res.rows;
+  },
+
+  getByStore: async (storeId, limit = 50) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM email_send_log WHERE store_id = ?
+             ORDER BY created_at DESC LIMIT ?`,
+      args: [storeId, limit],
+    });
+    return res.rows;
+  },
+};
+
+// ─── SUPPORT TICKETS ──────────────────────────────────────
+const supportTicketDB = {
+  create: async (storeId, storeName, storeEmail, subject, message) => {
+    const res = await client.execute({
+      sql: `INSERT INTO support_tickets (store_id, store_name, store_email, subject, message)
+             VALUES (?, ?, ?, ?, ?)`,
+      args: [storeId, storeName, storeEmail, subject, message],
+    });
+    return res.lastInsertRowid;
+  },
+
+  getAll: async (status = null) => {
+    if (status) {
+      const res = await client.execute({
+        sql: "SELECT * FROM support_tickets WHERE status = ? ORDER BY created_at DESC",
+        args: [status],
+      });
+      return res.rows;
+    }
+    const res = await client.execute(
+      "SELECT * FROM support_tickets ORDER BY created_at DESC",
+    );
+    return res.rows;
+  },
+
+  getByStore: async (storeId) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM support_tickets WHERE store_id = ? ORDER BY created_at DESC",
+      args: [storeId],
+    });
+    return res.rows;
+  },
+
+  updateStatus: async (id, status) => {
+    return await client.execute({
+      sql: "UPDATE support_tickets SET status = ? WHERE id = ?",
+      args: [status, id],
+    });
+  },
+};
+
 module.exports = {
   client,
   initDB,
@@ -815,4 +1044,6 @@ module.exports = {
   widgetDB,
   adminDB,
   configDB,
+  emailLogDB,
+  supportTicketDB,
 };

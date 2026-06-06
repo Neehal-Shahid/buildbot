@@ -81,18 +81,22 @@ initDB().then(async () => {
   });
 
   // ─── SCHEDULED EMAIL JOB ────────────────────────────────────
-  // Runs every hour — handles trial warnings, onboarding drip, dunning, stale payments
-  const { runScheduledEmails } = require('./routes/admin');
+  // Set CRON_ENABLED=false on secondary Railway instances to avoid duplicate cron runs
+  const cronEnabled = process.env.CRON_ENABLED !== 'false';
 
-  // Run once 30 seconds after startup to catch any sends missed during downtime
-  setTimeout(async () => {
-    try { await runScheduledEmails(); }
-    catch (e) { console.error('Startup email job error:', e.message); }
-  }, 30 * 1000);
+  if (cronEnabled) {
+    const { runScheduledEmails } = require('./routes/admin');
 
-  // Then run every 60 minutes
-  setInterval(async () => {
-    try { await runScheduledEmails(); }
-    catch (e) { console.error('Hourly email job error:', e.message); }
-  }, 60 * 60 * 1000);
+    setTimeout(async () => {
+      try { await runScheduledEmails(); }
+      catch (e) { console.error('Startup email job error:', e.message); }
+    }, 30 * 1000);
+
+    setInterval(async () => {
+      try { await runScheduledEmails(); }
+      catch (e) { console.error('Hourly email job error:', e.message); }
+    }, 60 * 60 * 1000);
+  } else {
+    console.log('Email cron disabled (CRON_ENABLED=false)');
+  }
 })

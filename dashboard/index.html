@@ -1938,13 +1938,15 @@
     /* Form fields */
     #page-signup .form-group,
     #page-login .form-group,
-    #page-forgot .form-group {
+    #page-forgot .form-group,
+    #page-verify-pending .form-group {
       margin-bottom: 14px;
     }
 
     #page-signup .form-label,
     #page-login .form-label,
-    #page-forgot .form-label {
+    #page-forgot .form-label,
+    #page-verify-pending .form-label {
       display: block;
       font-size: 12px;
       font-weight: 600;
@@ -1956,7 +1958,8 @@
 
     #page-signup input,
     #page-login input,
-    #page-forgot input {
+    #page-forgot input,
+    #page-verify-pending input {
       background: var(--auth-surface);
       border: 1px solid var(--auth-border);
       border-radius: 6px;
@@ -2825,13 +2828,21 @@
       </div>
 
       <h2>Check your email</h2>
-      <p>We sent a verification link to <span class="verify-email-highlight" id="verify-pending-email"></span>. Click the link in that email to activate your account before signing in.</p>
+      <p>We sent a verification link and a 6-digit code to <span class="verify-email-highlight" id="verify-pending-email"></span>. Use either method to activate your account.</p>
+
+      <div class="form-group" style="margin-top:8px;">
+        <label class="form-label">Verification code</label>
+        <input type="text" id="verify-otp-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="letter-spacing:0.2em;text-align:center;font-size:18px;font-weight:600;" />
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="verifyEmailOtp(this)" style="margin-bottom:10px;">Verify with code</button>
 
       <div class="alert" id="verify-pending-alert"></div>
 
-      <button class="btn btn-primary btn-full" id="verify-resend-btn" onclick="resendVerification(this)">Resend verification email</button>
+      <button class="btn btn-primary btn-full" id="verify-resend-btn" onclick="resendVerification(this)" style="background:#fff;color:#4f46e5;border:1.5px solid #e5e7eb;box-shadow:none;">Resend verification email</button>
 
       <div class="auth-switch">Wrong email? <a onclick="showPage('signup')">Sign up again</a> · <a onclick="showPage('login')">Sign in</a></div>
+      <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="verify-support-link" href="mailto:workwithneehal@gmail.com">Contact support</a></div>
 
     </div>
   </div>
@@ -2894,6 +2905,7 @@
       <div class="alert" id="login-alert"></div>
 
       <div class="auth-switch">Don't have an account? <a onclick="showPage('signup')">Start free trial</a></div>
+      <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="login-support-link" href="mailto:workwithneehal@gmail.com">Contact support</a></div>
 
     </div>
   </div>
@@ -3516,6 +3528,46 @@
       if (emailEl) emailEl.textContent = pendingVerificationEmail;
       if (message) showAlert('verify-pending-alert', message, 'success');
       showPage('verify-pending');
+    }
+
+    async function verifyEmailOtp(btn) {
+      const email = pendingVerificationEmail;
+      const code = document.getElementById('verify-otp-input')?.value.trim();
+
+      if (!email) {
+        showPage('login');
+        showAlert('login-alert', 'Please sign in to verify your email.', 'error');
+        return;
+      }
+      if (!code || code.length !== 6)
+        return showAlert('verify-pending-alert', 'Please enter the 6-digit code from your email.', 'error');
+
+      const origText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = 'Verifying...';
+
+      try {
+        const res = await fetch(`${API}/verify-email-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showAlert('verify-pending-alert', '✅ Email verified! Redirecting to sign in…', 'success');
+          setTimeout(() => {
+            showPage('login');
+            showAlert('login-alert', 'Email verified! You can now sign in.', 'success');
+          }, 1200);
+        } else {
+          showAlert('verify-pending-alert', data.error || 'Verification failed.', 'error');
+        }
+      } catch {
+        showAlert('verify-pending-alert', 'Cannot connect to server.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
     }
 
     async function resendVerification(btn) {

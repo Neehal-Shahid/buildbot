@@ -2079,6 +2079,28 @@
                     <div class="card" style="margin-top: 20px">
                         <div class="card-head">
                             <div>
+                                <h2>Email Send Log</h2>
+                                <div class="card-sub">Automated drip deduplication audit — each type sends once per store</div>
+                            </div>
+                            <button class="btn btn-sm" onclick="loadEmailLog()">Refresh</button>
+                        </div>
+                        <div id="email-log-table" style="font-size:12px;color:var(--muted);">Click Refresh to load recent sends.</div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px">
+                        <div class="card-head">
+                            <div>
+                                <h2>Support Tickets</h2>
+                                <div class="card-sub">Messages from store owners</div>
+                            </div>
+                            <button class="btn btn-sm" onclick="loadAdminSupportTickets()">Refresh</button>
+                        </div>
+                        <div id="admin-support-tickets" style="font-size:12px;color:var(--muted);">Click Refresh to load tickets.</div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px">
+                        <div class="card-head">
+                            <div>
                                 <h2>Send to Specific Store</h2>
                                 <div class="card-sub">
                                     Search for a store and send them a
@@ -2510,6 +2532,12 @@
                 <input type="number" id="manage-trial-days" min="1" max="90" placeholder="Leave 0 to not extend"
                     style="width: 100%" />
             </div>
+            <div class="form-group" style="margin-top: 4px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
+                    <input type="checkbox" id="manage-drip-paused" />
+                    Pause automated drip emails for this store
+                </label>
+            </div>
             <div class="form-group">
                 <label class="form-label">Internal Admin Notes</label>
                 <textarea id="manage-notes" rows="3" maxlength="1000"
@@ -2906,8 +2934,11 @@
                 else loadRevenueTab();
             }
             if (name === "activity") renderActivityLog();
-            if (name === "comms" && allStoresData.length === 0)
-                loadStores();
+            if (name === "comms") {
+                if (allStoresData.length === 0) loadStores();
+                loadEmailLog();
+                loadAdminSupportTickets();
+            }
         }
 
         async function runDbAudit() {
@@ -3243,7 +3274,7 @@
     </button>
 
     <button class="action-btn act-manage" style="height:28px;"
-      onclick="openManageModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}','${safeText(s.plan)}','${safeText(s.plan_status)}','${encodeURIComponent(s.admin_notes || "")}')">
+      onclick="openManageModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}','${safeText(s.plan)}','${safeText(s.plan_status)}','${encodeURIComponent(s.admin_notes || "")}','${s.drip_emails_paused || 0}')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -3578,6 +3609,7 @@
             plan,
             planStatus,
             adminNotes,
+            dripPaused,
         ) {
             pendingAction = { storeId };
             const decodedName = decodeURIComponent(name || "");
@@ -3593,6 +3625,8 @@
                 planStatus || "active";
             document.getElementById("manage-trial-days").value = "";
             document.getElementById("manage-notes").value = decodedNotes;
+            document.getElementById("manage-drip-paused").checked =
+                String(dripPaused) === "1";
             document.getElementById("manage-modal").classList.add("open");
         }
 
@@ -3649,6 +3683,17 @@
                     body: JSON.stringify({
                         storeId: pendingAction.storeId,
                         notes,
+                    }),
+                });
+                await fetch(`${API}/admin/set-drip-paused`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify({
+                        storeId: pendingAction.storeId,
+                        paused: document.getElementById("manage-drip-paused").checked,
                     }),
                 });
                 setBtnLoading(btn, false);
@@ -4171,6 +4216,85 @@
             pendingAction = null;
         }
 
+        async function loadEmailLog() {
+            const el = document.getElementById("email-log-table");
+            if (!el) return;
+            el.textContent = "Loading…";
+            try {
+                const res = await fetch(`${API}/admin/email-log?limit=80`, {
+                    headers: { Authorization: `Bearer ${adminToken}` },
+                });
+                const data = await res.json();
+                if (!data.success || !data.logs?.length) {
+                    el.innerHTML = "<p>No automated email sends logged yet.</p>";
+                    return;
+                }
+                el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="text-align:left;color:var(--muted);">
+                        <th style="padding:6px 8px;">When</th><th>Store</th><th>Type</th><th>Recipient</th><th>Subject</th>
+                    </tr></thead>
+                    <tbody>${data.logs.map((l) => `
+                        <tr style="border-top:1px solid var(--border);">
+                            <td style="padding:6px 8px;white-space:nowrap;">${new Date(l.created_at).toLocaleString()}</td>
+                            <td style="padding:6px 8px;">${safeText(l.store_id || "—")}</td>
+                            <td style="padding:6px 8px;">${safeText(l.email_type)}</td>
+                            <td style="padding:6px 8px;">${safeText(l.recipient)}</td>
+                            <td style="padding:6px 8px;">${safeText(l.subject)}</td>
+                        </tr>`).join("")}</tbody></table>`;
+            } catch {
+                el.textContent = "Could not load email log.";
+            }
+        }
+
+        async function loadAdminSupportTickets() {
+            const el = document.getElementById("admin-support-tickets");
+            if (!el) return;
+            el.textContent = "Loading…";
+            try {
+                const res = await fetch(`${API}/admin/support-tickets`, {
+                    headers: { Authorization: `Bearer ${adminToken}` },
+                });
+                const data = await res.json();
+                if (!data.success || !data.tickets?.length) {
+                    el.innerHTML = "<p>No support tickets yet.</p>";
+                    return;
+                }
+                el.innerHTML = data.tickets.map((t) => `
+                    <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <strong style="color:var(--text);">#${t.id} — ${safeText(t.subject)}</strong>
+                            <select onchange="updateTicketStatus(${t.id}, this.value)" style="font-size:12px;padding:4px 8px;">
+                                <option value="open" ${t.status === "open" ? "selected" : ""}>Open</option>
+                                <option value="in_progress" ${t.status === "in_progress" ? "selected" : ""}>In progress</option>
+                                <option value="resolved" ${t.status === "resolved" ? "selected" : ""}>Resolved</option>
+                                <option value="closed" ${t.status === "closed" ? "selected" : ""}>Closed</option>
+                            </select>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted);margin:6px 0;">${safeText(t.store_name)} · ${safeText(t.store_email)} · ${new Date(t.created_at).toLocaleString()}</div>
+                        <div style="font-size:13px;color:var(--text-2);white-space:pre-wrap;">${safeText(t.message)}</div>
+                    </div>
+                `).join("");
+            } catch {
+                el.textContent = "Could not load support tickets.";
+            }
+        }
+
+        async function updateTicketStatus(id, status) {
+            try {
+                await fetch(`${API}/admin/support-tickets/${id}/status`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify({ status }),
+                });
+                showToast("Updated", "Ticket status saved.", "success");
+            } catch {
+                showToast("Error", "Could not update ticket.", "error");
+            }
+        }
+
         async function runDripNow(btn) {
             setBtnLoading(btn, true);
             try {
@@ -4184,9 +4308,10 @@
                     const r = data.results;
                     showAlert(
                         "comms-drip-alert",
-                        `Done — Trial warnings: ${r.trialWarnings} · Onboarding: ${r.onboarding} · Dunning: ${r.dunning} · Stale alerts: ${r.stalePayments}`,
+                        `Done — Sent: ${r.trialWarnings + r.onboarding + r.dunning + r.stalePayments} · Skipped (already sent): ${r.skipped || 0} · Trial: ${r.trialWarnings} · Onboarding: ${r.onboarding} · Dunning: ${r.dunning} · Stale: ${r.stalePayments}`,
                         "success",
                     );
+                    loadEmailLog();
                     logActivity("Drip emails triggered", "manual run");
                 } else {
                     showAlert(

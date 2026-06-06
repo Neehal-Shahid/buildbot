@@ -12,6 +12,8 @@ const {
   adminDB,
   tokenDB,
   configDB,
+  emailLogDB,
+  supportTicketDB,
 } = require("../database");
 
 const router = express.Router();
@@ -486,6 +488,62 @@ router.post("/admin/run-drip", adminAuth, async (req, res) => {
   }
 });
 
+// GET /admin/email-log — recent automated email sends
+router.get("/admin/email-log", adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const storeId = req.query.storeId;
+    const logs = storeId
+      ? await emailLogDB.getByStore(storeId, limit)
+      : await emailLogDB.getRecent(limit);
+    res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/set-drip-paused — pause/resume automated drip for a store
+router.post("/admin/set-drip-paused", adminAuth, async (req, res) => {
+  const { storeId, paused } = req.body;
+  if (!storeId || paused === undefined)
+    return res.status(400).json({ error: "storeId and paused required" });
+  try {
+    await storeDB.setDripPaused(storeId, !!paused);
+    res.json({
+      success: true,
+      message: paused
+        ? "Automated drip emails paused for this store"
+        : "Automated drip emails resumed for this store",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/support-tickets
+router.get("/admin/support-tickets", adminAuth, async (req, res) => {
+  try {
+    const status = req.query.status || null;
+    const tickets = await supportTicketDB.getAll(status);
+    res.json({ success: true, tickets });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/support-tickets/:id/status
+router.post("/admin/support-tickets/:id/status", adminAuth, async (req, res) => {
+  const { status } = req.body;
+  if (!["open", "in_progress", "resolved", "closed"].includes(status))
+    return res.status(400).json({ error: "Invalid status" });
+  try {
+    await supportTicketDB.updateStatus(req.params.id, status);
+    res.json({ success: true, message: "Ticket updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── PLATFORM CONFIG ──────────────────────────────────────────
 
 // GET /admin/platform-config — return all config key/value pairs
@@ -612,17 +670,48 @@ async function runScheduledEmails() {
     onboarding: 0,
     dunning: 0,
     stalePayments: 0,
+    skipped: 0,
     errors: [],
   };
+
+  async function sendDripOnce(storeId, emailType, template) {
+    const claimed = await emailLogDB.tryClaim(
+      storeId,
+      emailType,
+      template.to,
+      template.subject,
+    );
+    if (!claimed) {
+      results.skipped++;
+      return false;
+    }
+    await sendEmail(template);
+    return true;
+  }
+
+  function canReceiveDrip(store) {
+    return (
+      store.email_verified === 1 &&
+      (store.marketing_emails_enabled ?? 1) === 1 &&
+      (store.drip_emails_paused ?? 0) === 0 &&
+      store.plan_status !== "disabled"
+    );
+  }
 
   // 1. Trial ending warnings — 3 days before and 1 day before expiry
   for (const days of [3, 1]) {
     try {
       const stores = await storeDB.getTrialEndingIn(days);
       for (const store of stores) {
+        if (!canReceiveDrip(store)) continue;
         try {
-          await sendEmail(trialEndingEmail(store.name, store.email, days));
-          results.trialWarnings++;
+          const template = trialEndingEmail(store.name, store.email, days);
+          const sent = await sendDripOnce(
+            store.store_id,
+            `trial_warning_${days}`,
+            template,
+          );
+          if (sent) results.trialWarnings++;
         } catch (e) {
           results.errors.push(
             `trial-warning-day${days}: ${store.email}: ${e.message}`,
@@ -634,33 +723,43 @@ async function runScheduledEmails() {
     }
   }
 
-  // 2. Onboarding drip — Day 4 (not live yet nudge) and Day 10 (upgrade urgency)
+  // 2. Onboarding drip — Day 4 (not live yet) and Day 10 (upgrade urgency)
   try {
-    const day4Stores = await storeDB.getSignedUpDaysAgo(4);
+    const day4Stores = await storeDB.getSignedUpDaysAgoNotLive(4);
     for (const store of day4Stores) {
       try {
-        await sendEmail(onboardingDay4Email(store.name, store.email));
-        results.onboarding++;
+        const template = onboardingDay4Email(store.name, store.email);
+        const sent = await sendDripOnce(
+          store.store_id,
+          "onboarding_day4",
+          template,
+        );
+        if (sent) results.onboarding++;
       } catch (e) {
         results.errors.push(`onboarding-day4: ${store.email}: ${e.message}`);
       }
     }
   } catch (e) {
-    results.errors.push(`getSignedUpDaysAgo(4): ${e.message}`);
+    results.errors.push(`getSignedUpDaysAgoNotLive(4): ${e.message}`);
   }
 
   try {
-    const day10Stores = await storeDB.getSignedUpDaysAgo(10);
+    const day10Stores = await storeDB.getSignedUpDaysAgoForDrip(10);
     for (const store of day10Stores) {
       try {
-        await sendEmail(onboardingDay10Email(store.name, store.email));
-        results.onboarding++;
+        const template = onboardingDay10Email(store.name, store.email);
+        const sent = await sendDripOnce(
+          store.store_id,
+          "onboarding_day10",
+          template,
+        );
+        if (sent) results.onboarding++;
       } catch (e) {
         results.errors.push(`onboarding-day10: ${store.email}: ${e.message}`);
       }
     }
   } catch (e) {
-    results.errors.push(`getSignedUpDaysAgo(10): ${e.message}`);
+    results.errors.push(`getSignedUpDaysAgoForDrip(10): ${e.message}`);
   }
 
   // 3. Dunning emails — Day 1, Day 3, Day 7 after plan_ends
@@ -668,9 +767,15 @@ async function runScheduledEmails() {
     try {
       const stores = await storeDB.getPlanLapsedBy(days);
       for (const store of stores) {
+        if (!canReceiveDrip(store)) continue;
         try {
-          await sendEmail(planExpiredEmail(store.name, store.email, days));
-          results.dunning++;
+          const template = planExpiredEmail(store.name, store.email, days);
+          const sent = await sendDripOnce(
+            store.store_id,
+            `dunning_day${days}`,
+            template,
+          );
+          if (sent) results.dunning++;
         } catch (e) {
           results.errors.push(
             `dunning-day${days}: ${store.email}: ${e.message}`,
@@ -690,15 +795,25 @@ async function runScheduledEmails() {
         const hoursWaiting = Math.floor(
           (Date.now() - new Date(payment.created_at).getTime()) / 3600000,
         );
-        await sendEmail(
-          adminPaymentStaleEmail(
-            payment.name,
-            payment.email,
-            payment.plan,
-            payment.amount,
-            hoursWaiting,
-          ),
+        const emailType = `stale_payment_${payment.id}`;
+        const template = adminPaymentStaleEmail(
+          payment.name,
+          payment.email,
+          payment.plan,
+          payment.amount,
+          hoursWaiting,
         );
+        const claimed = await emailLogDB.tryClaim(
+          payment.store_id,
+          emailType,
+          template.to,
+          template.subject,
+        );
+        if (!claimed) {
+          results.skipped++;
+          continue;
+        }
+        await sendEmail(template);
         results.stalePayments++;
       } catch (e) {
         results.errors.push(`stale-payment: ${payment.email}: ${e.message}`);

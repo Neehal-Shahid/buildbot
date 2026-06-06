@@ -1860,6 +1860,7 @@
                             class="sidebar-item"
                             onclick="showTab('help')"
                             id="tab-help"
+                            style="border:1px solid var(--accent-border);background:var(--accent-light);color:var(--accent-text);"
                         >
                             <svg
                                 viewBox="0 0 24 24"
@@ -1869,29 +1870,9 @@
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                             >
-                                <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="4" />
-                                <line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
-                                <line
-                                    x1="14.83"
-                                    y1="14.83"
-                                    x2="19.07"
-                                    y2="19.07"
-                                />
-                                <line
-                                    x1="14.83"
-                                    y1="9.17"
-                                    x2="19.07"
-                                    y2="4.93"
-                                />
-                                <line
-                                    x1="4.93"
-                                    y1="19.07"
-                                    x2="9.17"
-                                    y2="14.83"
-                                />
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                             </svg>
-                            Help &amp; Docs
+                            Contact Support
                         </div>
                     </nav>
                     <div class="sidebar-footer">
@@ -1953,6 +1934,16 @@
                     <div id="tab-content-home">
                         <div class="section-title">Dashboard</div>
                         <div class="section-sub" id="welcome-msg"></div>
+
+                        <div class="card" style="margin-bottom:16px;border-color:var(--accent-border);background:linear-gradient(135deg,var(--accent-light) 0%,var(--surface) 100%);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                                <div>
+                                    <h2 style="margin-bottom:6px;font-size:16px;">Need help or want to report an issue?</h2>
+                                    <p style="margin:0;font-size:13px;color:var(--muted);">Contact our team directly from your dashboard — we typically respond within 24 hours.</p>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="showTab('help')" style="white-space:nowrap;">Contact Support</button>
+                            </div>
+                        </div>
 
                         <div id="overview-prelive-state">
                             <div
@@ -4368,6 +4359,21 @@
                         </div>
 
                         <div id="settings-panel-account">
+                            <div class="card" id="account-support-card" style="margin-bottom:16px;border-color:var(--accent-border);">
+                                <h2>Contact Support</h2>
+                                <p style="margin-bottom:16px;">Have a problem, complaint, or question? Send a message to the BuildBot team.</p>
+                                <div class="form-group">
+                                    <label class="form-label">Subject</label>
+                                    <input type="text" id="account-support-subject" placeholder="Brief summary of your issue" maxlength="150" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Message</label>
+                                    <textarea id="account-support-message" rows="4" maxlength="2000" placeholder="Describe your issue in detail…" style="width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="submitSupportTicket(this, 'account-')">Submit support request</button>
+                                <div class="alert" id="account-support-alert" style="margin-top:12px"></div>
+                            </div>
+
                             <div
                                 class="card"
                                 id="settings-account-security-card"
@@ -4552,6 +4558,21 @@
                                     id="account-forgot-alert"
                                     style="max-width: 420px"
                                 ></div>
+                            </div>
+
+                            <div
+                                class="card"
+                                id="settings-email-prefs-card"
+                            >
+                                <h2>Email Preferences</h2>
+                                <p style="margin-bottom: 16px">
+                                    Control onboarding tips and promotional emails. Account, billing, and security emails are always sent.
+                                </p>
+                                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);">
+                                    <input type="checkbox" id="marketing-emails-toggle" checked onchange="saveEmailPreferences(this)" />
+                                    Receive onboarding tips and trial reminders
+                                </label>
+                                <div class="alert" id="email-prefs-alert" style="margin-top:12px"></div>
                             </div>
 
                             <div
@@ -5268,11 +5289,31 @@
 
                     <!-- ── HELP TAB ── -->
                     <div id="tab-content-help" style="display: none">
-                        <div class="section-title">Help &amp; Docs</div>
+                        <div class="section-title">Contact Support</div>
                         <div class="section-sub">
-                            Quick answers and next steps.
+                            Get help from the BuildBot team — report issues, ask questions, or send feedback.
                         </div>
                         <div class="card">
+                            <h2>Contact Support</h2>
+                            <p style="margin-bottom: 14px">
+                                Have a problem, complaint, or question? Send a message directly to the BuildBot team.
+                            </p>
+                            <div class="form-group">
+                                <label class="form-label">Subject</label>
+                                <input type="text" id="support-subject" placeholder="Brief summary of your issue" maxlength="150" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Message</label>
+                                <textarea id="support-message" rows="5" maxlength="2000" placeholder="Describe your issue in detail…" style="width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="submitSupportTicket(this)">Submit support request</button>
+                            <div class="alert" id="support-alert" style="margin-top:12px"></div>
+                        </div>
+                        <div class="card" style="margin-top:16px">
+                            <h2>Your support requests</h2>
+                            <div id="support-tickets-list" style="font-size:13px;color:var(--muted);">Loading…</div>
+                        </div>
+                        <div class="card" style="margin-top:16px">
                             <h2>Getting started</h2>
                             <p style="margin-bottom: 14px">
                                 Most stores go live in under 2 minutes.
@@ -6024,6 +6065,101 @@
                 window.location.href = "index.html";
             }
 
+            async function saveEmailPreferences(checkbox) {
+                try {
+                    const res = await fetch(`${API}/email-preferences`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            marketingEmailsEnabled: checkbox.checked,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        if (currentStore) currentStore.marketingEmailsEnabled = checkbox.checked;
+                        showAlert("email-prefs-alert", data.message, "success");
+                    } else {
+                        checkbox.checked = !checkbox.checked;
+                        showAlert("email-prefs-alert", data.error || "Could not save.", "error");
+                    }
+                } catch {
+                    checkbox.checked = !checkbox.checked;
+                    showAlert("email-prefs-alert", "Connection error.", "error");
+                }
+            }
+
+            async function submitSupportTicket(btn, prefix = "") {
+                const subject = document.getElementById(`${prefix}support-subject`)?.value.trim();
+                const message = document.getElementById(`${prefix}support-message`)?.value.trim();
+                const alertId = prefix ? `${prefix}support-alert` : "support-alert";
+                if (!subject || !message)
+                    return showAlert(alertId, "Please fill in subject and message.", "error");
+
+                const orig = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = "Sending…";
+                try {
+                    const res = await fetch(`${API}/support`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ subject, message }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showAlert(alertId, data.message, "success");
+                        const subEl = document.getElementById(`${prefix}support-subject`);
+                        const msgEl = document.getElementById(`${prefix}support-message`);
+                        if (subEl) subEl.value = "";
+                        if (msgEl) msgEl.value = "";
+                        loadSupportTickets();
+                    } else {
+                        showAlert(alertId, data.error || "Failed to submit.", "error");
+                    }
+                } catch {
+                    showAlert(alertId, "Connection error.", "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = orig;
+                }
+            }
+
+            async function loadSupportTickets() {
+                const el = document.getElementById("support-tickets-list");
+                if (!el) return;
+                try {
+                    const res = await fetch(`${API}/support`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const data = await res.json();
+                    if (!data.success || !data.tickets?.length) {
+                        el.innerHTML = "<p>No support requests yet.</p>";
+                        return;
+                    }
+                    el.innerHTML = data.tickets.map((t) => `
+                        <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+                            <div style="font-weight:600;color:var(--text);">#${t.id} — ${escapeHtml(t.subject)}</div>
+                            <div style="font-size:12px;color:var(--muted);margin-top:4px;">${escapeHtml(t.status)} · ${new Date(t.created_at).toLocaleString()}</div>
+                        </div>
+                    `).join("");
+                } catch {
+                    el.innerHTML = "<p>Could not load support requests.</p>";
+                }
+            }
+
+            function escapeHtml(str) {
+                return String(str || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
             // ─── ENTER APP ────────────────────────────────────────────
             async function enterApp(prefetchedData) {
                 if (!token) {
@@ -6052,6 +6188,7 @@
                         trialEnds: data.store.trial_ends,
                         brandColor: data.store.brand_color,
                         currency: data.store.currency,
+                        marketingEmailsEnabled: data.store.marketing_emails_enabled !== 0,
                     };
                     localStorage.setItem(
                         "bb_store",
@@ -6251,7 +6388,11 @@
                     var af = document.getElementById("account-forgot-email");
                     if (af && currentStore && currentStore.email)
                         af.value = currentStore.email;
+                    const marketingToggle = document.getElementById("marketing-emails-toggle");
+                    if (marketingToggle && currentStore)
+                        marketingToggle.checked = currentStore.marketingEmailsEnabled !== false;
                 }
+                if (name === "help") loadSupportTickets();
                 if (
                     name === "home" ||
                     name === "products" ||
@@ -8129,6 +8270,20 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
                     <circle cx="12" cy="7" r="4" />
                 </svg>
                 Account
+            </button>
+            <button class="mobile-tab" onclick="showTab('help')">
+                <svg
+                    class="mobile-tab-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Support
             </button>
         </div>
     </body>

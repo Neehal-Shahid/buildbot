@@ -30,7 +30,25 @@ function isValidEmail(email) {
 async function sendVerificationEmail(name, email) {
   const verifyToken = crypto.randomBytes(32).toString('hex');
   await tokenDB.save(email, verifyToken, 'verify');
-  sendEmail(emailVerificationEmail(name, email, verifyToken));
+
+  const otpCode = String(crypto.randomInt(100000, 999999));
+  const otpHash = await bcrypt.hash(otpCode, 10);
+  await tokenDB.saveOtp(email, otpHash);
+
+  await sendEmail(emailVerificationEmail(name, email, verifyToken, otpCode));
+}
+
+async function completeEmailVerification(email) {
+  await verifyDB.setVerified(email);
+  await tokenDB.invalidateOtp(email);
+
+  const store = await storeDB.findByEmail(email);
+  if (store) {
+    await sendEmail(welcomeEmail(store.name, store.email));
+    const { adminNewStoreEmail } = require('../email');
+    await sendEmail(adminNewStoreEmail(store.name, store.email, store.store_id));
+  }
+  return store;
 }
 
 // ─── AUTH MIDDLEWARE ──────────────────────────────────────
@@ -138,6 +156,12 @@ router.post('/resend-verification', async (req, res) => {
   if (isVerified)
     return res.json({ success: true, message: 'Your email is already verified. You can sign in now.' });
 
+  if (await tokenDB.recentlyCreated(email, 'verify', 60)) {
+    return res.status(429).json({
+      error: 'Please wait 60 seconds before requesting another verification email.'
+    });
+  }
+
   await sendVerificationEmail(store.name, email);
 
   res.json({
@@ -156,15 +180,48 @@ router.get('/verify-email', async (req, res) => {
   if (!record)
     return res.status(400).json({ error: 'Invalid or expired verification link' });
 
-  await verifyDB.setVerified(record.email);
   await tokenDB.markUsed(token);
 
-  const store = await storeDB.findByEmail(record.email);
-  if (store) {
-    sendEmail(welcomeEmail(store.name, store.email));
-    const { adminNewStoreEmail } = require('../email');
-    sendEmail(adminNewStoreEmail(store.name, store.email, store.store_id));
+  const already = await verifyDB.isVerified(record.email);
+  if (!already) await completeEmailVerification(record.email);
+
+  res.json({ success: true, message: 'Email verified! You can now sign in.' });
+});
+
+// ─── VERIFY EMAIL OTP ─────────────────────────────────────
+router.post('/verify-email-otp', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code)
+    return res.status(400).json({ error: 'Email and verification code are required' });
+
+  const isVerified = await verifyDB.isVerified(email);
+  if (isVerified)
+    return res.json({ success: true, message: 'Email already verified. You can sign in now.' });
+
+  const otpRecord = await tokenDB.getActiveOtp(email);
+  if (!otpRecord)
+    return res.status(400).json({ error: 'No active verification code. Request a new one.' });
+
+  if ((otpRecord.attempt_count ?? 0) >= 5) {
+    await tokenDB.invalidateOtp(email);
+    return res.status(400).json({
+      error: 'Too many incorrect attempts. Please request a new verification email.'
+    });
   }
+
+  const valid = await bcrypt.compare(String(code).trim(), otpRecord.token);
+  if (!valid) {
+    await tokenDB.incrementOtpAttempts(email);
+    const remaining = 5 - ((otpRecord.attempt_count ?? 0) + 1);
+    return res.status(400).json({
+      error: remaining > 0
+        ? `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+        : 'Too many incorrect attempts. Please request a new verification email.'
+    });
+  }
+
+  await tokenDB.invalidateOtp(email);
+  await completeEmailVerification(email);
 
   res.json({ success: true, message: 'Email verified! You can now sign in.' });
 });
@@ -341,6 +398,89 @@ router.put('/change-password', authMiddleware, async (req, res) => {
   await storeDB.updatePassword(store.email, hashedPassword);
 
   res.json({ success: true, message: 'Password changed successfully!' });
+});
+
+// ─── MARKETING EMAIL PREFERENCE ───────────────────────────
+router.put('/email-preferences', authMiddleware, async (req, res) => {
+  const { marketingEmailsEnabled } = req.body;
+  if (marketingEmailsEnabled === undefined)
+    return res.status(400).json({ error: 'marketingEmailsEnabled is required' });
+
+  try {
+    await storeDB.setMarketingEmails(req.store.storeId, !!marketingEmailsEnabled);
+    res.json({
+      success: true,
+      message: marketingEmailsEnabled
+        ? 'Marketing emails enabled'
+        : 'Marketing emails disabled. You will still receive account and billing emails.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SUPPORT TICKET (store owner → admin) ─────────────────
+router.post('/support', authMiddleware, async (req, res) => {
+  const { subject, message } = req.body;
+  if (!subject || !message)
+    return res.status(400).json({ error: 'Subject and message are required' });
+  if (subject.length > 150)
+    return res.status(400).json({ error: 'Subject too long (max 150 chars)' });
+  if (message.length > 2000)
+    return res.status(400).json({ error: 'Message too long (max 2000 chars)' });
+
+  try {
+    const store = await storeDB.findById(req.store.storeId);
+    if (!store) return res.status(404).json({ error: 'Store not found' });
+
+    const { supportTicketDB } = require('../database');
+    const {
+      sendEmail,
+      supportTicketAdminEmail,
+      supportTicketConfirmationEmail,
+    } = require('../email');
+
+    const ticketId = await supportTicketDB.create(
+      store.store_id,
+      store.name,
+      store.email,
+      subject.trim(),
+      message.trim(),
+    );
+
+    await sendEmail(
+      supportTicketAdminEmail(
+        store.name,
+        store.email,
+        store.store_id,
+        subject.trim(),
+        message.trim(),
+        ticketId,
+      ),
+    );
+    await sendEmail(
+      supportTicketConfirmationEmail(store.name, store.email, subject.trim(), ticketId),
+    );
+
+    res.json({
+      success: true,
+      ticketId,
+      message: `Support request #${ticketId} submitted. We will respond within 24 hours.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── MY SUPPORT TICKETS ───────────────────────────────────
+router.get('/support', authMiddleware, async (req, res) => {
+  try {
+    const { supportTicketDB } = require('../database');
+    const tickets = await supportTicketDB.getByStore(req.store.storeId);
+    res.json({ success: true, tickets });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── ME ───────────────────────────────────────────────────

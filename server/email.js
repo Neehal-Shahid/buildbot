@@ -62,13 +62,13 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1
 }
 
 // ─── SEND FUNCTION ────────────────────────────────────────
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, meta = null }) {
   try {
     if (!resend) {
       throw new Error('RESEND_API_KEY is not set');
     }
     const recipient = TO_OVERRIDE || to;
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM,
       to: recipient,
       subject,
@@ -76,10 +76,22 @@ async function sendEmail({ to, subject, html }) {
     });
     if (error) {
       console.error('Resend error:', error);
+      if (meta?.logOnFail) {
+        try {
+          const { emailLogDB } = require('./database');
+          await emailLogDB.logSend(meta.storeId || '', meta.emailType || 'manual', recipient, subject, 'failed');
+        } catch {}
+      }
       throw new Error(error.message);
     }
-    console.log('Email sent to:', recipient);
-    return true;
+    if (meta?.emailType) {
+      try {
+        const { emailLogDB } = require('./database');
+        await emailLogDB.logSend(meta.storeId || '', meta.emailType, recipient, subject, 'sent');
+      } catch {}
+    }
+    console.log('Email sent to:', recipient, meta?.emailType ? `(${meta.emailType})` : '');
+    return data;
   } catch (err) {
     console.error('Email failed:', err.message);
     throw err;
@@ -138,21 +150,33 @@ function welcomeEmail(storeName, email) {
   };
 }
 
-function emailVerificationEmail(storeName, email, token) {
+function emailVerificationEmail(storeName, email, token, otpCode = null) {
+  const otpBlock = otpCode ? `
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
+      <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;text-align:center;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Or enter this code</p>
+        <p style="margin:0;font-size:28px;font-weight:800;color:#4f46e5;letter-spacing:0.25em;font-family:monospace;">${otpCode}</p>
+        <p style="margin:8px 0 0;font-size:12px;color:#9ca3af;">Expires in 15 minutes</p>
+      </td></tr>
+    </table>
+  ` : '';
+
   return {
     to: email,
     subject: 'Please verify your BuildBot email address',
     html: emailBase({
-      preheader: 'One click to verify your email and activate your BuildBot account.',
+      preheader: 'Verify your email to activate your BuildBot account.',
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Verify your email</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, click button below to confirm your email address and activate your account. This link expires in 24 hours.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, click the button below or enter the verification code to confirm your email. The link expires in 24 hours.</p>
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
         <a href="${APP_URL}/verify.html?token=${token}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Verify Email Address</a>
       </td>
     </tr></table>
+
+    ${otpBlock}
 
     <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">If the button doesn't work, copy and paste this link into your browser:<br/>
     <span style="color:#4f46e5;word-break:break-all;">${APP_URL}/verify.html?token=${token}</span></p>
@@ -538,6 +562,55 @@ function adminManualEmail(storeName, storeEmail, subject, message) {
   };
 }
 
+function supportTicketAdminEmail(storeName, storeEmail, storeId, subject, message, ticketId) {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'workwithneehal@gmail.com';
+  return {
+    to: ADMIN_EMAIL,
+    subject: `[Support #${ticketId}] ${subject}`,
+    html: emailBase({
+      preheader: `${storeName} submitted a support request.`,
+      content: `
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+      <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
+        <span style="font-size:12px;font-weight:700;color:#4f46e5;letter-spacing:0.05em;text-transform:uppercase;">Support Request #${ticketId}</span>
+      </td>
+    </tr></table>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${subject}</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
+      <strong style="color:#111827;">${storeName}</strong><br/>
+      ${storeEmail} · Store ID: ${storeId}
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+      <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
+        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${message}</div>
+      </td></tr>
+    </table>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="background:#4f46e5;border-radius:8px;">
+        <a href="${APP_URL}/admin.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Admin Panel</a>
+      </td>
+    </tr></table>
+    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;">Reply directly to ${storeEmail} to respond to this store owner.</p>
+  `
+    })
+  };
+}
+
+function supportTicketConfirmationEmail(storeName, email, subject, ticketId) {
+  return {
+    to: email,
+    subject: `We received your support request — #${ticketId}`,
+    html: emailBase({
+      preheader: 'Our team will get back to you as soon as possible.',
+      content: `
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Support request received</h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, we received your message about <strong style="color:#111827;">${subject}</strong>. Ticket reference: <strong>#${ticketId}</strong>. We typically respond within 24 hours.</p>
+    <p style="margin:0;font-size:12px;color:#9ca3af;">You can reply to this email if you need to add more details.</p>
+  `
+    })
+  };
+}
+
 module.exports = {
   sendEmail,
   welcomeEmail,
@@ -553,5 +626,7 @@ module.exports = {
   onboardingDay4Email,
   onboardingDay10Email,
   planExpiredEmail,
-  adminManualEmail
+  adminManualEmail,
+  supportTicketAdminEmail,
+  supportTicketConfirmationEmail
 };

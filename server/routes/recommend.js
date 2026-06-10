@@ -3,7 +3,15 @@ const { productDB, storeDB, analyticsDB } = require('../database');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const router = express.Router();
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+function getAnthropicApiKey() {
+  return (process.env.ANTHROPIC_API_KEY || '').trim();
+}
+
+function getAnthropicClient() {
+  const apiKey = getAnthropicApiKey();
+  return apiKey ? new Anthropic({ apiKey }) : null;
+}
 
 // Simple In-Memory IP Rate Limiter (15 requests per hour per IP)
 const ipRequests = new Map();
@@ -182,6 +190,15 @@ const safeExtras = (extras || '').trim().slice(0, 200);
   }
 
   // REAL AI MODE
+  const anthropic = getAnthropicClient();
+  if (!anthropic) {
+    console.error('Recommend error: ANTHROPIC_API_KEY is missing or empty. Set it in Railway Variables.');
+    return res.status(503).json({
+      error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
+      customerMessage: true
+    });
+  }
+
   const prompt = `You are an expert PC build advisor for a Pakistani PC parts store.
 
 CUSTOMER REQUIREMENTS:
@@ -297,8 +314,18 @@ CUSTOMER REQUIREMENTS:
     ipRequests.set(ip, currentRequests + 1);
 
   } catch (err) {
-    console.error('Recommend error:', err);
-    res.status(500).json({ error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.' });
+    if (err.status === 401) {
+      console.error(
+        'Recommend error: Anthropic rejected ANTHROPIC_API_KEY (401 invalid x-api-key). ' +
+        'In Railway → Variables, set ANTHROPIC_API_KEY to a valid key from console.anthropic.com — no quotes or extra spaces.'
+      );
+    } else {
+      console.error('Recommend error:', err);
+    }
+    res.status(500).json({
+      error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
+      customerMessage: true
+    });
   }
 });
 

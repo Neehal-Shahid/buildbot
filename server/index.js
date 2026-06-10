@@ -78,6 +78,11 @@ initDB().then(async () => {
 
   app.listen(PORT, () => {
     console.log(`BuildBot server running on http://localhost:${PORT}`);
+    if (process.env.TEST_MODE === 'true') {
+      console.log('TEST_MODE is on — /api/recommend returns fake builds (no Anthropic API calls)');
+    } else if (!(process.env.ANTHROPIC_API_KEY || '').trim()) {
+      console.warn('WARNING: ANTHROPIC_API_KEY is not set. Real AI recommendations will fail until you add it in Railway Variables.');
+    }
   });
 
   // ─── SCHEDULED EMAIL JOB ────────────────────────────────────

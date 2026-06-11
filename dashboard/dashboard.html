@@ -2820,6 +2820,24 @@
                                         </div>
                                     </div>
                                     <div
+                                        id="woo-plugin-version-note"
+                                        style="
+                                            font-size: 12px;
+                                            color: var(--muted);
+                                            margin: -8px 0 16px;
+                                            line-height: 1.55;
+                                        "
+                                    >
+                                        Plugin updates are delivered through
+                                        WordPress (Plugins → Updates). Latest
+                                        release:
+                                        <strong
+                                            id="woo-plugin-latest-version"
+                                            style="color: var(--text-2)"
+                                            >—</strong
+                                        >
+                                    </div>
+                                    <div
                                         id="woo-widget-status"
                                         style="
                                             font-size: 13px;
@@ -2931,6 +2949,32 @@
                                             >
                                                 Download Plugin (.zip)
                                             </button>
+                                            <div
+                                                id="plugin-latest-version"
+                                                style="
+                                                    font-size: 12px;
+                                                    color: var(--muted);
+                                                    margin-top: 10px;
+                                                "
+                                            >
+                                                Latest plugin: loading…
+                                            </div>
+                                            <div
+                                                id="plugin-update-hint"
+                                                style="
+                                                    font-size: 11px;
+                                                    color: var(--muted);
+                                                    margin-top: 6px;
+                                                    line-height: 1.55;
+                                                    max-width: 420px;
+                                                "
+                                            >
+                                                Install once from the zip. After
+                                                that, WordPress shows one-click
+                                                updates under Plugins → Updates
+                                                whenever a newer version is
+                                                released.
+                                            </div>
                                         </div>
                                     </div>
 
@@ -7646,7 +7690,37 @@
             // ─── WOOCOMMERCE PLUGIN ───────────────────────────────────
             let pluginSecretKey = "";
 
+            async function loadPluginReleaseInfo() {
+                try {
+                    const apiOrigin =
+                        window.BB_ORIGIN ||
+                        (API || "").replace(/\/api\/?$/, "");
+                    const res = await fetch(`${apiOrigin}/plugin-update.json`);
+                    const data = await res.json();
+                    if (!data?.version) return;
+
+                    const latestText = `Latest plugin: v${data.version}`;
+                    const latestEl =
+                        document.getElementById("plugin-latest-version");
+                    const connectedLatestEl = document.getElementById(
+                        "woo-plugin-latest-version",
+                    );
+                    if (latestEl) latestEl.textContent = latestText;
+                    if (connectedLatestEl) {
+                        connectedLatestEl.textContent = `v${data.version}`;
+                    }
+                } catch (e) {
+                    const latestEl =
+                        document.getElementById("plugin-latest-version");
+                    if (latestEl) {
+                        latestEl.textContent =
+                            "Latest plugin version unavailable";
+                    }
+                }
+            }
+
             async function loadWooStatus() {
+                loadPluginReleaseInfo();
                 try {
                     const res = await fetch(`${API}/plugin/status`, {
                         headers: { Authorization: `Bearer ${token}` },
@@ -7866,10 +7940,10 @@
                         if (btn) btn.disabled = false;
                     }
                 }
-                window.open(
-                    "https://buildbot-production-8faa.up.railway.app/buildbot-woocommerce.zip",
-                    "_blank",
-                );
+                const apiOrigin =
+                    window.BB_ORIGIN ||
+                    (API || "").replace(/\/api\/?$/, "");
+                window.open(`${apiOrigin}/buildbot-woocommerce.zip`, "_blank");
             }
 
             async function deleteAccount(btn) {

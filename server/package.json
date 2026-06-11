@@ -4,12 +4,15 @@
   "description": "BuildBot AI PC Recommender - Backend",
   "main": "index.js",
   "scripts": {
+    "build:plugin": "node scripts/build-plugin.js",
+    "prestart": "node scripts/build-plugin.js",
     "start": "node index.js",
     "dev": "node index.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
     "@libsql/client": "^0.17.2",
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",

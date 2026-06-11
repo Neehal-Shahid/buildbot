@@ -40,23 +40,38 @@ app.get('/widget.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'widget.css'));
 });
 
-// Serve WooCommerce plugin zip
+function getPluginManifest(req) {
+  const jsonPath = path.join(__dirname, 'plugin-update.json');
+  if (!fs.existsSync(jsonPath)) return null;
+
+  const manifest = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('x-forwarded-host') || req.get('host');
+  if (host) {
+    manifest.download_url = `${proto}://${host}/buildbot-woocommerce.zip`;
+  }
+  return manifest;
+}
+
+// Serve WooCommerce plugin zip (WordPress updater downloads this)
 app.get('/buildbot-woocommerce.zip', (req, res) => {
   const zipPath = path.join(__dirname, 'buildbot-woocommerce.zip');
-  if (require('fs').existsSync(zipPath)) {
-    res.download(zipPath, 'buildbot-woocommerce.zip');
-  } else {
-    res.status(404).json({ error: 'Plugin file not found' });
+  if (!fs.existsSync(zipPath)) {
+    return res.status(404).json({ error: 'Plugin file not found' });
   }
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.download(zipPath, 'buildbot-woocommerce.zip');
 });
-// Plugin update checker
+
+// Plugin update manifest (WordPress checks this for new versions)
 app.get('/plugin-update.json', (req, res) => {
-  const jsonPath = path.join(__dirname, 'plugin-update.json');
-  if (fs.existsSync(jsonPath)) {
-    res.sendFile(jsonPath);
-  } else {
-    res.status(404).json({ error: 'Update file not found' });
+  const manifest = getPluginManifest(req);
+  if (!manifest) {
+    return res.status(404).json({ error: 'Update file not found' });
   }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.json(manifest);
 });
 
 // Health check

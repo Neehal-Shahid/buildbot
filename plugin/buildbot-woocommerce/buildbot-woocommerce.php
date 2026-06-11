@@ -3,7 +3,7 @@
  * Plugin Name: BuildBot AI PC Recommender
  * Plugin URI:  https://buildbot-nine.vercel.app
  * Description: Connects your WooCommerce store to BuildBot — syncs products automatically so customers get AI-powered PC build recommendations.
- * Version:     1.5.0
+ * Version:     1.8.0
  * Author:      BuildBot
  * Author URI:  https://buildbot-nine.vercel.app
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDBOT_API',     'https://buildbot-production-8faa.up.railway.app/api');
-define('BUILDBOT_VERSION', '1.5.0');
+define('BUILDBOT_VERSION', '1.8.0');
 define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-8faa.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
@@ -76,13 +76,24 @@ function buildbot_check_update($transient) {
   $plugin_file = plugin_basename(__FILE__);
   if (isset($update['version']) &&
       version_compare($update['version'], BUILDBOT_VERSION, '>')) {
-    $transient->response[$plugin_file] = (object)[
+    $item = (object)[
+      'id'          => $plugin_file,
       'slug'        => 'buildbot-woocommerce',
       'plugin'      => $plugin_file,
       'new_version' => $update['version'],
       'url'         => 'https://buildbot-nine.vercel.app',
-      'package'     => $update['download_url']
+      'package'     => $update['download_url'],
     ];
+    if (!empty($update['tested'])) {
+      $item->tested = $update['tested'];
+    }
+    if (!empty($update['requires'])) {
+      $item->requires = $update['requires'];
+    }
+    if (!empty($update['requires_php'])) {
+      $item->requires_php = $update['requires_php'];
+    }
+    $transient->response[$plugin_file] = $item;
   }
   return $transient;
 }

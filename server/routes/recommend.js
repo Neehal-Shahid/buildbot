@@ -13,6 +13,9 @@ function getAnthropicClient() {
   return apiKey ? new Anthropic({ apiKey }) : null;
 }
 
+// claude-3-5-haiku-20241022 was retired Feb 2026; Haiku 4.5 is the replacement
+const ANTHROPIC_MODEL = (process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5').trim();
+
 // Simple In-Memory IP Rate Limiter (15 requests per hour per IP)
 const ipRequests = new Map();
 setInterval(() => ipRequests.clear(), 60 * 60 * 1000);
@@ -283,7 +286,7 @@ CUSTOMER REQUIREMENTS:
 
   try {
     const message = await anthropic.messages.create({
-      model:      'claude-3-5-haiku-20241022',
+      model:      ANTHROPIC_MODEL,
       max_tokens: 3500,
       messages:   [{ role: 'user', content: prompt }]
     });
@@ -318,6 +321,11 @@ CUSTOMER REQUIREMENTS:
       console.error(
         'Recommend error: Anthropic rejected ANTHROPIC_API_KEY (401 invalid x-api-key). ' +
         'In Railway → Variables, set ANTHROPIC_API_KEY to a valid key from console.anthropic.com — no quotes or extra spaces.'
+      );
+    } else if (err.status === 404 && err.error?.error?.message?.startsWith('model:')) {
+      console.error(
+        `Recommend error: Anthropic model not found (${err.error.error.message}). ` +
+        `Update ANTHROPIC_MODEL env var or redeploy with the latest code. Current model: ${ANTHROPIC_MODEL}`
       );
     } else {
       console.error('Recommend error:', err);

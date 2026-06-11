@@ -15,6 +15,18 @@ function getAnthropicClient() {
 
 // claude-3-5-haiku-20241022 was retired Feb 2026; Haiku 4.5 is the replacement
 const ANTHROPIC_MODEL = (process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5').trim();
+const ANTHROPIC_MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS) || 8192;
+
+function getAiResponseText(message) {
+  return message.content.find((block) => block.type === 'text')?.text || '';
+}
+
+function parseAiJson(text) {
+  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  return JSON.parse(jsonMatch[0]);
+}
 
 // Simple In-Memory IP Rate Limiter (15 requests per hour per IP)
 const ipRequests = new Map();
@@ -287,15 +299,34 @@ CUSTOMER REQUIREMENTS:
   try {
     const message = await anthropic.messages.create({
       model:      ANTHROPIC_MODEL,
-      max_tokens: 3500,
+      max_tokens: ANTHROPIC_MAX_TOKENS,
       messages:   [{ role: 'user', content: prompt }]
     });
 
-    const jsonMatch = message.content[0].text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch)
-      return res.status(500).json({ error: 'AI response invalid' });
+    if (message.stop_reason === 'max_tokens') {
+      console.error(
+        `Recommend error: AI response truncated at ${ANTHROPIC_MAX_TOKENS} tokens. ` +
+        'Increase ANTHROPIC_MAX_TOKENS or reduce catalog size.'
+      );
+      return res.status(500).json({
+        error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
+        customerMessage: true
+      });
+    }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed;
+    try {
+      parsed = parseAiJson(getAiResponseText(message));
+    } catch (parseErr) {
+      console.error('Recommend error: Failed to parse AI JSON:', parseErr.message);
+      return res.status(500).json({
+        error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
+        customerMessage: true
+      });
+    }
+
+    if (!parsed)
+      return res.status(500).json({ error: 'AI response invalid', customerMessage: true });
     // Log only the first/best build for analytics (backwards compatible)
     await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', parsed.builds?.[0] || parsed);
 

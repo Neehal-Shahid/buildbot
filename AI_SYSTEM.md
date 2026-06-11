@@ -36,7 +36,11 @@ Default model: **Claude Haiku 4.5** (`claude-haiku-4-5`)
 | Input tokens | $1 per 1 million tokens |
 | Output tokens | $5 per 1 million tokens |
 
-**Typical real AI call** (medium catalog, 3 builds): ~4,000–8,000 output tokens + ~2,000–6,000 input tokens → **roughly $0.02–$0.06 USD per call** (~Rs 6–18 at 280 PKR/USD).
+**Typical real AI call** (medium catalog, 3 builds):
+- **Input tokens** (~2,000–6,000): mostly your product catalog + short instructions. **Product descriptions are NOT sent** — only category, exact name, and price.
+- **Output tokens** (~3,000–6,000): the big cost — AI writes 3 full builds as JSON with parts, reasons, summaries. This is why `ANTHROPIC_MAX_TOKENS` is 8k–12k (a cap, not always used).
+
+Total cost ≈ **$0.02–$0.06 USD per uncached call** (~Rs 6–18 at 280 PKR/USD).
 
 **Cached repeat** (same budget/purpose/extras): **$0**.
 
@@ -89,12 +93,15 @@ Use **Admin → API & Model** to see real numbers: MRR, estimated API spend, mar
 
 ## How to reduce API cost
 
-1. **Encourage cache hits** — stores shouldn't re-upload catalog unnecessarily (`catalog_last_updated` clears cache).
-2. **Lower plan limits** — e.g. trial 3/day → 2/day, starter 500 → 300 (Admin → API & Model).
+1. **Encourage cache hits** — same budget + purpose + extras = $0 (until catalog changes).
+2. **Lower plan limits** — Admin → API & Model (trial/starter/growth limits).
 3. **Keep Haiku** — don't switch to Sonnet/Opus unless needed (10×+ cost).
-4. **Reduce `ANTHROPIC_MAX_TOKENS`** only if responses aren't truncating (8192–12000 is safe).
-5. **Cap affordable products in prompt** — future optimization: send top N products by category instead of all under budget.
-6. **Raise prices** — align plan price with expected AI usage (see profit table in admin).
+4. **Shorter AI responses** — prompt asks for brief reasons/summaries (reduces output tokens, the main cost).
+5. **Compact catalog format** — `[category] name | price` (descriptions already excluded).
+6. **Don't lower `ANTHROPIC_MAX_TOKENS` too much** — truncated JSON causes 500 errors. 8192–12000 is safe.
+7. **Raise prices** — align plan price with expected AI usage (see profit table in admin).
+
+**Pricing & limits on landing page and store dashboard** load from `GET /api/plans` (admin Settings + API & Model) — no hardcoded prices in the UI.
 
 ---
 

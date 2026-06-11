@@ -1913,7 +1913,7 @@
                     <!-- Trial Banner -->
                     <div class="trial-banner" id="trial-banner">
                         <p>
-                            You're on a <span>14-day free trial</span>. Trial
+                            You're on a <span id="trial-banner-days">14-day free trial</span>. Trial
                             ends: <span id="trial-end-date"></span>
                         </p>
                         <button
@@ -4063,9 +4063,9 @@
                                 <tbody>
                                     <tr>
                                         <td>Recommendations</td>
-                                        <td>500/mo</td>
-                                        <td>2,000/mo</td>
-                                        <td>Unlimited</td>
+                                        <td id="cmp-starter-limit">—</td>
+                                        <td id="cmp-growth-limit">—</td>
+                                        <td id="cmp-pro-limit">Unlimited</td>
                                     </tr>
                                     <tr>
                                         <td>WooCommerce Sync</td>
@@ -4095,21 +4095,21 @@
                                     onclick="selectPlan('starter', this)"
                                 >
                                     <div class="po-name">Starter</div>
-                                    <div class="po-price">Rs 2,999/mo</div>
+                                    <div class="po-price" id="po-price-starter">Rs —/mo</div>
                                 </div>
                                 <div
                                     class="plan-opt"
                                     onclick="selectPlan('growth', this)"
                                 >
                                     <div class="po-name">Growth</div>
-                                    <div class="po-price">Rs 6,999/mo</div>
+                                    <div class="po-price" id="po-price-growth">Rs —/mo</div>
                                 </div>
                                 <div
                                     class="plan-opt"
                                     onclick="selectPlan('pro', this)"
                                 >
                                     <div class="po-name">Pro</div>
-                                    <div class="po-price">Rs 14,999/mo</div>
+                                    <div class="po-price" id="po-price-pro">Rs —/mo</div>
                                 </div>
                             </div>
 
@@ -5615,6 +5615,38 @@
             }
             let selectedPlan = "starter";
             let currentAnalyticsDays = 7;
+            let bbPublicPlans = null;
+
+            function formatPlanLimitLabel(planKey) {
+                if (!bbPublicPlans) return "—";
+                if (planKey === "trial") {
+                    return `${bbPublicPlans.trialDailyLimit}/day`;
+                }
+                const p = bbPublicPlans.plans[planKey];
+                if (!p) return "—";
+                if (p.monthlyLimit == null) return "Unlimited";
+                return `${Number(p.monthlyLimit).toLocaleString()}/mo`;
+            }
+
+            async function loadPublicPlans() {
+                try {
+                    const res = await fetch(`${API}/plans`);
+                    const data = await res.json();
+                    if (!data.success) return;
+                    bbPublicPlans = data;
+                    const fmt = (n) => `Rs ${Number(n).toLocaleString()}/mo`;
+                    const set = (id, text) => {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = text;
+                    };
+                    set("po-price-starter", fmt(data.plans.starter.price));
+                    set("po-price-growth", fmt(data.plans.growth.price));
+                    set("po-price-pro", fmt(data.plans.pro.price));
+                    set("cmp-starter-limit", formatPlanLimitLabel("starter"));
+                    set("cmp-growth-limit", formatPlanLimitLabel("growth"));
+                    set("cmp-pro-limit", formatPlanLimitLabel("pro"));
+                } catch {}
+            }
 
             // Dashboard runs with production API by default (see config.js).
             // If you want to use a local backend, open with `?localApi=1` or set `localStorage.bb_use_local_api = '1'`.
@@ -6168,6 +6200,7 @@
                 }
 
                 try {
+                    await loadPublicPlans();
                     let data = prefetchedData;
                     if (!data) {
                         const res = await fetch(`${API}/me`, {
@@ -6215,6 +6248,11 @@
                         `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;
 
                     if (currentStore.plan === "trial") {
+                        const trialDaysEl = document.getElementById("trial-banner-days");
+                        if (trialDaysEl) {
+                            const d = bbPublicPlans?.trialDays ?? 14;
+                            trialDaysEl.textContent = `${d}-day free trial`;
+                        }
                         document.getElementById("trial-banner").style.display =
                             "flex";
                         document.getElementById("trial-end-date").textContent =
@@ -6234,10 +6272,11 @@
                             warn.id = "trial-limit-warn";
                             warn.className = "trial-limit-notice";
                             warn.style.cssText = "";
+                            const trialLimit = bbPublicPlans?.trialDailyLimit ?? 3;
                             warn.innerHTML = `
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span>You are on the <strong style="color:var(--accent-text);">free trial</strong>.
-      The widget is limited to <strong style="color:var(--text);">3 recommendations per day</strong>.
+      The widget is limited to <strong style="color:var(--text);">${trialLimit} recommendations per day</strong>.
       <a onclick="showTab('billing')" style="color:var(--accent);cursor:pointer;font-weight:600;margin-left:4px;">Upgrade to remove limits</a></span>
     `;
                             // Insert before stats grid
@@ -6468,14 +6507,7 @@
                         ? Math.round(stats.avgBudget.avg).toLocaleString()
                         : "0";
                     // Show limit info
-                    const planLimits = {
-                        trial: "3/day",
-                        starter: "500/mo",
-                        growth: "2,000/mo",
-                        pro: "Unlimited",
-                    };
-                    const limitLabel =
-                        planLimits[currentStore.plan] || "500/mo";
+                    const limitLabel = formatPlanLimitLabel(currentStore.plan);
                     const el = document.getElementById("rec-limit-label");
                     if (el)
                         el.textContent = `Recommendations (Limit: ${limitLabel})`;

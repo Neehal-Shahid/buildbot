@@ -2616,14 +2616,14 @@
       <section class="pricing-section grid-overlay" id="pricing" data-reveal>
         <div class="section-label">PRICING</div>
         <h2 class="section-title">Start Free. Scale When You're Ready.</h2>
-        <p class="section-subtitle">14-day free trial on all plans. Pay via JazzCash or EasyPaisa. No card needed.</p>
+        <p class="section-subtitle" id="pricing-subtitle">Loading plans…</p>
         <div class="pricing-grid">
           <article class="price-card">
             <div class="price-plan">Starter</div>
-            <div class="price-amount">Rs 2,999 <span>/mo</span></div>
+            <div class="price-amount" id="price-starter-amount">Rs — <span>/mo</span></div>
             <div class="price-divider"></div>
             <ul class="price-features">
-              <li>500 recommendations/month</li>
+              <li id="price-starter-limit">— recommendations/month</li>
               <li>CSV product upload</li>
               <li>Basic analytics</li>
               <li>Brand color customization</li>
@@ -2634,10 +2634,10 @@
           <article class="price-card featured">
             <div class="price-badge">MOST POPULAR</div>
             <div class="price-plan">Growth</div>
-            <div class="price-amount">Rs 6,999 <span>/mo</span></div>
+            <div class="price-amount" id="price-growth-amount">Rs — <span>/mo</span></div>
             <div class="price-divider"></div>
             <ul class="price-features">
-              <li>2,000 recommendations/month</li>
+              <li id="price-growth-limit">— recommendations/month</li>
               <li>WooCommerce auto-sync</li>
               <li>Full analytics dashboard</li>
               <li>Custom widget text and branding</li>
@@ -2647,7 +2647,7 @@
           </article>
           <article class="price-card">
             <div class="price-plan">Pro</div>
-            <div class="price-amount">Rs 14,999 <span>/mo</span></div>
+            <div class="price-amount" id="price-pro-amount">Rs — <span>/mo</span></div>
             <div class="price-divider"></div>
             <ul class="price-features">
               <li>Unlimited recommendations</li>
@@ -2659,8 +2659,7 @@
             <button class="price-btn outline" onclick="showPage('signup')">Start Free Trial</button>
           </article>
         </div>
-        <div class="price-foot">All plans include a 14-day free trial · Pay via JazzCash (0300-XXXXXXX) or EasyPaisa
-          (0333-XXXXXXX) · Activated within 24 hours</div>
+        <div class="price-foot" id="pricing-foot">Loading payment details…</div>
       </section>
 
       <section data-reveal>
@@ -2688,7 +2687,7 @@
               We manually verify and activate your plan within 24 hours.</p>
           </details>
           <details class="faq-item">
-            <summary>What happens after my 14-day trial?</summary>
+            <summary id="faq-trial-summary">What happens after my free trial?</summary>
             <p>Your widget will stop generating recommendations until you subscribe to a paid plan. All your settings,
               products, and data are saved. You pick up exactly where you left off.</p>
           </details>
@@ -2697,7 +2696,7 @@
 
       <section class="final-cta" data-reveal>
         <h2>Your Competitors' Customers<br />Are Already Asking BuildBot.</h2>
-        <p>Start your 14-day free trial today. No credit card. No commitment.
+        <p id="cta-trial-text">Start your free trial today. No credit card. No commitment.
           Just a smarter PC store.</p>
         <button class="landing-btn primary" style="padding:16px 44px;font-size:16px;" onclick="showPage('signup')">Start
           My Free Trial →</button>
@@ -2746,7 +2745,7 @@
       </div>
 
       <h2>Create your account</h2>
-      <p>14-day free trial. No credit card needed.</p>
+      <p id="auth-trial-note">Free trial. No credit card needed.</p>
 
       <!-- Google Sign-In -->
       <div id="g_id_onload"
@@ -2979,7 +2978,49 @@
 
     // Safety net: ensure landing content reveals on initial load even if the normal
     // routing/onload flow is interrupted (landing uses [data-reveal] which starts hidden).
+    async function loadPublicPricing() {
+      try {
+        const res = await fetch(`${API}/plans`);
+        const data = await res.json();
+        if (!data.success) return;
+        const fmt = (n) => Number(n).toLocaleString('en-PK');
+        const setPrice = (id, amount) => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = `Rs ${fmt(amount)} <span>/mo</span>`;
+        };
+        const setLimit = (id, limit) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = limit == null
+            ? 'Unlimited recommendations'
+            : `${fmt(limit)} recommendations/month`;
+        };
+        setPrice('price-starter-amount', data.plans.starter.price);
+        setPrice('price-growth-amount', data.plans.growth.price);
+        setPrice('price-pro-amount', data.plans.pro.price);
+        setLimit('price-starter-limit', data.plans.starter.monthlyLimit);
+        setLimit('price-growth-limit', data.plans.growth.monthlyLimit);
+        const sub = document.getElementById('pricing-subtitle');
+        if (sub) sub.textContent = `${data.trialDays}-day free trial on all plans. Pay via JazzCash or EasyPaisa. No card needed.`;
+        const foot = document.getElementById('pricing-foot');
+        const payNum = data.paymentNumber || 'contact support';
+        if (foot) foot.textContent = `All plans include a ${data.trialDays}-day free trial · Pay via JazzCash/EasyPaisa (${payNum}) · Activated within 24 hours`;
+        document.querySelectorAll('.landing-btn.primary, #nav-signup-link').forEach((el) => {
+          if (el.textContent && el.textContent.includes('14 Days')) {
+            el.textContent = el.textContent.replace('14 Days', `${data.trialDays} Days`);
+          }
+        });
+        window.bbPublicPlans = data;
+        const faq = document.getElementById('faq-trial-summary');
+        if (faq) faq.textContent = `What happens after my ${data.trialDays}-day trial?`;
+        const cta = document.getElementById('cta-trial-text');
+        if (cta) cta.textContent = `Start your ${data.trialDays}-day free trial today. No credit card. No commitment.`;
+        const authNote = document.getElementById('auth-trial-note');
+        if (authNote) authNote.textContent = `${data.trialDays}-day free trial. No credit card needed.`;
+      } catch {}
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+      loadPublicPricing();
       try {
         const landing = document.getElementById('page-landing');
         if (landing && landing.classList.contains('active')) {

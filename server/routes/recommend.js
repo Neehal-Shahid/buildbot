@@ -89,10 +89,10 @@ const safeExtras = (extras || '').trim().slice(0, 200);
   if (!filteredProducts.length)
     return res.status(404).json({ error: 'No affordable products in catalog' });
 
-  const currency    = store.currency || 'PKR';
-  // Removed p.description to save 80% token usage per request
+  const currency = store.currency || 'PKR';
+  // Compact catalog line — descriptions are NOT sent (saves ~80% input tokens vs full listings)
   const productList = filteredProducts.map((p, i) =>
-    `${i+1}. Name: ${p.name}, Category: ${p.category}, Price: ${p.price} ${currency}`
+    `${i + 1}. [${p.category}] ${p.name} | ${p.price} ${currency}`
   ).join('\n');
 
   // Check for cached recommendation first (0 API cost)
@@ -214,87 +214,24 @@ const safeExtras = (extras || '').trim().slice(0, 200);
     });
   }
 
-  const prompt = `You are an expert PC build advisor for a Pakistani PC parts store.
+  const prompt = `PC build advisor for a Pakistani store. Return valid JSON only — no markdown.
 
-CUSTOMER REQUIREMENTS:
-  - Budget: ${parsedBudget} ${currency}
-  - Purpose: ${purpose}
-  - Extras requested: ${safeExtras || 'None'}
-  
-  AVAILABLE PRODUCTS IN THIS STORE:
-  ${productList}
-  
-  YOUR TASK:
-  Create exactly THREE different PC build options using ONLY products listed above.
-  Each build must be distinct in price tier and component balance.
-  
-  BUILD TIERS TO CREATE:
-  1. "Budget Build" — Use 70-80% of budget. Best value. No frills.
-  2. "Balanced Build" — Use 88-95% of budget. Best performance per rupee.  
-  3. "Max Build" — Use as close to 100% of budget as possible. Best performance within budget.
-  
-  IMPORTANT RULES:
-  1. ONLY use products that exist EXACTLY in list above. Never invent products.
-  2. Each build must have different total prices (not just same components rearranged).
-  3. If budget is under 30,000 ${currency}: Set canBuild to false and explain in noBuildsReason.
-  4. If store has no products affordable under budget: Set canBuild to false.
-  5. If you cannot make 3 distinct builds (e.g. store has too few products), make as many as you can (minimum 1).
-  6. QUANTITIES: You can recommend multiple units (e.g. 2x RAM). Multiply price by quantity.
-  7. Compatibility: Match CPU socket to motherboard, RAM type to board, PSU wattage to GPU.
-  8. PURPOSE OPTIMIZATION per build tier:
-     - Gaming: GPU first, then CPU, then RAM
-     - Video Editing: RAM (32GB if possible), CPU, fast SSD
-     - Office/Studies: Value CPU, 8GB RAM, SSD — keep it cheap
-     - Coding: 16GB RAM, fast CPU, SSD
-     - Designing: GPU, RAM, display quality
+CUSTOMER: Budget ${parsedBudget} ${currency} | Purpose: ${purpose} | Extras: ${safeExtras || 'None'}
 
-  COMPATIBILITY CHECKING:
-  When selecting PC components, you MUST verify that all parts are compatible with each other before including them in a build. Specifically check:
-  - CPU socket matches the motherboard socket (e.g. AM5, LGA1700)
-  - RAM type and speed are supported by the motherboard (DDR4 vs DDR5)
-  - PSU wattage covers all components combined with at least 20% headroom
-  - GPU power connectors match what the PSU provides
-  - CPU cooler TDP rating meets or exceeds the CPU TDP
-  - M.2 SSD interface matches the motherboard slot (NVMe vs SATA)
-  - Case form factor supports the motherboard size (ATX, mATX, ITX)
+CATALOG (format: #. [category] exact_product_name | price ${currency}):
+${productList}
 
-  For each build in your JSON response, include:
-  - "compatible": true or false
-  - "compatibilityNote": a short explanation if compatible is false
+TASK: Create exactly 3 builds — "Budget Build" (70-80% budget), "Balanced Build" (88-95%), "Max Build" (~100%).
+Use ONLY exact product names from the catalog. Never invent products. Different total prices per tier.
+If budget < 30000 ${currency}, set canBuild false with noBuildsReason.
+Match CPU socket, RAM type (DDR4/DDR5), PSU wattage (20% headroom), case/board size. Quantities allowed (e.g. 2x RAM).
 
-  For each part object, include a "reason" field: one sentence explaining why this specific part was chosen and how it works with the other components in this build.
-  
-  Respond ONLY in this exact JSON format, no extra text, no markdown:
-  {
-    "canBuild": true,
-    "noBuildsReason": "",
-    "builds": [
-      {
-        "tier": "Budget Build",
-        "tagline": "One sentence — what makes this tier special",
-        "buildName": "Descriptive name e.g. Entry Gaming Rig",
-        "totalPrice": 0,
-        "withinBudget": true,
-        "budgetRemaining": 0,
-        "compatible": true,
-        "compatibilityNote": "",
-        "parts": [
-          {
-            "category": "CPU",
-            "name": "Exact product name from list",
-            "price": 0,
-            "quantity": 1,
-            "totalPrice": 0,
-            "reason": "Why this part was chosen for this build and how it works with other components"
-          }
-        ],
-        "missingCategories": [],
-        "summary": "2-3 sentences: what this build is good for, who should pick it",
-        "tips": "Compatibility notes, upgrade path, usage tips",
-        "budgetAdvice": "What to do with remaining budget or why it's tight"
-      }
-    ]
-  }`;
+Optimize for purpose: Gaming→GPU+CPU; Editing→RAM+CPU+SSD; Office→value CPU+8GB RAM; Coding→16GB+fast CPU.
+
+Keep text fields SHORT to save tokens: tagline ≤12 words, reason ≤12 words, summary ≤25 words, tips ≤20 words, budgetAdvice ≤15 words, compatibilityNote ≤15 words if needed.
+
+JSON schema:
+{"canBuild":true,"noBuildsReason":"","builds":[{"tier":"Budget Build","tagline":"","buildName":"","totalPrice":0,"withinBudget":true,"budgetRemaining":0,"compatible":true,"compatibilityNote":"","parts":[{"category":"","name":"exact name from catalog","price":0,"quantity":1,"totalPrice":0,"reason":""}],"missingCategories":[],"summary":"","tips":"","budgetAdvice":""}]}`;
 
   try {
     const aiSettings = await configDB.getAiSettings();

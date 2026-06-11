@@ -1716,14 +1716,13 @@
                                 <input type="number" id="cfg-trial-days" min="1" max="90" placeholder="14" />
                             </div>
                             <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Trial Daily Rec Limit</label>
-                                <input type="number" id="cfg-trial-daily-limit" min="1" max="100" placeholder="10" />
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0">
                                 <label class="form-label">Payment Number
                                     (JazzCash/EasyPaisa)</label>
                                 <input type="text" id="cfg-payment-number" placeholder="03xxxxxxxxx" />
                             </div>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted);margin:-8px 0 16px;line-height:1.5;">
+                            Recommendation limits and AI model settings are in <strong style="color:var(--text);">API &amp; Model</strong> tab.
                         </div>
                         <div style="
                                     display: grid;
@@ -4538,7 +4537,6 @@
                     if (el && val !== undefined) el.value = val;
                 };
                 set("cfg-trial-days", c.trial_days);
-                set("cfg-trial-daily-limit", c.trial_daily_limit);
                 set("cfg-starter-price", c.starter_price);
                 set("cfg-growth-price", c.growth_price);
                 set("cfg-pro-price", c.pro_price);
@@ -4559,7 +4557,6 @@
                 document.getElementById(id)?.value?.trim() || "";
             const config = {
                 trial_days: get("cfg-trial-days"),
-                trial_daily_limit: get("cfg-trial-daily-limit"),
                 starter_price: get("cfg-starter-price"),
                 growth_price: get("cfg-growth-price"),
                 pro_price: get("cfg-pro-price"),

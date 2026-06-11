@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const { storeDB, productDB, client } = require("../database");
 const jwt = require("jsonwebtoken");
+const { normalizeWooUrl } = require("../lib/woo");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
@@ -26,7 +27,35 @@ async function authenticatePlugin(req, res) {
     return null;
   }
 
+  if (store.plan_status === "disabled") {
+    res.status(403).json({
+      success: false,
+      error: "This store account has been disabled.",
+    });
+    return null;
+  }
+
   return store;
+}
+
+async function validateWooSiteBinding(store, storeUrl, res) {
+  const incoming = normalizeWooUrl(storeUrl);
+  if (!incoming) return true;
+
+  const bound = normalizeWooUrl(store.woo_url);
+  if (store.woo_connected && bound && bound !== incoming) {
+    const note = `Blocked connection from ${incoming} — credentials bound to ${bound}`;
+    await storeDB.flagConnectionAbuse(store.store_id, note);
+    res.status(403).json({
+      success: false,
+      error:
+        "These credentials are already linked to a different website. Disconnect from the original site first, or contact BuildBot support.",
+      abuseFlagged: true,
+    });
+    return false;
+  }
+
+  return true;
 }
 
 // ─── MAP CATEGORY FROM WOOCOMMERCE CATEGORY NAME ──────────
@@ -351,8 +380,18 @@ router.post("/plugin/generate-key", async (req, res) => {
   if (!token) return res.status(401).json({ error: "No token" });
 
   try {
-    const jwt = require("jsonwebtoken");
     const decoded = jwt.verify(token, JWT_SECRET);
+    const info = await storeDB.getPluginKey(decoded.storeId);
+    if (!info) return res.status(404).json({ error: "Store not found" });
+
+    if (info.woo_connected === 1) {
+      return res.status(400).json({
+        error:
+          "Cannot generate a new key while WooCommerce is connected. Disconnect first to avoid breaking your live connection.",
+        wooConnected: true,
+      });
+    }
+
     const secret = "bb_live_" + crypto.randomBytes(16).toString("hex");
     await storeDB.updatePluginKey(decoded.storeId, secret);
     res.json({ success: true, secret });
@@ -373,10 +412,16 @@ router.get("/plugin/status", async (req, res) => {
 
     if (!info) return res.status(404).json({ error: "Store not found" });
 
+    const maskedSecret = info.plugin_secret
+      ? `${info.plugin_secret.slice(0, 10)}…${info.plugin_secret.slice(-4)}`
+      : null;
+
     res.json({
       success: true,
+      storeId: decoded.storeId,
       hasKey: !!info.plugin_secret,
       secret: info.plugin_secret || null,
+      maskedSecret,
       wooConnected: info.woo_connected === 1,
       wooUrl: info.woo_url || "",
       lastSync: info.woo_last_sync || null,
@@ -395,16 +440,38 @@ router.post("/plugin/disconnect", async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    await client.execute({
-      sql: `UPDATE stores
-            SET woo_connected = 0, woo_url = '', woo_last_sync = '', woo_product_count = 0, widget_enabled = 0
-            WHERE store_id = ?`,
-      args: [decoded.storeId],
-    });
+    await storeDB.disconnectWoo(decoded.storeId);
     res.json({ success: true, message: "WooCommerce disconnected." });
   } catch (err) {
     res.status(401).json({ error: "Invalid token" });
   }
+});
+
+// ─── DISCONNECT (WordPress plugin — credential auth) ──────
+router.post("/plugin/remote-disconnect", async (req, res) => {
+  const store = await authenticatePlugin(req, res);
+  if (!store) return;
+
+  try {
+    await storeDB.disconnectWoo(store.store_id);
+    res.json({ success: true, message: "WooCommerce disconnected on BuildBot." });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── CONNECTION STATUS (WordPress plugin poll) ─────────────
+router.post("/plugin/connection-status", async (req, res) => {
+  const store = await authenticatePlugin(req, res);
+  if (!store) return;
+
+  res.json({
+    success: true,
+    wooConnected: store.woo_connected === 1,
+    widgetEnabled: store.widget_enabled !== 0,
+    storeName: store.name,
+    wooUrl: store.woo_url || "",
+  });
 });
 
 // ─── TOGGLE WIDGET (enable/disable from plugin) ───────────
@@ -442,6 +509,8 @@ router.post("/plugin/sync", async (req, res) => {
       .status(400)
       .json({ success: false, error: "products array is required" });
   }
+
+  if (!(await validateWooSiteBinding(store, storeUrl, res))) return;
 
   try {
     await client.execute({
@@ -481,6 +550,10 @@ router.post("/plugin/sync", async (req, res) => {
     }
 
     await storeDB.updateWooStatus(store.store_id, storeUrl || "", synced);
+    await client.execute({
+      sql: "UPDATE stores SET widget_enabled = 1 WHERE store_id = ?",
+      args: [store.store_id],
+    });
     await storeDB.touchCatalog(store.store_id);
 
     res.json({
@@ -600,12 +673,16 @@ router.post("/plugin/ping", async (req, res) => {
     const store = await authenticatePlugin(req, res);
     if (!store) return;
 
+    const storeUrl = req.body?.storeUrl || req.headers["x-buildbot-woo-url"] || "";
+    if (storeUrl && !(await validateWooSiteBinding(store, storeUrl, res))) return;
+
     res.json({
       success: true,
       message: "Connected successfully!",
       storeName: store.name,
       storeId: store.store_id,
       plan: store.plan,
+      wooConnected: store.woo_connected === 1,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

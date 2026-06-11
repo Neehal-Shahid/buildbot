@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { storeDB, tokenDB, verifyDB } = require('../database');
+const { storeDB, tokenDB, verifyDB, configDB } = require('../database');
 const { OAuth2Client } = require('google-auth-library');
 const {
   sendEmail, welcomeEmail, emailVerificationEmail, passwordResetEmail
@@ -44,9 +44,11 @@ async function completeEmailVerification(email) {
 
   const store = await storeDB.findByEmail(email);
   if (store) {
+    await storeDB.startTrial(store.store_id);
     await sendEmail(welcomeEmail(store.name, store.email));
     const { adminNewStoreEmail } = require('../email');
     await sendEmail(adminNewStoreEmail(store.name, store.email, store.store_id));
+    return await storeDB.findById(store.store_id);
   }
   return store;
 }
@@ -302,7 +304,9 @@ router.post('/google-auth', async (req, res) => {
 
       // Auto-verify their email since Google verified it
       await verifyDB.setVerified(email);
+      await storeDB.startTrial(store.store_id);
       sendEmail(welcomeEmail(name, email));
+      store = await storeDB.findById(store.store_id);
     }
 
     const token = jwt.sign(
@@ -487,8 +491,22 @@ router.get('/support', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
   if (!store) return res.status(404).json({ error: 'Store not found' });
-  const { password, ...safeStore } = store;
-  res.json({ success: true, store: safeStore });
+
+  await storeDB.ensureTrialDates(store.store_id);
+  const refreshed = await storeDB.findById(req.store.storeId);
+  const trialDays = Number(await configDB.get('trial_days', '14')) || 14;
+  const trialEndsMs = refreshed.trial_ends ? new Date(refreshed.trial_ends).getTime() : 0;
+  const trialDaysLeft = trialEndsMs
+    ? Math.max(0, Math.ceil((trialEndsMs - Date.now()) / 86400000))
+    : 0;
+
+  const { password, plugin_secret, ...safeStore } = refreshed;
+  res.json({
+    success: true,
+    store: safeStore,
+    trialDays,
+    trialDaysLeft,
+  });
 });
 
 // ─── SETTINGS ─────────────────────────────────────────────
@@ -509,6 +527,15 @@ router.get('/store-config/:storeId', async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
   if (!store) return res.status(404).json({ error: 'Store not found' });
 
+  const active = await storeDB.isActive(req.params.storeId);
+  if (!active || store.plan_status === 'disabled' || store.widget_enabled === 0) {
+    return res.json({
+      success: true,
+      active: false,
+      widgetEnabled: false,
+    });
+  }
+
   // Get widget customization settings
   const { widgetDB } = require('../database');
   let widgetSettings = {};
@@ -525,13 +552,14 @@ router.get('/store-config/:storeId', async (req, res) => {
 
   res.json({
     success:       true,
+    active:        true,
     brandColor:    store.brand_color   || '#7c6af7',
     currency:      store.currency      || 'PKR',
     widgetTitle:   widgetSettings.widgetTitle,
     welcomeMsg:    widgetSettings.welcomeMsg,
     buttonText:    widgetSettings.buttonText,
     widgetBg:      widgetSettings.widgetBg,
-    widgetEnabled: store.widget_enabled !== 0
+    widgetEnabled: store.widget_enabled !== 0,
   });
 });
 

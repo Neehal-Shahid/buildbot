@@ -47,6 +47,10 @@
     try {
       const res = await fetch(`${API}/store-config/${STORE_ID}`);
       const storeConfig = await res.json();
+
+      if (storeConfig.active === false || storeConfig.widgetEnabled === false) {
+        return;
+      }
       
       if (storeConfig.brandColor) BRAND_COLOR = storeConfig.brandColor;
       if (storeConfig.widgetBg)   WIDGET_BG   = storeConfig.widgetBg;

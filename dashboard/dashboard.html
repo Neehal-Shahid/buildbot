@@ -2681,6 +2681,19 @@
                                     >
                                         Checking widget status...
                                     </div>
+                                    <div
+                                        id="woo-connected-credentials"
+                                        style="
+                                            font-size: 12px;
+                                            color: var(--muted);
+                                            margin-bottom: 14px;
+                                            padding: 12px 14px;
+                                            background: var(--surface-2);
+                                            border-radius: 8px;
+                                            border: 1px solid var(--border);
+                                            line-height: 1.7;
+                                        "
+                                    ></div>
                                     <div style="display: flex; gap: 10px">
                                         <p
                                             style="
@@ -6219,6 +6232,9 @@
                         plan: data.store.plan,
                         planStatus: data.store.plan_status,
                         trialEnds: data.store.trial_ends,
+                        trialStartedAt: data.store.trial_started_at,
+                        trialDays: data.trialDays,
+                        trialDaysLeft: data.trialDaysLeft,
                         brandColor: data.store.brand_color,
                         currency: data.store.currency,
                         marketingEmailsEnabled: data.store.marketing_emails_enabled !== 0,
@@ -7490,6 +7506,9 @@
                             "inline-block";
                     }
 
+                    const credsEl = document.getElementById("woo-connected-credentials");
+                    const genBtn = document.getElementById("generate-key-btn");
+
                     if (data.wooConnected) {
                         localStorage.setItem("bb_store_mode", "woo");
                         updateSidebarStoreModeUI("woo", true);
@@ -7535,6 +7554,16 @@
                                 ? "var(--success)"
                                 : "var(--danger)";
                         }
+                        if (credsEl) {
+                            credsEl.innerHTML = `<strong style="color:var(--text);">Connection credentials</strong><br/>
+                                Store ID: <code style="color:var(--accent);">${currentStore.storeId}</code><br/>
+                                Secret Key: <code style="color:var(--accent);">${data.maskedSecret || "—"}</code><br/>
+                                <span style="font-size:11px;">Keys are locked while connected. Disconnect to regenerate.</span>`;
+                        }
+                        if (genBtn) {
+                            genBtn.disabled = true;
+                            genBtn.title = "Already connected — disconnect WooCommerce first";
+                        }
                     } else {
                         // Server says not connected — always reset to custom regardless of localStorage
                         localStorage.setItem("bb_store_mode", "custom");
@@ -7549,6 +7578,11 @@
                             document.getElementById("woo-setup-view");
                         if (connectedView) connectedView.style.display = "none";
                         if (setupView) setupView.style.display = "block";
+                        if (credsEl) credsEl.innerHTML = "";
+                        if (genBtn) {
+                            genBtn.disabled = false;
+                            genBtn.title = "";
+                        }
                     }
                 } catch (e) {
                     console.error(e);
@@ -7573,11 +7607,17 @@
                         document.getElementById("copy-key-btn").style.display =
                             "inline-block";
                         btn.textContent = "Regenerate";
+                    } else {
+                        toast.error(
+                            data.error ||
+                                "Could not generate key. Disconnect WooCommerce first if already connected.",
+                        );
                     }
                 } catch (e) {
                     console.error(e);
+                    toast.error("Could not generate key.");
                 } finally {
-                    btn.disabled = false;
+                    await loadWooStatus();
                 }
             }
 
@@ -7989,17 +8029,23 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
                 if (
                     (!chip && !chipTop) ||
                     !currentStore ||
-                    !currentStore.trialEnds
+                    currentStore.plan !== "trial"
                 )
                     return;
-                var diff = Math.max(
-                    0,
-                    Math.ceil(
-                        (new Date(currentStore.trialEnds).getTime() -
-                            Date.now()) /
-                            86400000,
-                    ),
-                );
+
+                var diff =
+                    typeof currentStore.trialDaysLeft === "number"
+                        ? currentStore.trialDaysLeft
+                        : currentStore.trialEnds
+                          ? Math.max(
+                                0,
+                                Math.ceil(
+                                    (new Date(currentStore.trialEnds).getTime() -
+                                        Date.now()) /
+                                        86400000,
+                                ),
+                            )
+                          : 0;
                 var txt = `Trial: ${diff} day${diff === 1 ? "" : "s"} left`;
                 if (chip) {
                     chip.textContent = txt;

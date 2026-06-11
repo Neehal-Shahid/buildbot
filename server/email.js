@@ -262,6 +262,36 @@ function paymentRejectedEmail(storeName, email, plan) {
   };
 }
 
+function storeDisabledEmail(storeName, email) {
+  return {
+    to: email,
+    subject: 'Your BuildBot store has been disabled',
+    html: emailBase({
+      preheader: 'Your BuildBot widget is no longer active.',
+      content: `
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your store was disabled</h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildBot account has been disabled by our team. Your widget will no longer show recommendations to customers.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">If you believe this was a mistake, reply to this email and we'll help you restore access.</p>
+  `,
+    }),
+  };
+}
+
+function storeDeletedEmail(storeName, email) {
+  return {
+    to: email,
+    subject: 'Your BuildBot store has been removed',
+    html: emailBase({
+      preheader: 'Your BuildBot account and data have been deleted.',
+      content: `
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your store was deleted</h2>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildBot store account and associated data have been permanently removed from our platform.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">If you'd like to use BuildBot again in the future, you can sign up for a new account at any time.</p>
+  `,
+    }),
+  };
+}
+
 function trialEndingEmail(storeName, email, daysLeft) {
   return {
     to: email,
@@ -628,5 +658,7 @@ module.exports = {
   planExpiredEmail,
   adminManualEmail,
   supportTicketAdminEmail,
-  supportTicketConfirmationEmail
+  supportTicketConfirmationEmail,
+  storeDisabledEmail,
+  storeDeletedEmail,
 };

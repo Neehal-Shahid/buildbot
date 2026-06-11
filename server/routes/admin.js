@@ -149,8 +149,27 @@ router.post("/admin/reject-payment", adminAuth, async (req, res) => {
 });
 
 router.post("/admin/disable-store", adminAuth, async (req, res) => {
-  await storeDB.disableStore(req.body.storeId);
-  res.json({ success: true });
+  const storeId = String(req.body.storeId || "").trim();
+  if (!storeId) return res.status(400).json({ error: "storeId required" });
+
+  try {
+    const store = await storeDB.findById(storeId);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    await storeDB.disableStore(storeId);
+    await storeDB.disconnectWoo(storeId);
+
+    const { sendEmail, storeDisabledEmail } = require("../email");
+    if (store.email) {
+      sendEmail(storeDisabledEmail(store.name, store.email)).catch((e) =>
+        console.error("Disable store email failed:", e.message),
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/admin/delete-store", adminAuth, async (req, res) => {
@@ -160,6 +179,12 @@ router.post("/admin/delete-store", adminAuth, async (req, res) => {
   try {
     const store = await storeDB.findById(storeId);
     if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const { sendEmail, storeDeletedEmail } = require("../email");
+    if (store.email) {
+      await sendEmail(storeDeletedEmail(store.name, store.email));
+    }
+
     await storeDB.deleteStoreAndData(storeId);
 
     res.json({ success: true, message: "Store and all related data deleted." });
@@ -669,6 +694,11 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
       if (config[key] !== undefined) filtered[key] = config[key];
     }
     await configDB.setMany(filtered);
+
+    if (filtered.trial_days !== undefined) {
+      await storeDB.recalculateTrialEndsForAll(filtered.trial_days);
+    }
+
     res.json({ success: true, message: "Configuration saved" });
   } catch (err) {
     res.status(500).json({ error: err.message });

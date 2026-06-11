@@ -172,6 +172,9 @@ async function initDB() {
     `ALTER TABLE recommendations ADD COLUMN input_tokens INTEGER DEFAULT 0`,
     `ALTER TABLE recommendations ADD COLUMN output_tokens INTEGER DEFAULT 0`,
     `ALTER TABLE recommendations ADD COLUMN est_cost_usd REAL DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN trial_started_at TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN connection_abuse_flag INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN connection_abuse_note TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try {
@@ -397,6 +400,79 @@ const storeDB = {
               plan_status = 'active'
             WHERE store_id = ?`,
       args: [storeId],
+    });
+  },
+
+  startTrial: async (storeId) => {
+    const store = await storeDB.findById(storeId);
+    const trialDays = Number(await configDB.get("trial_days", "14")) || 14;
+    if (store?.trial_started_at) {
+      return await client.execute({
+        sql: `UPDATE stores SET
+                trial_ends = date(trial_started_at, '+${trialDays} days'),
+                plan = 'trial',
+                plan_status = 'active'
+              WHERE store_id = ?`,
+        args: [storeId],
+      });
+    }
+    return await client.execute({
+      sql: `UPDATE stores SET
+              trial_started_at = datetime('now'),
+              trial_ends = date('now', '+${trialDays} days'),
+              plan = 'trial',
+              plan_status = 'active'
+            WHERE store_id = ?`,
+      args: [storeId],
+    });
+  },
+
+  ensureTrialDates: async (storeId) => {
+    const store = await storeDB.findById(storeId);
+    if (!store || store.plan !== "trial") return;
+    if (store.trial_started_at) return;
+
+    const trialDays = Number(await configDB.get("trial_days", "14")) || 14;
+    const startAt = store.created_at || new Date().toISOString();
+    await client.execute({
+      sql: `UPDATE stores SET
+              trial_started_at = ?,
+              trial_ends = date(?, '+${trialDays} days')
+            WHERE store_id = ?`,
+      args: [startAt, startAt, storeId],
+    });
+  },
+
+  recalculateTrialEndsForAll: async (trialDays) => {
+    const days = Number(trialDays) || 14;
+    await client.execute({
+      sql: `UPDATE stores SET
+              trial_ends = date(COALESCE(NULLIF(trial_started_at, ''), created_at), '+${days} days')
+            WHERE plan = 'trial' AND plan_status != 'disabled'
+              AND COALESCE(NULLIF(trial_started_at, ''), created_at) IS NOT NULL`,
+    });
+  },
+
+  disconnectWoo: async (storeId) => {
+    return await client.execute({
+      sql: `UPDATE stores SET
+              woo_connected = 0,
+              woo_url = '',
+              woo_last_sync = '',
+              woo_product_count = 0,
+              widget_enabled = 0
+            WHERE store_id = ?`,
+      args: [storeId],
+    });
+  },
+
+  flagConnectionAbuse: async (storeId, note) => {
+    return await client.execute({
+      sql: `UPDATE stores SET
+              connection_abuse_flag = 1,
+              connection_abuse_note = ?
+            WHERE store_id = ?`,
+      args: [note, storeId],
     });
   },
 

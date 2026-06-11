@@ -61,7 +61,13 @@ const safeExtras = (extras || '').trim().slice(0, 200);
 
   // Check store is active
   const isActive = await storeDB.isActive(storeId);
-  if (!isActive)
+  if (!isActive || store.plan_status === 'disabled')
+    return res.status(403).json({
+      error: 'Service temporarily unavailable.',
+      customerMessage: true
+    });
+
+  if (store.widget_enabled === 0)
     return res.status(403).json({
       error: 'Service temporarily unavailable.',
       customerMessage: true

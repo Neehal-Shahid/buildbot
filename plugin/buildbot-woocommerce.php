@@ -365,7 +365,8 @@ function buildbot_get_admin_js() {
           'Content-Type':        'application/json',
           'X-BuildBot-Store-ID': storeId,
           'X-BuildBot-Secret':   secret
-        }
+        },
+        body: JSON.stringify({ storeUrl: window.location.origin })
       });
       var pingData = await pingRes.json();
 
@@ -579,7 +580,36 @@ function buildbot_admin_styles() {
 }
 
 // ─── ADMIN PAGE ───────────────────────────────────────────
+function buildbot_sync_connection_status_from_api() {
+  $store_id = get_option('buildbot_store_id', '');
+  $secret   = get_option('buildbot_secret_key', '');
+  if (!$store_id || !$secret) return;
+
+  $response = wp_remote_post(BUILDBOT_API . '/plugin/connection-status', [
+    'headers' => [
+      'Content-Type'        => 'application/json',
+      'X-BuildBot-Store-ID' => $store_id,
+      'X-BuildBot-Secret'   => $secret,
+    ],
+    'timeout' => 12,
+  ]);
+
+  if (is_wp_error($response)) return;
+
+  $body = json_decode(wp_remote_retrieve_body($response), true);
+  if (empty($body['success'])) return;
+
+  update_option('buildbot_connected', !empty($body['wooConnected']));
+  if (empty($body['wooConnected'])) {
+    update_option('buildbot_last_sync', '');
+    update_option('buildbot_product_count', 0);
+    update_option('buildbot_woo_url', '');
+  }
+}
+
 function buildbot_admin_page() {
+  buildbot_sync_connection_status_from_api();
+
   $store_id       = get_option('buildbot_store_id', '');
   $secret_key     = get_option('buildbot_secret_key', '');
   $is_connected   = get_option('buildbot_connected', false);
@@ -855,6 +885,20 @@ add_action('wp_ajax_buildbot_disconnect', 'buildbot_disconnect_ajax');
 function buildbot_disconnect_ajax() {
   check_ajax_referer('buildbot_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
+
+  $store_id = get_option('buildbot_store_id', '');
+  $secret   = get_option('buildbot_secret_key', '');
+  if ($store_id && $secret) {
+    wp_remote_post(BUILDBOT_API . '/plugin/remote-disconnect', [
+      'headers' => [
+        'Content-Type'          => 'application/json',
+        'X-BuildBot-Store-ID'   => $store_id,
+        'X-BuildBot-Secret'     => $secret,
+      ],
+      'timeout' => 15,
+    ]);
+  }
+
   update_option('buildbot_connected', false);
   update_option('buildbot_last_sync', '');
   update_option('buildbot_product_count', 0);

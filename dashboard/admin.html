@@ -3380,7 +3380,7 @@
                         .map(
                             (s) => `
       <tr>
-        <td><strong>${safeText(s.name)}</strong></td>
+        <td><strong>${safeText(s.name)}</strong>${Number(s.connection_abuse_flag) ? ' <span class="badge badge-danger" title="' + safeText(s.connection_abuse_note || 'Credential abuse flagged') + '">Abuse</span>' : ''}</td>
         <td>${safeText(s.email)}</td>
         <td>${planBadge(s.plan)}</td>
         <td><span class="badge ${s.plan_status === "active" ? "badge-success" : "badge-danger"}">

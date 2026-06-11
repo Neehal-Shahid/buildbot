@@ -160,6 +160,82 @@
                 color: var(--muted);
             }
 
+            .nav-left {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .nav-menu-btn {
+                display: none;
+                width: 36px;
+                height: 36px;
+                border: 1px solid var(--border);
+                border-radius: var(--r-md);
+                background: var(--surface);
+                color: var(--text);
+                cursor: pointer;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                padding: 0;
+            }
+
+            .nav-menu-btn svg {
+                width: 18px;
+                height: 18px;
+                stroke: currentColor;
+                fill: none;
+                stroke-width: 2;
+                stroke-linecap: round;
+            }
+
+            .sidebar-close-btn {
+                display: none;
+                width: 32px;
+                height: 32px;
+                border: 1px solid var(--border);
+                border-radius: var(--r-md);
+                background: var(--surface);
+                color: var(--muted);
+                cursor: pointer;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                padding: 0;
+                margin-left: auto;
+            }
+
+            .sidebar-close-btn svg {
+                width: 16px;
+                height: 16px;
+                stroke: currentColor;
+                fill: none;
+                stroke-width: 2;
+                stroke-linecap: round;
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(17, 24, 39, 0.45);
+                z-index: 150;
+            }
+
+            .sidebar-overlay.open {
+                display: block;
+            }
+
+            body.sidebar-open {
+                overflow: hidden;
+            }
+
+            .table-wrap {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
             .app-layout {
                 display: flex;
                 min-height: 100vh;
@@ -926,15 +1002,76 @@
             }
 
             @media (max-width: 768px) {
-                .sidebar {
+                nav {
+                    padding: 0 14px;
+                }
+
+                .nav-menu-btn {
+                    display: flex;
+                }
+
+                .nav-user-email {
                     display: none;
                 }
+
+                .trial-chip {
+                    font-size: 10px;
+                    padding: 3px 8px;
+                }
+
+                .app-layout {
+                    display: block;
+                }
+
+                .sidebar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: min(280px, 88vw);
+                    height: 100vh;
+                    z-index: 200;
+                    transform: translateX(-100%);
+                    transition: transform 0.25s ease;
+                    border-right: 1px solid var(--border);
+                }
+
+                .sidebar.open {
+                    transform: translateX(0);
+                }
+
+                .sidebar-close-btn {
+                    display: flex;
+                }
+
                 .main {
                     padding: 16px;
                     padding-bottom: 72px;
+                    width: 100%;
                 }
                 .stats-grid {
                     grid-template-columns: repeat(2, 1fr);
+                    gap: 12px;
+                }
+
+                .stat-card {
+                    padding: 16px;
+                }
+
+                .stat-value {
+                    font-size: 22px;
+                }
+
+                .card {
+                    padding: 16px;
+                }
+
+                .main table {
+                    min-width: 560px;
+                }
+
+                .card:has(table) {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
                 }
 
                 .mobile-tabs {
@@ -1489,10 +1626,6 @@
             }
 
             @media (max-width: 768px) {
-                .stats-grid {
-                    grid-template-columns: repeat(2, 1fr);
-                }
-
                 .features,
                 .plans-grid {
                     grid-template-columns: 1fr;
@@ -1501,9 +1634,11 @@
                 .two-col {
                     grid-template-columns: 1fr;
                 }
+            }
 
-                .sidebar {
-                    display: none;
+            @media (max-width: 480px) {
+                .stats-grid {
+                    grid-template-columns: 1fr;
                 }
             }
 
@@ -1640,7 +1775,16 @@
     </head>
     <body>
         <nav>
-            <div class="nav-logo">BuildBot</div>
+            <div class="nav-left">
+                <button type="button" class="nav-menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <div class="nav-logo">BuildBot</div>
+            </div>
             <div class="nav-right">
                 <span class="trial-chip" id="trial-chip-top"></span>
                 <span class="nav-user-email" id="nav-user-email-top"></span>
@@ -1649,9 +1793,10 @@
         </nav>
 
         <div class="page" id="page-app">
+            <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
             <div class="app-layout">
                 <!-- Sidebar -->
-                <aside class="sidebar">
+                <aside class="sidebar" id="app-sidebar">
                     <div class="sidebar-header">
                         <div class="sidebar-logo-mark">
                             <svg
@@ -1668,6 +1813,12 @@
                             </svg>
                         </div>
                         <span class="sidebar-logo-name">BuildBot</span>
+                        <button type="button" class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">
+                            <svg viewBox="0 0 24 24">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
                     </div>
                     <nav class="sidebar-nav">
                         <span class="sidebar-section-label">Workspace</span>
@@ -6384,8 +6535,22 @@
                 if (mobEmbed) mobEmbed.style.display = manual ? "" : "none";
             }
 
+            // ─── MOBILE SIDEBAR ───────────────────────────────────────
+            function toggleSidebar() {
+                document.getElementById("app-sidebar").classList.toggle("open");
+                document.getElementById("sidebar-overlay").classList.toggle("open");
+                document.body.classList.toggle("sidebar-open");
+            }
+
+            function closeSidebar() {
+                document.getElementById("app-sidebar").classList.remove("open");
+                document.getElementById("sidebar-overlay").classList.remove("open");
+                document.body.classList.remove("sidebar-open");
+            }
+
             // ─── TABS ─────────────────────────────────────────────────
             function showTab(name) {
+                closeSidebar();
                 if (name === "embed" && !catalogModeIsManual()) {
                     showTab("store");
                     return;

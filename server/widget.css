@@ -919,3 +919,21 @@
   background: var(--bb-warning-bg);
   border-color: var(--bb-warning);
 }
+
+@media (max-width: 480px) {
+  #bb-panel {
+    left: 12px;
+    right: 12px;
+    bottom: 88px;
+    width: auto;
+    max-height: calc(100vh - 120px);
+    border-radius: 16px;
+  }
+
+  #bb-launcher {
+    right: 16px;
+    bottom: 20px;
+    width: 52px;
+    height: 52px;
+  }
+}

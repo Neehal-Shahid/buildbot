@@ -2285,33 +2285,106 @@
       }
     }
 
+    .nav-menu-btn {
+      display: none;
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary, #fff);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+
+    .nav-menu-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .nav-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 150;
+    }
+
+    .nav-overlay.open {
+      display: block;
+    }
+
+    body.nav-open {
+      overflow: hidden;
+    }
+
     @media(max-width:768px) {
       #main-nav {
-        padding: 16px 24px;
+        padding: 14px 18px;
         width: calc(100% - 16px);
         top: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .nav-menu-btn {
+        display: flex;
       }
 
       #main-nav .nav-links {
-        gap: 4px;
+        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: min(300px, 88vw);
+        height: 100vh;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 72px 20px 24px;
+        background: rgba(10, 11, 15, 0.98);
+        border-left: 1px solid var(--border);
+        z-index: 200;
+        overflow-y: auto;
+      }
+
+      #main-nav .nav-links.open {
+        display: flex;
       }
 
       #main-nav .nav-link {
-        padding: 8px 10px;
-        font-size: 13px;
-      }
-
-      #main-nav .nav-link:nth-child(2),
-      #main-nav .nav-link:nth-child(3) {
-        display: none;
+        padding: 12px 16px;
+        font-size: 14px;
+        border-radius: 12px;
       }
 
       #main-nav .nav-link.btn.btn-primary {
-        padding: 10px 14px !important;
+        padding: 12px 16px !important;
+        text-align: center;
+        justify-content: center;
+        margin-top: 8px;
       }
 
       .hero-h1 {
         font-size: 36px;
+      }
+
+      .hero-ctas {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0 8px;
+      }
+
+      .hero-ctas .landing-btn {
+        width: 100%;
       }
 
       .social-proof,
@@ -2371,8 +2444,16 @@
   <!-- ═══════════════════════════════════════════════
      NAV
 ═══════════════════════════════════════════════ -->
+  <div class="nav-overlay" id="nav-overlay" onclick="closeMobileNav()"></div>
   <nav id="main-nav">
     <div class="nav-logo" onclick="showPage('landing')">⚡ BuildBot</div>
+    <button type="button" class="nav-menu-btn" id="nav-menu-btn" onclick="toggleMobileNav()" aria-label="Open menu">
+      <svg viewBox="0 0 24 24">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
     <div class="nav-links" id="nav-links">
       <div class="nav-link" onclick="showPage('landing')">Home</div>
       <div class="nav-link" onclick="scrollToLandingSection('how-it-works');">Features
@@ -3215,7 +3296,20 @@
     };
 
     // ─── PAGE ROUTING ─────────────────────────────────────────
+    function toggleMobileNav() {
+      document.getElementById('nav-links').classList.toggle('open');
+      document.getElementById('nav-overlay').classList.toggle('open');
+      document.body.classList.toggle('nav-open');
+    }
+
+    function closeMobileNav() {
+      document.getElementById('nav-links').classList.remove('open');
+      document.getElementById('nav-overlay').classList.remove('open');
+      document.body.classList.remove('nav-open');
+    }
+
     function showPage(name) {
+      closeMobileNav();
       // If someone opened dedicated dashboard entry, never route to landing.
       if (FORCE_DASHBOARD && name === 'landing') name = 'login';
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));

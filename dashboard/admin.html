@@ -1057,6 +1057,196 @@
             background-size: 200% 100%;
             animation: shimmer 1.4s infinite;
         }
+
+        /* ── MOBILE NAV & SIDEBAR ── */
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-menu-btn {
+            display: none;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .nav-menu-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .sidebar-close-btn {
+            display: none;
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            align-self: flex-end;
+            margin-bottom: 8px;
+            padding: 0;
+        }
+
+        .sidebar-close-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.45);
+            z-index: 150;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding: 0 14px;
+            }
+
+            .nav-menu-btn {
+                display: flex;
+            }
+
+            #nav-admin-name {
+                display: none;
+            }
+
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: min(280px, 88vw);
+                height: 100vh;
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                border-right: 1px solid var(--border);
+                padding: 16px 12px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-close-btn {
+                display: flex;
+            }
+
+            .main {
+                padding: 16px;
+                width: 100%;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .stat {
+                padding: 16px;
+            }
+
+            .stat-val {
+                font-size: 22px;
+            }
+
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .card-head {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .modal-btns {
+                flex-direction: column;
+            }
+
+            .modal-btns .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            th,
+            td {
+                padding: 9px 10px;
+                font-size: 12px;
+            }
+
+            .main table {
+                min-width: 560px;
+            }
+
+            .card:has(table) {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .login-box {
+                padding: 28px 22px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-logo {
+                font-size: 13px;
+            }
+        }
     </style>
     <script src="config.js"></script>
 </head>
@@ -1190,7 +1380,14 @@
     <!-- APP -->
     <div id="admin-app" style="display: none">
         <nav>
-            <div style="display: flex; align-items: center">
+            <div class="nav-left">
+                <button type="button" class="nav-menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
                 <div class="nav-logo">
                     <div class="nav-logo-mark">
                         <svg viewBox="0 0 24 24">
@@ -1207,8 +1404,16 @@
             </div>
         </nav>
 
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
         <div class="layout">
-            <div class="sidebar">
+            <div class="sidebar" id="admin-sidebar">
+                <button type="button" class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
                 <div class="sb-sep">Platform</div>
                 <div class="sb-item active" onclick="showTab('overview')" id="atab-overview">
                     <svg viewBox="0 0 24 24">
@@ -3043,8 +3248,22 @@
             loadPlatformConfig();
         }
 
+        // ─── MOBILE SIDEBAR ───────────────────────────────────
+        function toggleSidebar() {
+            document.getElementById("admin-sidebar").classList.toggle("open");
+            document.getElementById("sidebar-overlay").classList.toggle("open");
+            document.body.classList.toggle("sidebar-open");
+        }
+
+        function closeSidebar() {
+            document.getElementById("admin-sidebar").classList.remove("open");
+            document.getElementById("sidebar-overlay").classList.remove("open");
+            document.body.classList.remove("sidebar-open");
+        }
+
         // ─── TABS ─────────────────────────────────────────────
         function showTab(name) {
+            closeSidebar();
             [
                 "overview",
                 "stores",

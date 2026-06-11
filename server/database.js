@@ -154,12 +154,24 @@ async function initDB() {
     `CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES
   ('trial_days', '14'),
-  ('trial_daily_limit', '10'),
+  ('trial_daily_limit', '3'),
   ('starter_price', '2999'),
   ('growth_price', '4999'),
   ('pro_price', '7999'),
   ('payment_number', ''),
-  ('maintenance_mode', 'false')`,
+  ('maintenance_mode', 'false'),
+  ('anthropic_model', 'claude-haiku-4-5'),
+  ('anthropic_max_tokens', '8192'),
+  ('api_input_price_per_million', '1'),
+  ('api_output_price_per_million', '5'),
+  ('usd_to_pkr', '280'),
+  ('starter_monthly_limit', '500'),
+  ('growth_monthly_limit', '2000')`,
+    `ALTER TABLE recommendations ADD COLUMN source TEXT DEFAULT ''`,
+    `ALTER TABLE recommendations ADD COLUMN model TEXT DEFAULT ''`,
+    `ALTER TABLE recommendations ADD COLUMN input_tokens INTEGER DEFAULT 0`,
+    `ALTER TABLE recommendations ADD COLUMN output_tokens INTEGER DEFAULT 0`,
+    `ALTER TABLE recommendations ADD COLUMN est_cost_usd REAL DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try {
@@ -558,11 +570,30 @@ const productDB = {
 
 // ─── ANALYTICS FUNCTIONS ──────────────────────────────────
 const analyticsDB = {
-  logRecommendation: async (storeId, budget, purpose, extras, result) => {
+  logRecommendation: async (storeId, budget, purpose, extras, result, meta = {}) => {
+    const {
+      source = "",
+      model = "",
+      inputTokens = 0,
+      outputTokens = 0,
+      estCostUsd = 0,
+    } = meta;
     return await client.execute({
-      sql: `INSERT INTO recommendations (store_id, budget, purpose, extras, result)
-             VALUES (?, ?, ?, ?, ?)`,
-      args: [storeId, budget, purpose, extras, JSON.stringify(result)],
+      sql: `INSERT INTO recommendations
+            (store_id, budget, purpose, extras, result, source, model, input_tokens, output_tokens, est_cost_usd)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        storeId,
+        budget,
+        purpose,
+        extras,
+        JSON.stringify(result),
+        source,
+        model,
+        inputTokens,
+        outputTokens,
+        estCostUsd,
+      ],
     });
   },
 
@@ -638,7 +669,9 @@ const analyticsDB = {
   },
 
   checkLimit: async (storeId, plan) => {
-    // Trial: max 3 per day
+    const trialLimit =
+      Number(await configDB.get("trial_daily_limit", "3")) || 3;
+
     if (plan === "trial") {
       const res = await client.execute({
         sql: `SELECT COUNT(*) as count FROM recommendations
@@ -648,17 +681,20 @@ const analyticsDB = {
       });
       const used = res.rows[0].count;
       return {
-        allowed: used < 3,
+        allowed: used < trialLimit,
         used,
-        limit: 3,
+        limit: trialLimit,
         period: "today",
-        remaining: Math.max(0, 3 - used),
+        remaining: Math.max(0, trialLimit - used),
       };
     }
 
-    // Starter: 500/month, Growth: 2000/month, Pro: unlimited
-    const limits = { starter: 500, growth: 2000, pro: 999999 };
-    const limit = limits[plan] || 500;
+    const starterLimit =
+      Number(await configDB.get("starter_monthly_limit", "500")) || 500;
+    const growthLimit =
+      Number(await configDB.get("growth_monthly_limit", "2000")) || 2000;
+    const limits = { starter: starterLimit, growth: growthLimit, pro: 999999 };
+    const limit = limits[plan] || starterLimit;
 
     if (limit === 999999) {
       return { allowed: true, used: 0, limit: 999999, remaining: 999999 };
@@ -942,6 +978,193 @@ const configDB = {
     });
     return res.rows[0]?.value ?? defaultValue;
   },
+
+  getAiSettings: async () => {
+    const cfg = await configDB.getAll();
+    return {
+      model: (
+        cfg.anthropic_model ||
+        process.env.ANTHROPIC_MODEL ||
+        "claude-haiku-4-5"
+      ).trim(),
+      maxTokens:
+        Number(cfg.anthropic_max_tokens || process.env.ANTHROPIC_MAX_TOKENS) ||
+        8192,
+      inputPricePerM: Number(cfg.api_input_price_per_million || 1) || 1,
+      outputPricePerM: Number(cfg.api_output_price_per_million || 5) || 5,
+      usdToPkr: Number(cfg.usd_to_pkr || 280) || 280,
+    };
+  },
+};
+
+// ─── API USAGE ANALYTICS ──────────────────────────────────
+const apiUsageDB = {
+  estimateCostUsd(inputTokens, outputTokens, inputPricePerM, outputPricePerM) {
+    return (
+      (inputTokens / 1e6) * inputPricePerM +
+      (outputTokens / 1e6) * outputPricePerM
+    );
+  },
+
+  async getSummary(period = "month") {
+    const dateFilter =
+      period === "today"
+        ? "AND date(created_at) = date('now')"
+        : "AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')";
+
+    const res = await client.execute({
+      sql: `SELECT
+              COUNT(*) AS total_recs,
+              SUM(CASE WHEN source = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
+              SUM(CASE WHEN source = 'cached' THEN 1 ELSE 0 END) AS cached_calls,
+              SUM(CASE WHEN source = 'test' THEN 1 ELSE 0 END) AS test_calls,
+              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(est_cost_usd), 0) AS est_cost_usd
+            FROM recommendations
+            WHERE 1=1 ${dateFilter}`,
+    });
+    const row = res.rows[0] || {};
+    const totalRecs = Number(row.total_recs) || 0;
+    const aiCalls = Number(row.ai_calls) || 0;
+    const cachedCalls = Number(row.cached_calls) || 0;
+    return {
+      totalRecs,
+      aiCalls,
+      cachedCalls,
+      testCalls: Number(row.test_calls) || 0,
+      inputTokens: Number(row.input_tokens) || 0,
+      outputTokens: Number(row.output_tokens) || 0,
+      estCostUsd: Number(row.est_cost_usd) || 0,
+      cacheHitRate:
+        totalRecs > 0 ? Math.round((cachedCalls / totalRecs) * 100) : 0,
+    };
+  },
+
+  async getStoreBreakdown(period = "month") {
+    const dateFilter =
+      period === "today"
+        ? "AND date(r.created_at) = date('now')"
+        : "AND strftime('%Y-%m', r.created_at) = strftime('%Y-%m', 'now')";
+
+    const res = await client.execute({
+      sql: `SELECT
+              r.store_id,
+              s.name,
+              s.plan,
+              s.plan_status,
+              COUNT(*) AS total_recs,
+              SUM(CASE WHEN r.source = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
+              SUM(CASE WHEN r.source = 'cached' THEN 1 ELSE 0 END) AS cached_calls,
+              COALESCE(SUM(r.input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(r.output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(r.est_cost_usd), 0) AS est_cost_usd
+            FROM recommendations r
+            LEFT JOIN stores s ON s.store_id = r.store_id
+            WHERE 1=1 ${dateFilter}
+            GROUP BY r.store_id
+            ORDER BY est_cost_usd DESC, ai_calls DESC`,
+    });
+    return res.rows.map((row) => ({
+      storeId: row.store_id,
+      name: row.name || row.store_id,
+      plan: row.plan || "trial",
+      planStatus: row.plan_status || "",
+      totalRecs: Number(row.total_recs) || 0,
+      aiCalls: Number(row.ai_calls) || 0,
+      cachedCalls: Number(row.cached_calls) || 0,
+      inputTokens: Number(row.input_tokens) || 0,
+      outputTokens: Number(row.output_tokens) || 0,
+      estCostUsd: Number(row.est_cost_usd) || 0,
+    }));
+  },
+
+  async getProfitAnalysis(config) {
+    const starterPrice = Number(config.starter_price || 2999);
+    const growthPrice = Number(config.growth_price || 4999);
+    const proPrice = Number(config.pro_price || 7999);
+    const trialLimit = Number(config.trial_daily_limit || 3);
+    const starterLimit = Number(config.starter_monthly_limit || 500);
+    const growthLimit = Number(config.growth_monthly_limit || 2000);
+    const inputPrice = Number(config.api_input_price_per_million || 1);
+    const outputPrice = Number(config.api_output_price_per_million || 5);
+
+    const monthSummary = await apiUsageDB.getSummary("month");
+    const avgCostPerAi =
+      monthSummary.aiCalls > 0
+        ? monthSummary.estCostUsd / monthSummary.aiCalls
+        : apiUsageDB.estimateCostUsd(4000, 5000, inputPrice, outputPrice);
+
+    const activeRes = await client.execute({
+      sql: `SELECT plan, COUNT(*) AS c FROM stores
+            WHERE plan_status = 'active' AND plan != 'trial'
+            GROUP BY plan`,
+    });
+    let mrrPkr = 0;
+    const paidCounts = { starter: 0, growth: 0, pro: 0 };
+    for (const row of activeRes.rows) {
+      const plan = row.plan;
+      const count = Number(row.c) || 0;
+      paidCounts[plan] = count;
+      const prices = { starter: starterPrice, growth: growthPrice, pro: proPrice };
+      mrrPkr += count * (prices[plan] || 0);
+    }
+
+    const usdToPkr = Number(config.usd_to_pkr || 280);
+    const apiCostPkr = monthSummary.estCostUsd * usdToPkr;
+
+    const plans = [
+      {
+        plan: "trial",
+        pricePkr: 0,
+        limit: trialLimit,
+        period: "day",
+        revenuePerRec: 0,
+        estApiCostPerRec: avgCostPerAi * usdToPkr,
+      },
+      {
+        plan: "starter",
+        pricePkr: starterPrice,
+        limit: starterLimit,
+        period: "month",
+        revenuePerRec: starterLimit ? starterPrice / starterLimit : 0,
+        estApiCostPerRec: avgCostPerAi * usdToPkr,
+      },
+      {
+        plan: "growth",
+        pricePkr: growthPrice,
+        limit: growthLimit,
+        period: "month",
+        revenuePerRec: growthLimit ? growthPrice / growthLimit : 0,
+        estApiCostPerRec: avgCostPerAi * usdToPkr,
+      },
+      {
+        plan: "pro",
+        pricePkr: proPrice,
+        limit: null,
+        period: "month",
+        revenuePerRec: null,
+        estApiCostPerRec: avgCostPerAi * usdToPkr,
+      },
+    ].map((p) => ({
+      ...p,
+      marginPerRec:
+        p.revenuePerRec != null
+          ? p.revenuePerRec - p.estApiCostPerRec
+          : null,
+      profitable:
+        p.revenuePerRec != null ? p.revenuePerRec > p.estApiCostPerRec : true,
+    }));
+
+    return {
+      mrrPkr,
+      apiCostPkr,
+      profitPkr: mrrPkr - apiCostPkr,
+      paidCounts,
+      avgCostPerAiUsd: avgCostPerAi,
+      plans,
+    };
+  },
 };
 
 // ─── EMAIL SEND LOG (dedup + audit) ───────────────────────
@@ -1044,6 +1267,7 @@ module.exports = {
   widgetDB,
   adminDB,
   configDB,
+  apiUsageDB,
   emailLogDB,
   supportTicketDB,
 };

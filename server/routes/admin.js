@@ -12,6 +12,7 @@ const {
   adminDB,
   tokenDB,
   configDB,
+  apiUsageDB,
   emailLogDB,
   supportTicketDB,
 } = require("../database");
@@ -544,6 +545,56 @@ router.post("/admin/support-tickets/:id/status", adminAuth, async (req, res) => 
   }
 });
 
+// ─── API & MODEL USAGE ────────────────────────────────────────
+
+router.get("/admin/api-usage", adminAuth, async (req, res) => {
+  try {
+    const period = req.query.period === "today" ? "today" : "month";
+    const config = await configDB.getAll();
+    const aiSettings = await configDB.getAiSettings();
+    const summary = await apiUsageDB.getSummary(period);
+    const stores = await apiUsageDB.getStoreBreakdown(period);
+    const profit = await apiUsageDB.getProfitAnalysis(config);
+    const usdToPkr = aiSettings.usdToPkr;
+
+    res.json({
+      success: true,
+      period,
+      apiKeySet: Boolean((process.env.ANTHROPIC_API_KEY || "").trim()),
+      testMode: process.env.TEST_MODE === "true",
+      settings: {
+        model: aiSettings.model,
+        maxTokens: aiSettings.maxTokens,
+        inputPricePerM: aiSettings.inputPricePerM,
+        outputPricePerM: aiSettings.outputPricePerM,
+        usdToPkr,
+        trialDailyLimit: Number(config.trial_daily_limit || 3),
+        starterMonthlyLimit: Number(config.starter_monthly_limit || 500),
+        growthMonthlyLimit: Number(config.growth_monthly_limit || 2000),
+      },
+      summary: {
+        ...summary,
+        estCostPkr: summary.estCostUsd * usdToPkr,
+      },
+      profit: {
+        ...profit,
+        apiCostPkr: profit.apiCostPkr,
+      },
+      stores: stores.map((s) => ({
+        ...s,
+        estCostPkr: s.estCostUsd * usdToPkr,
+      })),
+      models: [
+        { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (fast, cheapest)" },
+        { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5 (smarter, ~10× cost)" },
+        { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (latest balanced)" },
+      ],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── PLATFORM CONFIG ──────────────────────────────────────────
 
 // GET /admin/platform-config — return all config key/value pairs
@@ -571,6 +622,13 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
     "pro_price",
     "payment_number",
     "maintenance_mode",
+    "anthropic_model",
+    "anthropic_max_tokens",
+    "api_input_price_per_million",
+    "api_output_price_per_million",
+    "usd_to_pkr",
+    "starter_monthly_limit",
+    "growth_monthly_limit",
   ];
 
   // Validate values
@@ -580,6 +638,12 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
     "starter_price",
     "growth_price",
     "pro_price",
+    "anthropic_max_tokens",
+    "api_input_price_per_million",
+    "api_output_price_per_million",
+    "usd_to_pkr",
+    "starter_monthly_limit",
+    "growth_monthly_limit",
   ];
   for (const key of numericKeys) {
     if (config[key] !== undefined) {
@@ -591,6 +655,12 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
             error: `Invalid value for ${key}: must be a positive number`,
           });
     }
+  }
+
+  if (config.anthropic_model !== undefined) {
+    const model = String(config.anthropic_model).trim();
+    if (!model)
+      return res.status(400).json({ error: "anthropic_model cannot be empty" });
   }
 
   try {

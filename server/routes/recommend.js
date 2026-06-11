@@ -1,5 +1,5 @@
 const express = require('express');
-const { productDB, storeDB, analyticsDB } = require('../database');
+const { productDB, storeDB, analyticsDB, configDB, apiUsageDB } = require('../database');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const router = express.Router();
@@ -12,10 +12,6 @@ function getAnthropicClient() {
   const apiKey = getAnthropicApiKey();
   return apiKey ? new Anthropic({ apiKey }) : null;
 }
-
-// claude-3-5-haiku-20241022 was retired Feb 2026; Haiku 4.5 is the replacement
-const ANTHROPIC_MODEL = (process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5').trim();
-const ANTHROPIC_MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS) || 8192;
 
 function getAiResponseText(message) {
   return message.content.find((block) => block.type === 'text')?.text || '';
@@ -103,7 +99,9 @@ const safeExtras = (extras || '').trim().slice(0, 200);
   const cachedRec = await analyticsDB.getCachedRecommendation(storeId, parsedBudget, purpose, extras || '');
   if (cachedRec) {
     // We still log it so analytics are accurate, but it costs 0 credits
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, cachedRec);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, cachedRec, {
+      source: 'cached',
+    });
     // If cached rec is old single-build format (has .buildName), wrap it
     const isOldFormat = cachedRec.buildName !== undefined && !cachedRec.builds;
     return res.json({
@@ -188,7 +186,9 @@ const safeExtras = (extras || '').trim().slice(0, 200);
         budgetAdvice: 'Budget nearly fully used. You\'re getting the most out of your money.'
       }
     ];
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, fakeBuilds[1]);
+    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, fakeBuilds[1], {
+      source: 'test',
+    });
     return res.json({
       success: true,
       builds: fakeBuilds,
@@ -297,16 +297,17 @@ CUSTOMER REQUIREMENTS:
   }`;
 
   try {
+    const aiSettings = await configDB.getAiSettings();
     const message = await anthropic.messages.create({
-      model:      ANTHROPIC_MODEL,
-      max_tokens: ANTHROPIC_MAX_TOKENS,
+      model:      aiSettings.model,
+      max_tokens: aiSettings.maxTokens,
       messages:   [{ role: 'user', content: prompt }]
     });
 
     if (message.stop_reason === 'max_tokens') {
       console.error(
-        `Recommend error: AI response truncated at ${ANTHROPIC_MAX_TOKENS} tokens. ` +
-        'Increase ANTHROPIC_MAX_TOKENS or reduce catalog size.'
+        `Recommend error: AI response truncated at ${aiSettings.maxTokens} tokens. ` +
+        'Increase anthropic_max_tokens in Admin → API & Model or reduce catalog size.'
       );
       return res.status(500).json({
         error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
@@ -327,8 +328,30 @@ CUSTOMER REQUIREMENTS:
 
     if (!parsed)
       return res.status(500).json({ error: 'AI response invalid', customerMessage: true });
-    // Log only the first/best build for analytics (backwards compatible)
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, extras || '', parsed.builds?.[0] || parsed);
+
+    const inputTokens = message.usage?.input_tokens || 0;
+    const outputTokens = message.usage?.output_tokens || 0;
+    const estCostUsd = apiUsageDB.estimateCostUsd(
+      inputTokens,
+      outputTokens,
+      aiSettings.inputPricePerM,
+      aiSettings.outputPricePerM
+    );
+
+    await analyticsDB.logRecommendation(
+      storeId,
+      parsedBudget,
+      purpose,
+      extras || '',
+      parsed.builds?.[0] || parsed,
+      {
+        source: 'ai',
+        model: aiSettings.model,
+        inputTokens,
+        outputTokens,
+        estCostUsd,
+      }
+    );
 
     res.json({
       success: true,
@@ -356,7 +379,7 @@ CUSTOMER REQUIREMENTS:
     } else if (err.status === 404 && err.error?.error?.message?.startsWith('model:')) {
       console.error(
         `Recommend error: Anthropic model not found (${err.error.error.message}). ` +
-        `Update ANTHROPIC_MODEL env var or redeploy with the latest code. Current model: ${ANTHROPIC_MODEL}`
+        'Update model in Admin → API & Model or ANTHROPIC_MODEL env var.'
       );
     } else {
       console.error('Recommend error:', err);

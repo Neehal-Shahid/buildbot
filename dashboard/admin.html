@@ -1250,6 +1250,15 @@
                     </svg>
                     Settings
                 </div>
+                <div class="sb-item" onclick="showTab('apimodel')" id="atab-apimodel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <path d="M9 9h6v6H9z" />
+                        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+                    </svg>
+                    API &amp; Model
+                </div>
                 <div class="sb-item" onclick="showTab('dbhealth')" id="atab-dbhealth">
                     <svg viewBox="0 0 24 24">
                         <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -1815,6 +1824,142 @@
                             }
                         </style>
                         <div class="alert" id="cfg-alert" style="margin-top: 14px"></div>
+                    </div>
+                </div>
+
+                <!-- API & MODEL -->
+                <div id="tab-apimodel" style="display: none">
+                    <div class="section-title">API &amp; Model</div>
+                    <div class="section-sub">
+                        Monitor Anthropic usage, profit vs cost, and control the AI model and plan limits.
+                    </div>
+
+                    <div id="api-status-badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-val" id="api-ai-calls">—</div>
+                            <div class="stat-lbl">AI Calls (month)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-cached-calls">—</div>
+                            <div class="stat-lbl">Cache Hits (month)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-cache-rate">—</div>
+                            <div class="stat-lbl">Cache Hit Rate</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-cost-usd">—</div>
+                            <div class="stat-lbl">Est. API Cost (USD)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-cost-pkr">—</div>
+                            <div class="stat-lbl">Est. API Cost (PKR)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-mrr">—</div>
+                            <div class="stat-lbl">MRR (PKR)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-profit">—</div>
+                            <div class="stat-lbl">Est. Profit (PKR)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-val" id="api-tokens">—</div>
+                            <div class="stat-lbl">Tokens Out (month)</div>
+                        </div>
+                    </div>
+
+                    <div class="two-col" style="margin-top:20px">
+                        <div class="card">
+                            <div class="card-head">
+                                <div>
+                                    <h2>Model &amp; Limits</h2>
+                                    <div class="card-sub">Changes apply immediately — no redeploy needed</div>
+                                </div>
+                                <button class="btn btn-primary btn-sm" onclick="saveApiModelConfig()">Save</button>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">AI Model</label>
+                                <select id="api-cfg-model"></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max Output Tokens</label>
+                                <input type="number" id="api-cfg-max-tokens" min="1024" max="64000" step="256" />
+                                <div style="font-size:11px;color:var(--muted);margin-top:4px;">8192–12000 recommended for 3 builds. Too low = truncated JSON errors.</div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                                <div class="form-group">
+                                    <label class="form-label">Trial limit / day</label>
+                                    <input type="number" id="api-cfg-trial-limit" min="1" max="100" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Starter limit / month</label>
+                                    <input type="number" id="api-cfg-starter-limit" min="10" max="100000" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Growth limit / month</label>
+                                    <input type="number" id="api-cfg-growth-limit" min="10" max="100000" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">USD → PKR rate</label>
+                                    <input type="number" id="api-cfg-usd-pkr" min="1" max="1000" />
+                                </div>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                                <div class="form-group">
+                                    <label class="form-label">Input price ($/1M tokens)</label>
+                                    <input type="number" id="api-cfg-input-price" min="0" step="0.01" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Output price ($/1M tokens)</label>
+                                    <input type="number" id="api-cfg-output-price" min="0" step="0.01" />
+                                </div>
+                            </div>
+                            <div class="alert" id="api-cfg-alert"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-head">
+                                <div>
+                                    <h2>Profit per Plan</h2>
+                                    <div class="card-sub">Revenue per rec vs estimated API cost (if every rec hits AI)</div>
+                                </div>
+                            </div>
+                            <div id="api-profit-plans" style="font-size:13px;color:var(--text-2);"></div>
+                            <div style="margin-top:14px;padding:12px;background:var(--surface-2);border-radius:var(--r-md);font-size:12px;color:var(--muted);line-height:1.6;">
+                                <strong style="color:var(--text);">Tip:</strong> If Starter shows negative margin, lower its monthly limit or raise price. Cache hits cost Rs 0 — higher cache rate improves profit.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top:20px">
+                        <div class="card-head">
+                            <div>
+                                <h2>Usage by Store</h2>
+                                <div class="card-sub">This month — AI calls, cache hits, and estimated cost per store</div>
+                            </div>
+                            <button class="btn btn-sm" onclick="loadApiModelTab()">Refresh</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Store</th>
+                                        <th>Plan</th>
+                                        <th>Total Recs</th>
+                                        <th>AI Calls</th>
+                                        <th>Cached</th>
+                                        <th>Tokens Out</th>
+                                        <th>Est. Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="api-store-tbody">
+                                    <tr><td colspan="7" class="table-empty">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -2907,6 +3052,7 @@
                 "payments",
                 "analytics",
                 "settings",
+                "apimodel",
                 "dbhealth",
                 "comms",
                 "revenue",
@@ -2928,6 +3074,7 @@
                 loadAdminSettings();
                 loadPlatformConfig();
             }
+            if (name === "apimodel") loadApiModelTab();
             if (name === "revenue") {
                 if (allStoresData.length === 0)
                     loadStores().then(() => loadRevenueTab());
@@ -4488,6 +4635,136 @@
             } catch {
                 setBtnLoading(btn, false);
                 showAlert("cleanup-alert", "Server error", "error");
+            }
+        }
+
+        // ─── API & MODEL TAB ─────────────────────────────────────
+        async function loadApiModelTab() {
+            const tbody = document.getElementById("api-store-tbody");
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
+
+            try {
+                const res = await fetch(`${API}/admin/api-usage`, {
+                    headers: { Authorization: `Bearer ${adminToken}` },
+                });
+                const data = await res.json();
+                if (!data.success && handleAdminAuthError(data)) return;
+                if (!data.success) {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${safeText(data.error || "Failed to load")}</td></tr>`;
+                    return;
+                }
+
+                const s = data.summary;
+                const p = data.profit;
+                const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+                set("api-ai-calls", s.aiCalls.toLocaleString());
+                set("api-cached-calls", s.cachedCalls.toLocaleString());
+                set("api-cache-rate", s.cacheHitRate + "%");
+                set("api-cost-usd", "$" + s.estCostUsd.toFixed(2));
+                set("api-cost-pkr", "Rs " + Math.round(s.estCostPkr).toLocaleString());
+                set("api-mrr", "Rs " + Math.round(p.mrrPkr).toLocaleString());
+                const profitEl = document.getElementById("api-profit");
+                if (profitEl) {
+                    profitEl.textContent = "Rs " + Math.round(p.profitPkr).toLocaleString();
+                    profitEl.style.color = p.profitPkr >= 0 ? "var(--success)" : "var(--danger)";
+                }
+                set("api-tokens", (s.outputTokens || 0).toLocaleString());
+
+                const badges = document.getElementById("api-status-badges");
+                if (badges) {
+                    badges.innerHTML = [
+                        data.apiKeySet
+                            ? '<span class="badge badge-success">API key set</span>'
+                            : '<span class="badge badge-danger">API key missing</span>',
+                        data.testMode
+                            ? '<span class="badge badge-warning">TEST_MODE on — no real AI</span>'
+                            : '<span class="badge badge-success">Live AI mode</span>',
+                        `<span class="badge">Model: ${safeText(data.settings.model)}</span>`,
+                    ].join("");
+                }
+
+                const modelSel = document.getElementById("api-cfg-model");
+                if (modelSel) {
+                    const current = data.settings.model;
+                    const options = data.models || [];
+                    const hasCurrent = options.some((m) => m.id === current);
+                    modelSel.innerHTML = (hasCurrent ? "" : `<option value="${safeText(current)}">${safeText(current)} (current)</option>`) +
+                        options.map((m) => `<option value="${safeText(m.id)}" ${m.id === current ? "selected" : ""}>${safeText(m.label)}</option>`).join("");
+                }
+
+                const cfg = data.settings;
+                const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+                setVal("api-cfg-max-tokens", cfg.maxTokens);
+                setVal("api-cfg-trial-limit", cfg.trialDailyLimit);
+                setVal("api-cfg-starter-limit", cfg.starterMonthlyLimit);
+                setVal("api-cfg-growth-limit", cfg.growthMonthlyLimit);
+                setVal("api-cfg-usd-pkr", cfg.usdToPkr);
+                setVal("api-cfg-input-price", cfg.inputPricePerM);
+                setVal("api-cfg-output-price", cfg.outputPricePerM);
+
+                const plansEl = document.getElementById("api-profit-plans");
+                if (plansEl && p.plans) {
+                    plansEl.innerHTML = p.plans.map((pl) => {
+                        const limitLabel = pl.limit != null ? `${pl.limit}/${pl.period}` : "unlimited";
+                        const rev = pl.revenuePerRec != null ? `Rs ${Math.round(pl.revenuePerRec)}` : "—";
+                        const cost = `Rs ${Math.round(pl.estApiCostPerRec)}`;
+                        const margin = pl.marginPerRec != null ? `Rs ${Math.round(pl.marginPerRec)}` : "—";
+                        const ok = pl.profitable;
+                        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                            <div><strong style="text-transform:capitalize;">${pl.plan}</strong> <span style="color:var(--muted);font-size:11px;">${limitLabel}</span></div>
+                            <div style="text-align:right;font-size:12px;">
+                                <div>Rev/rec ${rev} · API/rec ${cost}</div>
+                                <div style="color:${ok ? "var(--success)" : "var(--danger)"};font-weight:600;">Margin ${margin}</div>
+                            </div>
+                        </div>`;
+                    }).join("");
+                }
+
+                if (tbody) {
+                    tbody.innerHTML = !data.stores.length
+                        ? '<tr><td colspan="7" class="table-empty">No usage this month yet.</td></tr>'
+                        : data.stores.map((st) => `<tr>
+                            <td><strong>${safeText(st.name)}</strong><br><span style="font-size:11px;color:var(--muted);">${safeText(st.storeId)}</span></td>
+                            <td>${planBadge(st.plan)}</td>
+                            <td>${st.totalRecs}</td>
+                            <td>${st.aiCalls}</td>
+                            <td>${st.cachedCalls}</td>
+                            <td>${(st.outputTokens || 0).toLocaleString()}</td>
+                            <td>Rs ${Math.round(st.estCostPkr || 0).toLocaleString()}</td>
+                        </tr>`).join("");
+                }
+            } catch {
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Server error</td></tr>';
+            }
+        }
+
+        async function saveApiModelConfig() {
+            const config = {
+                anthropic_model: document.getElementById("api-cfg-model")?.value,
+                anthropic_max_tokens: document.getElementById("api-cfg-max-tokens")?.value,
+                trial_daily_limit: document.getElementById("api-cfg-trial-limit")?.value,
+                starter_monthly_limit: document.getElementById("api-cfg-starter-limit")?.value,
+                growth_monthly_limit: document.getElementById("api-cfg-growth-limit")?.value,
+                usd_to_pkr: document.getElementById("api-cfg-usd-pkr")?.value,
+                api_input_price_per_million: document.getElementById("api-cfg-input-price")?.value,
+                api_output_price_per_million: document.getElementById("api-cfg-output-price")?.value,
+            };
+            try {
+                const res = await fetch(`${API}/admin/platform-config`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify({ config }),
+                });
+                const data = await res.json();
+                if (!data.success && handleAdminAuthError(data)) return;
+                showAlert("api-cfg-alert", data.success ? "Saved — model and limits updated." : (data.error || "Save failed"), data.success ? "success" : "error");
+                if (data.success) loadApiModelTab();
+            } catch {
+                showAlert("api-cfg-alert", "Server error", "error");
             }
         }
 

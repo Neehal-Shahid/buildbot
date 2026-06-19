@@ -106,6 +106,13 @@ async function initDB() {
       created_at  TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
     )`,
+      `CREATE TABLE IF NOT EXISTS pending_signups (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  email      TEXT UNIQUE NOT NULL,
+  password   TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+)`,
     ],
     "write",
   );
@@ -175,6 +182,13 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN trial_started_at TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_flag INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_note TEXT DEFAULT ''`,
+    `CREATE TABLE IF NOT EXISTS pending_signups (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  email      TEXT UNIQUE NOT NULL,
+  password   TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+)`,
   ];
   for (const sql of migrations) {
     try {
@@ -259,7 +273,7 @@ const storeDB = {
 
   getAll: async () => {
     const res = await client.execute(
-      "SELECT * FROM stores ORDER BY created_at DESC",
+      "SELECT * FROM stores WHERE email_verified = 1 ORDER BY created_at DESC",
     );
     return res.rows;
   },
@@ -646,7 +660,14 @@ const productDB = {
 
 // ─── ANALYTICS FUNCTIONS ──────────────────────────────────
 const analyticsDB = {
-  logRecommendation: async (storeId, budget, purpose, extras, result, meta = {}) => {
+  logRecommendation: async (
+    storeId,
+    budget,
+    purpose,
+    extras,
+    result,
+    meta = {},
+  ) => {
     const {
       source = "",
       model = "",
@@ -1182,7 +1203,11 @@ const apiUsageDB = {
       const plan = row.plan;
       const count = Number(row.c) || 0;
       paidCounts[plan] = count;
-      const prices = { starter: starterPrice, growth: growthPrice, pro: proPrice };
+      const prices = {
+        starter: starterPrice,
+        growth: growthPrice,
+        pro: proPrice,
+      };
       mrrPkr += count * (prices[plan] || 0);
     }
 
@@ -1225,9 +1250,7 @@ const apiUsageDB = {
     ].map((p) => ({
       ...p,
       marginPerRec:
-        p.revenuePerRec != null
-          ? p.revenuePerRec - p.estApiCostPerRec
-          : null,
+        p.revenuePerRec != null ? p.revenuePerRec - p.estApiCostPerRec : null,
       profitable:
         p.revenuePerRec != null ? p.revenuePerRec > p.estApiCostPerRec : true,
     }));
@@ -1331,6 +1354,57 @@ const supportTicketDB = {
   },
 };
 
+// ─── PENDING SIGNUPS ──────────────────────────────────────
+// Holds signup intent before email is verified.
+// The real store record in `stores` is only created after verification.
+const pendingSignupDB = {
+  create: async (name, email, hashedPassword) => {
+    return await client.execute({
+      sql: `INSERT INTO pending_signups (name, email, password)
+            VALUES (?, ?, ?)`,
+      args: [name, email, hashedPassword],
+    });
+  },
+
+  // Insert-or-update: used when user re-registers before verifying
+  upsert: async (name, email, hashedPassword) => {
+    return await client.execute({
+      sql: `INSERT INTO pending_signups (name, email, password)
+            VALUES (?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+              name     = excluded.name,
+              password = excluded.password,
+              created_at = datetime('now')`,
+      args: [name, email, hashedPassword],
+    });
+  },
+
+  findByEmail: async (email) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM pending_signups WHERE email = ?",
+      args: [email],
+    });
+    return res.rows[0] || null;
+  },
+
+  deleteByEmail: async (email) => {
+    return await client.execute({
+      sql: "DELETE FROM pending_signups WHERE email = ?",
+      args: [email],
+    });
+  },
+
+  // Purge abandoned pending signups older than N days
+  deleteOlderThan: async (days = 7) => {
+    const res = await client.execute({
+      sql: `DELETE FROM pending_signups
+            WHERE datetime(created_at) < datetime('now', '-${days} days')`,
+      args: [],
+    });
+    return res.rowsAffected ?? 0;
+  },
+};
+
 module.exports = {
   client,
   initDB,
@@ -1346,4 +1420,5 @@ module.exports = {
   apiUsageDB,
   emailLogDB,
   supportTicketDB,
+  pendingSignupDB,
 };

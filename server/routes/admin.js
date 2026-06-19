@@ -297,6 +297,7 @@ router.get("/admin/db-audit", adminAuth, async (req, res) => {
   try {
     const tables = [
       "stores",
+      "pending_signups",
       "products",
       "recommendations",
       "payments",
@@ -558,17 +559,21 @@ router.get("/admin/support-tickets", adminAuth, async (req, res) => {
 });
 
 // POST /admin/support-tickets/:id/status
-router.post("/admin/support-tickets/:id/status", adminAuth, async (req, res) => {
-  const { status } = req.body;
-  if (!["open", "in_progress", "resolved", "closed"].includes(status))
-    return res.status(400).json({ error: "Invalid status" });
-  try {
-    await supportTicketDB.updateStatus(req.params.id, status);
-    res.json({ success: true, message: "Ticket updated" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.post(
+  "/admin/support-tickets/:id/status",
+  adminAuth,
+  async (req, res) => {
+    const { status } = req.body;
+    if (!["open", "in_progress", "resolved", "closed"].includes(status))
+      return res.status(400).json({ error: "Invalid status" });
+    try {
+      await supportTicketDB.updateStatus(req.params.id, status);
+      res.json({ success: true, message: "Ticket updated" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
 
 // ─── API & MODEL USAGE ────────────────────────────────────────
 
@@ -611,8 +616,14 @@ router.get("/admin/api-usage", adminAuth, async (req, res) => {
       })),
       models: [
         { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (fast, cheapest)" },
-        { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5 (smarter, ~10× cost)" },
-        { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (latest balanced)" },
+        {
+          id: "claude-sonnet-4-5",
+          label: "Claude Sonnet 4.5 (smarter, ~10× cost)",
+        },
+        {
+          id: "claude-sonnet-4-6",
+          label: "Claude Sonnet 4.6 (latest balanced)",
+        },
       ],
     });
   } catch (err) {
@@ -674,11 +685,9 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
     if (config[key] !== undefined) {
       const val = Number(config[key]);
       if (!Number.isFinite(val) || val < 0)
-        return res
-          .status(400)
-          .json({
-            error: `Invalid value for ${key}: must be a positive number`,
-          });
+        return res.status(400).json({
+          error: `Invalid value for ${key}: must be a positive number`,
+        });
     }
   }
 

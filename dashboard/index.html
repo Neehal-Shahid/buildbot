@@ -3439,6 +3439,11 @@
 
     // ─── GOOGLE AUTH ────────────────────────────────────────────
     async function handleGoogleCredentialResponse(response) {
+      // Show loading feedback immediately
+      const alertMsg = 'Authenticating with Google... Please wait.';
+      showAlert('login-alert', alertMsg, 'success');
+      showAlert('signup-alert', alertMsg, 'success');
+
       try {
         const res = await fetch(`${API}/google-auth`, {
           method: 'POST',

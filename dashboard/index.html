@@ -5,7 +5,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BuildBot – AI PC Build Recommender</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Poppins:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <style>
     * {
@@ -639,6 +641,7 @@
       opacity: 1;
       color: var(--text-primary);
     }
+
     /* ── LANDING REDESIGN OVERRIDES ── */
     :root {
       --bg-deep: #0a0b0f;
@@ -757,42 +760,47 @@
 
     /* ── AUTH PAGES — CLEAN LIGHT THEME ── */
 
-.auth-back {
-  position: fixed;
-  top: 22px;
-  left: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #6b7280;
-  cursor: pointer;
-  z-index: 10;
-  transition: color 0.15s;
-  font-family: inherit;
-  text-decoration: none;
-  background: none;
-  border: none;
-}
-.auth-back:hover { color: #111827; }
-.auth-back svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  stroke: currentColor;
-}
+    .auth-back {
+      position: fixed;
+      top: 22px;
+      left: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+      cursor: pointer;
+      z-index: 10;
+      transition: color 0.15s;
+      font-family: inherit;
+      text-decoration: none;
+      background: none;
+      border: none;
+    }
 
-/* Force Google button to fill card width */
-#page-signup .g_id_signin iframe,
-#page-login .g_id_signin iframe {
-  width: 100% !important;
-  min-width: unset !important;
-}
-#page-signup .g_id_signin > div,
-#page-login .g_id_signin > div {
-  width: 100% !important;
-}
+    .auth-back:hover {
+      color: #111827;
+    }
+
+    .auth-back svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      stroke: currentColor;
+    }
+
+    /* Force Google button to fill card width */
+    #page-signup .g_id_signin iframe,
+    #page-login .g_id_signin iframe {
+      width: 100% !important;
+      min-width: unset !important;
+    }
+
+    #page-signup .g_id_signin>div,
+    #page-login .g_id_signin>div {
+      width: 100% !important;
+    }
 
     #page-signup,
     #page-login,
@@ -831,7 +839,11 @@
       z-index: 10;
       font-family: 'DM Sans', 'Poppins', sans-serif;
     }
-    .auth-back:hover { color: var(--auth-text); }
+
+    .auth-back:hover {
+      color: var(--auth-text);
+    }
+
     .auth-back svg {
       width: 15px;
       height: 15px;
@@ -853,6 +865,7 @@
       z-index: 10;
       font-family: 'Montserrat', sans-serif;
     }
+
     .auth-logo-mark {
       width: 28px;
       height: 28px;
@@ -862,6 +875,7 @@
       align-items: center;
       justify-content: center;
     }
+
     .auth-logo-mark svg {
       width: 14px;
       height: 14px;
@@ -1874,11 +1888,18 @@
     }
 
     @keyframes authCardIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    
+
     /* Card header */
     #page-signup .auth-box h2,
     #page-login .auth-box h2,
@@ -1893,10 +1914,10 @@
       font-family: 'Montserrat', sans-serif;
     }
 
-    #page-signup .auth-box > p,
-    #page-login .auth-box > p,
-    #page-forgot .auth-box > p,
-    #page-verify-pending .auth-box > p {
+    #page-signup .auth-box>p,
+    #page-login .auth-box>p,
+    #page-forgot .auth-box>p,
+    #page-verify-pending .auth-box>p {
       font-size: 13px;
       color: var(--auth-muted);
       margin-bottom: 24px;
@@ -1923,6 +1944,7 @@
       color: var(--auth-dim);
       margin: 18px 0;
     }
+
     #page-signup .divider::before,
     #page-signup .divider::after,
     #page-login .divider::before,
@@ -1970,11 +1992,13 @@
       font-family: 'DM Sans', system-ui, sans-serif;
       width: 100%;
     }
+
     #page-signup input::placeholder,
     #page-login input::placeholder,
     #page-forgot input::placeholder {
       color: var(--auth-dim);
     }
+
     #page-signup input:focus,
     #page-login input:focus,
     #page-forgot input:focus {
@@ -1989,6 +2013,7 @@
       /* keep JS-controlled width/color, just fix the track color */
       background: var(--auth-border);
     }
+
     #page-signup [style*="background:#2a2d3e"] {
       background: var(--auth-border) !important;
     }
@@ -2003,6 +2028,7 @@
       display: flex;
       gap: 8px;
     }
+
     #signup-mode-custom,
     #signup-mode-woo {
       flex: 1;
@@ -2019,6 +2045,7 @@
       align-items: center;
       gap: 7px;
     }
+
     #signup-mode-custom.active-mode,
     #signup-mode-woo.active-mode {
       border-color: var(--auth-accent) !important;
@@ -2045,6 +2072,7 @@
       justify-content: center;
       cursor: pointer;
     }
+
     #page-signup .btn.btn-primary.btn-full:hover,
     #page-login .btn.btn-primary.btn-full:hover,
     #page-forgot .btn.btn-primary.btn-full:hover,
@@ -2063,6 +2091,7 @@
       font-size: 13px;
       border-radius: 8px;
     }
+
     #page-signup .alert-error,
     #page-login .alert-error,
     #page-forgot .alert-error,
@@ -2082,6 +2111,7 @@
       font-size: 13px;
       color: var(--auth-muted);
     }
+
     #page-signup .auth-switch a,
     #page-login .auth-switch a,
     #page-forgot .auth-switch a,
@@ -2092,6 +2122,7 @@
       text-decoration: none;
       border-bottom: none;
     }
+
     #page-signup .auth-switch a:hover,
     #page-login .auth-switch a:hover,
     #page-forgot .auth-switch a:hover,
@@ -2128,13 +2159,19 @@
     }
 
     /* Remove old auth-meta trust badges entirely */
-    .auth-meta { display: none !important; }
+    .auth-meta {
+      display: none !important;
+    }
 
     /* Remove auth-tagline gold badge */
-    .auth-tagline { display: none !important; }
+    .auth-tagline {
+      display: none !important;
+    }
 
     /* Remove auth-benefits chips */
-    .auth-benefits { display: none !important; }
+    .auth-benefits {
+      display: none !important;
+    }
 
     /* Verify pending page */
     #page-verify-pending .auth-status-icon {
@@ -2148,15 +2185,18 @@
       justify-content: center;
       margin-bottom: 18px;
     }
+
     #page-verify-pending .auth-status-icon svg {
       width: 26px;
       height: 26px;
     }
+
     #page-verify-pending .verify-email-highlight {
       font-weight: 600;
       color: var(--auth-text);
       word-break: break-all;
     }
+
     #page-verify-pending .alert-success {
       background: #ecfdf5;
       color: var(--auth-success);
@@ -2165,6 +2205,7 @@
 
     /* Mobile */
     @media (max-width: 480px) {
+
       #page-signup .auth-box,
       #page-login .auth-box,
       #page-forgot .auth-box,
@@ -2172,12 +2213,21 @@
         padding: 28px 22px 24px;
         border-radius: 14px;
       }
-      .auth-back { top: 14px; left: 16px; }
-      .auth-logo { top: 14px; left: 16px; }
+
+      .auth-back {
+        top: 14px;
+        left: 16px;
+      }
+
+      .auth-logo {
+        top: 14px;
+        left: 16px;
+      }
     }
 
-    
+
     @keyframes orbDrift {
+
       0%,
       100% {
         transform: translate(0, 0);
@@ -2189,6 +2239,7 @@
     }
 
     @keyframes liveFloat {
+
       0%,
       100% {
         translate: 0 0;
@@ -2433,8 +2484,8 @@
         justify-content: center;
       }
 
-          }
-</style>
+    }
+  </style>
   <script src="config.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -2460,7 +2511,8 @@
       </div>
       <div class="nav-link" onclick="scrollToLandingSection('pricing');">Pricing
       </div>
-      <div class="nav-link" id="nav-dashboard-link" style="display:none" onclick="window.location.href='dashboard.html'">Dashboard</div>
+      <div class="nav-link" id="nav-dashboard-link" style="display:none"
+        onclick="window.location.href='dashboard.html'">Dashboard</div>
       <div class="nav-link" id="nav-login-link" onclick="showPage('login')">Login</div>
       <div class="nav-link btn-primary btn" id="nav-signup-link" onclick="showPage('signup')">Start Free Trial</div>
     </div>
@@ -2488,7 +2540,7 @@
           <button class="landing-btn secondary" onclick="scrollToLandingSection('how-it-works');">See How It Works
             →</button>
         </div>
-        <div class="hero-trust">No credit card required  ·  14 days free  ·  Cancel anytime</div>
+        <div class="hero-trust">No credit card required · 14 days free · Cancel anytime</div>
         <div class="hero-mockup">
           <div class="chat-shell">
             <div class="chat-head"><span>⚡ BuildBot</span><span>X</span></div>
@@ -2586,7 +2638,8 @@
       <section class="impact-strip" data-reveal>
         <div class="section-label">STORE IMPACT</div>
         <h2 class="section-title">Results That Feel Like Extra Staff</h2>
-        <p class="section-subtitle">BuildBot handles repetitive pre-sales queries so your team can close serious buyers faster.</p>
+        <p class="section-subtitle">BuildBot handles repetitive pre-sales queries so your team can close serious buyers
+          faster.</p>
         <div class="impact-grid">
           <article class="impact-card">
             <div class="impact-value">24/7</div>
@@ -2668,22 +2721,26 @@
       <section class="use-cases grid-overlay" data-reveal>
         <div class="section-label">WHERE IT WINS</div>
         <h2 class="section-title">Built for Real Store Workflows</h2>
-        <p class="section-subtitle">From first click to purchase confidence, BuildBot removes buying friction at every stage.</p>
+        <p class="section-subtitle">From first click to purchase confidence, BuildBot removes buying friction at every
+          stage.</p>
         <div class="use-cases-grid">
           <article class="use-case-card">
             <div class="use-case-kicker">For new buyers</div>
             <h3>Budget to Build, Instantly</h3>
-            <p>First-time customers stop guessing. They get a compatible build recommendation in seconds without waiting for WhatsApp replies.</p>
+            <p>First-time customers stop guessing. They get a compatible build recommendation in seconds without waiting
+              for WhatsApp replies.</p>
           </article>
           <article class="use-case-card">
             <div class="use-case-kicker">For busy teams</div>
             <h3>Less Repetition, Better Closings</h3>
-            <p>Your staff spends less time answering the same budget questions and more time handling high-intent buyers ready to checkout.</p>
+            <p>Your staff spends less time answering the same budget questions and more time handling high-intent buyers
+              ready to checkout.</p>
           </article>
           <article class="use-case-card">
             <div class="use-case-kicker">For growth stores</div>
             <h3>Scales Without Hiring Pressure</h3>
-            <p>As traffic grows, BuildBot keeps responses consistent and fast so your conversion quality does not drop during peak demand.</p>
+            <p>As traffic grows, BuildBot keeps responses consistent and fast so your conversion quality does not drop
+              during peak demand.</p>
           </article>
         </div>
         <div class="integrations-row">
@@ -2809,215 +2866,249 @@
   <!-- ═══════════════════════════════════════════════
      SIGNUP
 ═══════════════════════════════════════════════ -->
-<div class="page" id="page-signup">
-  <div class="auth-back" onclick="showPage('landing')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to home
-  </div>
-  <div class="auth-wrap">
-    <div class="auth-box">
+  <div class="page" id="page-signup">
+    <div class="auth-back" onclick="showPage('landing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      Back to home
+    </div>
+    <div class="auth-wrap">
+      <div class="auth-box">
 
-      <!-- Logo -->
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
-        <div style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <!-- Logo -->
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
+          <div
+            style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
         </div>
-        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
-      </div>
 
-      <h2>Create your account</h2>
-      <p id="auth-trial-note">Free trial. No credit card needed.</p>
+        <h2>Create your account</h2>
+        <p id="auth-trial-note">Free trial. No credit card needed.</p>
 
-      <!-- Google Sign-In -->
-      <div id="g_id_onload"
-        data-client_id="343388814382-ksp0ou4kgv5kalo75vo467f9dhpbef1t.apps.googleusercontent.com"
-        data-context="signup"
-        data-ux_mode="popup"
-        data-callback="handleGoogleCredentialResponse"
-        data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-        data-type="standard"
-        data-shape="rectangular"
-        data-theme="outline"
-        data-text="signup_with"
-        data-size="large"
-        data-logo_alignment="left"
-        data-width="368">
-      </div>
-
-      <div class="divider">or continue with email</div>
-
-      <!-- Fields -->
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="signup-email" placeholder="you@yourstore.com" autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <div class="pwd-wrap">
-          <input type="password" id="signup-password" placeholder="Min 8 characters"
-            oninput="checkSignupStrength(this.value)" autocomplete="new-password" />
-          <span class="pwd-toggle" onclick="togglePassword('signup-password', this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </span>
+        <!-- Google Sign-In -->
+        <div id="g_id_onload" data-client_id="343388814382-ksp0ou4kgv5kalo75vo467f9dhpbef1t.apps.googleusercontent.com"
+          data-context="signup" data-ux_mode="popup" data-callback="handleGoogleCredentialResponse"
+          data-auto_prompt="false">
         </div>
-        <div style="height:3px;border-radius:2px;background:#e5e7eb;margin:8px 0 5px;overflow:hidden;">
-          <div id="signup-strength-bar" style="height:100%;border-radius:2px;transition:all .3s;width:0;"></div>
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+          data-text="signup_with" data-size="large" data-logo_alignment="left" data-width="368">
         </div>
-        <div style="font-size:11px;color:#9ca3af;line-height:1.5;">Use uppercase, lowercase, number and special character.</div>
+
+        <div class="divider">or continue with email</div>
+
+        <!-- Fields -->
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="signup-email" placeholder="you@yourstore.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="pwd-wrap">
+            <input type="password" id="signup-password" placeholder="Min 8 characters"
+              oninput="checkSignupStrength(this.value)" autocomplete="new-password" />
+            <span class="pwd-toggle" onclick="togglePassword('signup-password', this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
+          </div>
+          <div style="height:3px;border-radius:2px;background:#e5e7eb;margin:8px 0 5px;overflow:hidden;">
+            <div id="signup-strength-bar" style="height:100%;border-radius:2px;transition:all .3s;width:0;"></div>
+          </div>
+          <div style="font-size:11px;color:#9ca3af;line-height:1.5;">Use uppercase, lowercase, number and special
+            character.</div>
+        </div>
+
+
+        <button class="btn btn-primary btn-full" onclick="doSignup(this)" style="margin-top:4px;">Create
+          account</button>
+
+        <div class="alert" id="signup-alert"></div>
+
+        <div class="auth-switch">Already have an account? <a onclick="showPage('login')">Sign in</a></div>
+
       </div>
-
-      
-      <button class="btn btn-primary btn-full" onclick="doSignup(this)" style="margin-top:4px;">Create account</button>
-
-      <div class="alert" id="signup-alert"></div>
-
-      <div class="auth-switch">Already have an account? <a onclick="showPage('login')">Sign in</a></div>
-
     </div>
   </div>
-</div>
 
-<!-- ═══════════════════════════════════════════════
+  <!-- ═══════════════════════════════════════════════
      VERIFY PENDING
 ═══════════════════════════════════════════════ -->
-<div class="page" id="page-verify-pending">
-  <div class="auth-back" onclick="showPage('landing')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to home
-  </div>
-  <div class="auth-wrap">
-    <div class="auth-box">
+  <div class="page" id="page-verify-pending">
+    <div class="auth-back" onclick="showPage('landing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      Back to home
+    </div>
+    <div class="auth-wrap">
+      <div class="auth-box">
 
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
-        <div style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
+          <div
+            style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
         </div>
-        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
+
+        <div class="auth-status-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+        </div>
+
+        <h2>Check your email</h2>
+        <p>We sent a verification link and a 6-digit code to <span class="verify-email-highlight"
+            id="verify-pending-email"></span>. Use either method to activate your account.</p>
+
+        <div class="form-group" style="margin-top:8px;">
+          <label class="form-label">Verification code</label>
+          <input type="text" id="verify-otp-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric"
+            autocomplete="one-time-code"
+            style="letter-spacing:0.2em;text-align:center;font-size:18px;font-weight:600;" />
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="verifyEmailOtp(this)" style="margin-bottom:10px;">Verify with
+          code</button>
+
+        <div class="alert" id="verify-pending-alert"></div>
+
+        <button class="btn btn-primary btn-full" id="verify-resend-btn" onclick="resendVerification(this)"
+          style="background:#fff;color:#4f46e5;border:1.5px solid #e5e7eb;box-shadow:none;">Resend verification
+          email</button>
+
+        <div class="auth-switch">Wrong email? <a onclick="showPage('signup')">Sign up again</a> · <a
+            onclick="showPage('login')">Sign in</a></div>
+        <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="verify-support-link"
+            href="mailto:workwithneehal@gmail.com">Contact support</a></div>
+
       </div>
-
-      <div class="auth-status-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-        </svg>
-      </div>
-
-      <h2>Check your email</h2>
-      <p>We sent a verification link and a 6-digit code to <span class="verify-email-highlight" id="verify-pending-email"></span>. Use either method to activate your account.</p>
-
-      <div class="form-group" style="margin-top:8px;">
-        <label class="form-label">Verification code</label>
-        <input type="text" id="verify-otp-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="letter-spacing:0.2em;text-align:center;font-size:18px;font-weight:600;" />
-      </div>
-
-      <button class="btn btn-primary btn-full" onclick="verifyEmailOtp(this)" style="margin-bottom:10px;">Verify with code</button>
-
-      <div class="alert" id="verify-pending-alert"></div>
-
-      <button class="btn btn-primary btn-full" id="verify-resend-btn" onclick="resendVerification(this)" style="background:#fff;color:#4f46e5;border:1.5px solid #e5e7eb;box-shadow:none;">Resend verification email</button>
-
-      <div class="auth-switch">Wrong email? <a onclick="showPage('signup')">Sign up again</a> · <a onclick="showPage('login')">Sign in</a></div>
-      <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="verify-support-link" href="mailto:workwithneehal@gmail.com">Contact support</a></div>
-
     </div>
   </div>
-</div>
 
   <!-- ═══════════════════════════════════════════════
      LOGIN
 ═══════════════════════════════════════════════ -->
-<div class="page" id="page-login">
-  <div class="auth-back" onclick="showPage('landing')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to home
-  </div>
-  <div class="auth-wrap">
-    <div class="auth-box">
+  <div class="page" id="page-login">
+    <div class="auth-back" onclick="showPage('landing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      Back to home
+    </div>
+    <div class="auth-wrap">
+      <div class="auth-box">
 
-      <!-- Logo -->
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
-        <div style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <!-- Logo -->
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;">
+          <div
+            style="width:30px;height:30px;background:#4f46e5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+          <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
         </div>
-        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.3px;">BuildBot</span>
-      </div>
 
-      <h2>Welcome back</h2>
-      <p>Sign in to your store dashboard.</p>
+        <h2>Welcome back</h2>
+        <p>Sign in to your store dashboard.</p>
 
-      <!-- Google Sign-In -->
-      <div class="g_id_signin"
-        data-type="standard"
-        data-shape="rectangular"
-        data-theme="outline"
-        data-text="signin_with"
-        data-size="large"
-        data-logo_alignment="left"
-        data-width="368">
-      </div>
-
-      <div class="divider">or continue with email</div>
-
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="login-email" placeholder="you@yourstore.com" autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
-          Password
-          <span onclick="showPage('forgot')" style="font-size:12px;color:#4f46e5;cursor:pointer;font-weight:500;text-transform:none;letter-spacing:0;">Forgot password?</span>
-        </label>
-        <div class="pwd-wrap">
-          <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
-          <span class="pwd-toggle" onclick="togglePassword('login-password', this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </span>
+        <!-- Google Sign-In -->
+        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+          data-text="signin_with" data-size="large" data-logo_alignment="left" data-width="368">
         </div>
+
+        <div class="divider">or continue with email</div>
+
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="login-email" placeholder="you@yourstore.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+            Password
+            <span onclick="showPage('forgot')"
+              style="font-size:12px;color:#4f46e5;cursor:pointer;font-weight:500;text-transform:none;letter-spacing:0;">Forgot
+              password?</span>
+          </label>
+          <div class="pwd-wrap">
+            <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+            <span class="pwd-toggle" onclick="togglePassword('login-password', this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="doLogin(this)" style="margin-top:4px;">Sign in to
+          Dashboard</button>
+
+        <div class="alert" id="login-alert"></div>
+
+        <div class="auth-switch">Don't have an account? <a onclick="showPage('signup')">Start free trial</a></div>
+        <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="login-support-link"
+            href="mailto:workwithneehal@gmail.com">Contact support</a></div>
+
       </div>
-
-      <button class="btn btn-primary btn-full" onclick="doLogin(this)" style="margin-top:4px;">Sign in to Dashboard</button>
-
-      <div class="alert" id="login-alert"></div>
-
-      <div class="auth-switch">Don't have an account? <a onclick="showPage('signup')">Start free trial</a></div>
-      <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="login-support-link" href="mailto:workwithneehal@gmail.com">Contact support</a></div>
-
     </div>
   </div>
-</div>
   <!-- FORGOT PASSWORD PAGE -->
-<div class="page" id="page-forgot">
-  <div class="auth-back" onclick="showPage('login')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to sign in
-  </div>
-  <div class="auth-wrap">
-    <div class="auth-box">
+  <div class="page" id="page-forgot">
+    <div class="auth-back" onclick="showPage('login')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      Back to sign in
+    </div>
+    <div class="auth-wrap">
+      <div class="auth-box">
 
-      <h2>Reset your password</h2>
-      <p>Enter your registered email and we'll send a reset link.</p>
+        <h2>Reset your password</h2>
+        <p>Enter your registered email and we'll send a reset link.</p>
 
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="forgot-email" placeholder="you@yourstore.com" autocomplete="email" />
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="forgot-email" placeholder="you@yourstore.com" autocomplete="email" />
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="doForgot(this)" style="margin-top:4px;">Send reset
+          link</button>
+
+        <div class="alert" id="forgot-alert"></div>
+
+        <div class="auth-switch">
+          <a onclick="showPage('login')" style="color:#4f46e5;cursor:pointer;">← Back to sign in</a>
+        </div>
+
       </div>
-
-      <button class="btn btn-primary btn-full" onclick="doForgot(this)" style="margin-top:4px;">Send reset link</button>
-
-      <div class="alert" id="forgot-alert"></div>
-
-      <div class="auth-switch">
-        <a onclick="showPage('login')" style="color:#4f46e5;cursor:pointer;">← Back to sign in</a>
-      </div>
-
     </div>
   </div>
-</div>
   <!-- ═══════════════════════════════════════════════
      APP (after login)
 ═══════════════════════════════════════════════ -->
-  
+
   <!-- DASHBOARD moved to dashboard.html -->
 
   <script>
@@ -3093,7 +3184,7 @@
         if (cta) cta.textContent = `Start your ${data.trialDays}-day free trial today. No credit card. No commitment.`;
         const authNote = document.getElementById('auth-trial-note');
         if (authNote) authNote.textContent = `${data.trialDays}-day free trial. No credit card needed.`;
-      } catch {}
+      } catch { }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -3104,7 +3195,7 @@
           document.body.classList.add('landing-mode');
           initScrollAnimations();
         }
-      } catch {}
+      } catch { }
     }, { once: true });
 
     // Password strength checker for signup
@@ -3196,7 +3287,7 @@
       setSignupStoreMode(localStorage.getItem('bb_store_mode') || 'custom');
       updateSidebarStoreModeUI(localStorage.getItem('bb_store_mode') || 'custom');
       applyStoreModeLayout(localStorage.getItem('bb_store_mode') || 'custom');
-      
+
       // Setup Enter key handlers for auth forms
       setupAuthEnterKeyHandlers();
 
@@ -3313,13 +3404,13 @@
       document.body.classList.toggle('landing-mode', name === 'landing');
       document.body.classList.toggle('auth-locked', name === 'signup' || name === 'login' || name === 'forgot' || name === 'verify-pending');
       document.body.classList.toggle('dashboard-mode', name === 'app');
-      
+
       // Hide/show header based on page
       const nav = document.getElementById('main-nav');
       if (nav) {
         nav.style.display = (name === 'landing') ? 'flex' : 'none';
       }
-      
+
       // Setup Enter key handlers for auth pages
       if (name === 'signup' || name === 'login' || name === 'forgot') {
         setTimeout(() => setupAuthEnterKeyHandlers(), 100);
@@ -3382,17 +3473,17 @@
 
     // ─── SIGNUP STORE MODE ─────────────────────────────────────
     function setSignupStoreMode(mode) {
-  localStorage.setItem('bb_signup_store_mode', mode);
-  const customBtn = document.getElementById('signup-mode-custom');
-  const wooBtn    = document.getElementById('signup-mode-woo');
-  if (!customBtn || !wooBtn) return;
+      localStorage.setItem('bb_signup_store_mode', mode);
+      const customBtn = document.getElementById('signup-mode-custom');
+      const wooBtn = document.getElementById('signup-mode-woo');
+      if (!customBtn || !wooBtn) return;
 
-  const active   = 'flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:9px;border:1.5px solid #4f46e5;background:#eef2ff;color:#4338ca;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;';
-  const inactive = 'flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;';
+      const active = 'flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:9px;border:1.5px solid #4f46e5;background:#eef2ff;color:#4338ca;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;';
+      const inactive = 'flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:9px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;';
 
-  customBtn.style.cssText = mode === 'custom' ? active : inactive;
-  wooBtn.style.cssText    = mode === 'woo'    ? active : inactive;
-}
+      customBtn.style.cssText = mode === 'custom' ? active : inactive;
+      wooBtn.style.cssText = mode === 'woo' ? active : inactive;
+    }
 
     // ─── TOGGLE PASSWORD ────────────────────────────────────────
     function togglePassword(inputId, toggleEl) {
@@ -3787,7 +3878,7 @@
     }
 
 
-function escHtml(str) {
+    function escHtml(str) {
       return String(str)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');

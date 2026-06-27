@@ -4,10 +4,18 @@ require("dotenv").config();
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const APP_URL = process.env.APP_URL || "https://buildbot-nine.vercel.app";
-const FROM = "BuildBot <onboarding@resend.dev>";
-// If RESEND_EMAIL_4TEST is set, all emails are redirected to that address.
-// Delete this variable from Railway to send emails to real recipients.
-const TO_OVERRIDE = process.env.RESEND_EMAIL_4TEST || null;
+// Test mode configuration: Set EMAIL_TEST_MODE=true in Railway to intercept all emails
+const EMAIL_TEST_MODE = process.env.EMAIL_TEST_MODE === 'true';
+
+// When EMAIL_TEST_MODE=true, emails are sent from onboarding@resend.dev to RESEND_EMAIL_4TEST
+// When EMAIL_TEST_MODE=false, emails are sent from RESEND_FROM_EMAIL to the real customer email
+const FROM = EMAIL_TEST_MODE 
+  ? "BuildBot <onboarding@resend.dev>" 
+  : (process.env.RESEND_FROM_EMAIL || "BuildBot <onboarding@resend.dev>");
+
+const TO_OVERRIDE = EMAIL_TEST_MODE 
+  ? (process.env.RESEND_EMAIL_4TEST || "muhammadneehal1805@gmail.com") 
+  : null;
 
 // ─── EMAIL BASE TEMPLATE ────────────────────────────────────────
 function emailBase({ preheader = "", content = "" } = {}) {

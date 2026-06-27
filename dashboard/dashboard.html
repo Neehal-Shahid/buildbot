@@ -2011,7 +2011,6 @@
                             class="sidebar-item"
                             onclick="showTab('help')"
                             id="tab-help"
-                            style="border:1px solid var(--accent-border);background:var(--accent-light);color:var(--accent-text);"
                         >
                             <svg
                                 viewBox="0 0 24 24"
@@ -6353,7 +6352,7 @@
                     const data = await res.json();
                     if (data.success) {
                         // Clear visual success state on button
-                        btn.textContent = "\u2705 Sent!";
+                        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg>Sent!`;
                         btn.style.background = "#16a34a";
                         btn.style.color = "#fff";
                         showAlert(alertId, data.message || "Your message has been sent! We\u2019ll respond within 24 hours.", "success");
@@ -8308,16 +8307,16 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
 
                 // Expired state
                 if (diff === 0) {
-                    var expiredTxt = "⛔ Trial Expired";
+                    var expiredTxt = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Trial Expired`;
                     if (chip) {
-                        chip.textContent = expiredTxt;
+                        chip.innerHTML = expiredTxt;
                         chip.classList.add("is-urgent");
                         chip.style.background = "rgba(239,68,68,0.15)";
                         chip.style.color = "#ef4444";
                         chip.style.borderColor = "rgba(239,68,68,0.3)";
                     }
                     if (chipTop) {
-                        chipTop.textContent = expiredTxt;
+                        chipTop.innerHTML = expiredTxt;
                         chipTop.classList.add("is-urgent");
                         chipTop.style.background = "rgba(239,68,68,0.15)";
                         chipTop.style.color = "#ef4444";
@@ -8361,10 +8360,12 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
                     "animation:fadeIn 0.3s ease",
                 ].join(";");
                 banner.innerHTML = `
-                    <span style="font-size:22px;flex-shrink:0">⛔</span>
+                    <div style="flex-shrink:0;color:#ef4444;display:flex;align-items:center;justify-content:center;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
                     <div style="flex:1">
                         <strong style="color:#ef4444;display:block;margin-bottom:3px">Your free trial has ended &mdash; widget is offline</strong>
-                        <span style="color:var(--muted)">Your BuildBot widget is no longer appearing on your store. Upgrade to a paid plan to restore it immediately.</span>
+                        <span style="color:var(--muted)">Your widget is currently hidden from your customers. It will not appear on your website until you activate a paid plan.</span>
                     </div>
                     <button onclick="showTab('billing')" style="flex-shrink:0;padding:8px 18px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Upgrade Now</button>
                 `;

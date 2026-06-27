@@ -29,6 +29,20 @@ const adminAuthLimiter = rateLimit({
   message: { error: "Too many attempts. Please try again later." },
 });
 
+// ─── EFFECTIVE STATUS HELPER ──────────────────────────────
+// plan_status in the DB is only 'disabled' when explicitly disabled by admin.
+// It does NOT automatically reflect trial expiry. This helper closes that gap.
+function computeEffectiveStatus(store) {
+  if (store.plan_status === "disabled") return "disabled";
+  if (store.plan === "trial") {
+    if (!store.trial_ends) return "trial_active";
+    const expired = new Date() >= new Date(store.trial_ends);
+    return expired ? "trial_expired" : "trial_active";
+  }
+  if (store.plan_status === "active") return "active";
+  return store.plan_status || "unknown";
+}
+
 async function enrichStoresWithCounts(stores) {
   if (!stores.length) return stores;
   const ids = stores.map((s) => s.store_id);
@@ -60,6 +74,7 @@ async function enrichStoresWithCounts(stores) {
   for (const store of stores) {
     store.product_count = pMap.get(store.store_id) || 0;
     store.rec_count = rMap.get(store.store_id) || 0;
+    store.effectiveStatus = computeEffectiveStatus(store);
   }
   return stores;
 }

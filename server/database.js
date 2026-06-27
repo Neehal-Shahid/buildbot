@@ -1321,7 +1321,7 @@ const supportTicketDB = {
              VALUES (?, ?, ?, ?, ?)`,
       args: [storeId, storeName, storeEmail, subject, message],
     });
-    return res.lastInsertRowid;
+    return Number(res.lastInsertRowid);
   },
 
   getAll: async (status = null) => {

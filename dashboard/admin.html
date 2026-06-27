@@ -3538,12 +3538,7 @@
           <td><strong>${safeText(s.name)}</strong></td>
           <td>${safeText(s.email)}</td>
           <td>${planBadge(s.plan)}</td>
-          <td><span class="badge ${s.plan_status === "active"
-                                        ? "badge-success"
-                                        : s.plan_status === "disabled"
-                                            ? "badge-danger"
-                                            : "badge-warning"
-                                    }">${s.plan_status || "trial"}</span></td>
+          <td>${statusBadge(s)}</td>
           <td>${new Date(s.created_at).toLocaleDateString()}</td>
         </tr>`,
                             )
@@ -3602,8 +3597,7 @@
         <td><strong>${safeText(s.name)}</strong>${Number(s.connection_abuse_flag) ? ' <span class="badge badge-danger" title="' + safeText(s.connection_abuse_note || 'Credential abuse flagged') + '">Abuse</span>' : ''}</td>
         <td>${safeText(s.email)}</td>
         <td>${planBadge(s.plan)}</td>
-        <td><span class="badge ${s.plan_status === "active" ? "badge-success" : "badge-danger"}">
-          ${s.plan_status}</span></td>
+        <td>${statusBadge(s)}</td>
         <td>${s.product_count || 0}</td>
         <td>${s.rec_count || 0}</td>
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
@@ -4704,6 +4698,15 @@
                 pro: "badge-warning",
             };
             return `<span class="badge ${map[plan] || "badge-muted"}">${plan}</span>`;
+        }
+
+        function statusBadge(s) {
+            const es = s.effectiveStatus || s.plan_status || "unknown";
+            if (es === "trial_expired")  return `<span class="badge badge-danger">⚠️ Trial Expired</span>`;
+            if (es === "trial_active")   return `<span class="badge badge-warning">⏳ Trial Active</span>`;
+            if (es === "active")         return `<span class="badge badge-success">✓ Active</span>`;
+            if (es === "disabled")       return `<span class="badge badge-muted">Disabled</span>`;
+            return `<span class="badge badge-muted">${es}</span>`;
         }
 
         function safeText(text) {

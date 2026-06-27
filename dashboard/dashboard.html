@@ -6340,7 +6340,7 @@
 
                 const orig = btn.textContent;
                 btn.disabled = true;
-                btn.textContent = "Sending…";
+                btn.textContent = "Sending\u2026";
                 try {
                     const res = await fetch(`${API}/support`, {
                         method: "POST",
@@ -6352,22 +6352,35 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        showAlert(alertId, data.message, "success");
+                        // Clear visual success state on button
+                        btn.textContent = "\u2705 Sent!";
+                        btn.style.background = "#16a34a";
+                        btn.style.color = "#fff";
+                        showAlert(alertId, data.message || "Your message has been sent! We\u2019ll respond within 24 hours.", "success");
                         const subEl = document.getElementById(`${prefix}support-subject`);
                         const msgEl = document.getElementById(`${prefix}support-message`);
                         if (subEl) subEl.value = "";
                         if (msgEl) msgEl.value = "";
                         loadSupportTickets();
+                        // Reset button after 2.5s
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = orig;
+                            btn.style.background = "";
+                            btn.style.color = "";
+                        }, 2500);
                     } else {
                         showAlert(alertId, data.error || "Failed to submit.", "error");
+                        btn.disabled = false;
+                        btn.textContent = orig;
                     }
                 } catch {
-                    showAlert(alertId, "Connection error.", "error");
-                } finally {
+                    showAlert(alertId, "Connection error. Please try again.", "error");
                     btn.disabled = false;
                     btn.textContent = orig;
                 }
             }
+
 
             async function loadSupportTickets() {
                 const el = document.getElementById("support-tickets-list");
@@ -6459,22 +6472,29 @@
                         `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;
 
                     if (currentStore.plan === "trial") {
+                        const daysLeft = currentStore.trialDaysLeft ?? 0;
                         const trialDaysEl = document.getElementById("trial-banner-days");
                         if (trialDaysEl) {
                             const d = bbPublicPlans?.trialDays ?? 14;
                             trialDaysEl.textContent = `${d}-day free trial`;
                         }
-                        document.getElementById("trial-banner").style.display =
-                            "flex";
-                        document.getElementById("trial-end-date").textContent =
-                            new Date(currentStore.trialEnds).toLocaleDateString(
-                                "en-PK",
-                                {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                },
-                            );
+                        if (daysLeft === 0) {
+                            // Trial expired — show critical banner, hide normal trial banner
+                            document.getElementById("trial-banner").style.display = "none";
+                            showTrialExpiredBanner();
+                        } else {
+                            document.getElementById("trial-banner").style.display = "flex";
+                            document.getElementById("trial-end-date").textContent =
+                                new Date(currentStore.trialEnds).toLocaleDateString(
+                                    "en-PK",
+                                    {
+                                        day: "numeric",
+                                        month: "long",
+                                        year: "numeric",
+                                    },
+                                );
+                        }
+
                         // Add daily limit warning
                         const existingWarn =
                             document.getElementById("trial-limit-warn");
@@ -8285,14 +8305,75 @@ Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case`;
                                 ),
                             )
                           : 0;
+
+                // Expired state
+                if (diff === 0) {
+                    var expiredTxt = "⛔ Trial Expired";
+                    if (chip) {
+                        chip.textContent = expiredTxt;
+                        chip.classList.add("is-urgent");
+                        chip.style.background = "rgba(239,68,68,0.15)";
+                        chip.style.color = "#ef4444";
+                        chip.style.borderColor = "rgba(239,68,68,0.3)";
+                    }
+                    if (chipTop) {
+                        chipTop.textContent = expiredTxt;
+                        chipTop.classList.add("is-urgent");
+                        chipTop.style.background = "rgba(239,68,68,0.15)";
+                        chipTop.style.color = "#ef4444";
+                        chipTop.style.borderColor = "rgba(239,68,68,0.3)";
+                    }
+                    return;
+                }
+
                 var txt = `Trial: ${diff} day${diff === 1 ? "" : "s"} left`;
                 if (chip) {
                     chip.textContent = txt;
                     chip.classList.toggle("is-urgent", diff <= 3);
+                    chip.style.background = "";
+                    chip.style.color = "";
+                    chip.style.borderColor = "";
                 }
                 if (chipTop) {
                     chipTop.textContent = txt;
                     chipTop.classList.toggle("is-urgent", diff <= 3);
+                    chipTop.style.background = "";
+                    chipTop.style.color = "";
+                    chipTop.style.borderColor = "";
+                }
+            }
+
+            function showTrialExpiredBanner() {
+                if (document.getElementById("trial-expired-banner")) return; // already shown
+                var banner = document.createElement("div");
+                banner.id = "trial-expired-banner";
+                banner.style.cssText = [
+                    "display:flex",
+                    "align-items:center",
+                    "gap:14px",
+                    "padding:14px 20px",
+                    "margin-bottom:18px",
+                    "background:rgba(239,68,68,0.1)",
+                    "border:1.5px solid rgba(239,68,68,0.35)",
+                    "border-radius:12px",
+                    "font-size:14px",
+                    "line-height:1.55",
+                    "animation:fadeIn 0.3s ease",
+                ].join(";");
+                banner.innerHTML = `
+                    <span style="font-size:22px;flex-shrink:0">⛔</span>
+                    <div style="flex:1">
+                        <strong style="color:#ef4444;display:block;margin-bottom:3px">Your free trial has ended &mdash; widget is offline</strong>
+                        <span style="color:var(--muted)">Your BuildBot widget is no longer appearing on your store. Upgrade to a paid plan to restore it immediately.</span>
+                    </div>
+                    <button onclick="showTab('billing')" style="flex-shrink:0;padding:8px 18px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Upgrade Now</button>
+                `;
+                // Insert at top of main content area
+                var main = document.querySelector("#page-app .main-content") ||
+                           document.querySelector(".main-content") ||
+                           document.querySelector("main");
+                if (main && main.firstChild) {
+                    main.insertBefore(banner, main.firstChild);
                 }
             }
 

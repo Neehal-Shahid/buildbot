@@ -1792,22 +1792,27 @@
             </div>
         </nav>
 
-        <div class="page" id="page-setup" style="display: none; min-height: calc(100vh - 52px); align-items: center; justify-content: center; background: #0f1117;">
-            <div style="background: #1a1d27; border: 1px solid #2a2d3e; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; text-align: left;">
-                <h2 style="font-size: 22px; color: #fff; margin-bottom: 8px; font-family: 'Montserrat', sans-serif; font-weight: 800;">Name your store</h2>
-                <p style="font-size: 13px; color: #888; margin-bottom: 24px; font-family: 'Poppins', sans-serif;">Let's get your store set up and ready for customers.</p>
+        <div class="page" id="page-setup" style="display: none; min-height: calc(100vh - 52px); align-items: center; justify-content: center; background: #f7f8fa; padding: 24px 20px;">
+            <div style="background: #ffffff; border: 1px solid #e4e7ed; border-radius: 18px; padding: 40px; width: 100%; max-width: 420px; text-align: left; box-shadow: 0 4px 12px rgba(17, 24, 39, 0.05);">
+                <h2 style="font-size: 22px; color: #111827; margin-bottom: 6px; font-family: 'DM Sans', system-ui, sans-serif; font-weight: 700;">Welcome to BuildBot</h2>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 28px;">Let's get your store set up and ready for customers.</p>
                 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 12px; font-weight: 500; color: #a1a1aa; margin-bottom: 8px; font-family: 'Poppins', sans-serif;">Store Name</label>
-                    <input type="text" id="setup-store-name" placeholder="e.g. TechZone Lahore" style="width: 100%; padding: 12px 16px; background: #0a0b0f; border: 1px solid #252839; border-radius: 8px; color: #f0f0f5; font-size: 14px; font-family: 'Poppins', sans-serif; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#6c5ce7'" onblur="this.style.borderColor='#252839'" />
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Store Name <span style="color:#dc2626">*</span></label>
+                    <input type="text" id="setup-store-name" placeholder="e.g. TechZone Lahore" style="width: 100%; padding: 10px 14px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; color: #111827; font-size: 14px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#d1d5db'" />
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Store Website <span style="color:#9ca3af;font-weight:400;">(Optional)</span></label>
+                    <input type="url" id="setup-store-url" placeholder="https://yourstore.com" style="width: 100%; padding: 10px 14px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; color: #111827; font-size: 14px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#d1d5db'" />
                 </div>
                 
-                <button id="btn-complete-setup" onclick="completeStoreSetup(this)" style="width: 100%; padding: 12px; background: #6c5ce7; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Poppins', sans-serif; transition: all .2s;">Complete Setup</button>
+                <button id="btn-complete-setup" onclick="completeStoreSetup(this)" style="width: 100%; padding: 12px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">Continue to Dashboard</button>
                 <div id="setup-alert" style="margin-top: 16px; font-size: 13px; text-align: center; display: none;"></div>
             </div>
         </div>
 
-        <div class="page" id="page-app">
+        <div class="page" id="page-app" style="display: none;">
             <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
             <div class="app-layout">
                 <!-- Sidebar -->

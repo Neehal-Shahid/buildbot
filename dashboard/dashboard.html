@@ -1792,6 +1792,21 @@
             </div>
         </nav>
 
+        <div class="page" id="page-setup" style="display: none; min-height: calc(100vh - 52px); align-items: center; justify-content: center; background: #0f1117;">
+            <div style="background: #1a1d27; border: 1px solid #2a2d3e; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; text-align: left;">
+                <h2 style="font-size: 22px; color: #fff; margin-bottom: 8px; font-family: 'Montserrat', sans-serif; font-weight: 800;">Name your store</h2>
+                <p style="font-size: 13px; color: #888; margin-bottom: 24px; font-family: 'Poppins', sans-serif;">Let's get your store set up and ready for customers.</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 500; color: #a1a1aa; margin-bottom: 8px; font-family: 'Poppins', sans-serif;">Store Name</label>
+                    <input type="text" id="setup-store-name" placeholder="e.g. TechZone Lahore" style="width: 100%; padding: 12px 16px; background: #0a0b0f; border: 1px solid #252839; border-radius: 8px; color: #f0f0f5; font-size: 14px; font-family: 'Poppins', sans-serif; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#6c5ce7'" onblur="this.style.borderColor='#252839'" />
+                </div>
+                
+                <button id="btn-complete-setup" onclick="completeStoreSetup(this)" style="width: 100%; padding: 12px; background: #6c5ce7; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Poppins', sans-serif; transition: all .2s;">Complete Setup</button>
+                <div id="setup-alert" style="margin-top: 16px; font-size: 13px; text-align: center; display: none;"></div>
+            </div>
+        </div>
+
         <div class="page" id="page-app">
             <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
             <div class="app-layout">
@@ -2419,10 +2434,24 @@
                     <div id="tab-content-store" style="display: none">
                         <div class="section-title">Store &amp; sync</div>
                         <div class="section-sub">
-                            Choose your catalog source, then finish setup on
-                            this page (WooCommerce) or in Products (manual /
-                            CSV).
+                            Manage your store's identity and choose your catalog source.
                         </div>
+
+                        <div class="card" style="margin-bottom: 16px">
+                            <h2>Store Profile</h2>
+                            <p style="margin-bottom: 12px">Your store's identity on BuildBot.</p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-2);">Store Name</label>
+                                    <input type="text" id="profile-store-name" readonly style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);color:var(--text);font-family:inherit;outline:none;" />
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-2);">Store ID</label>
+                                    <input type="text" id="profile-store-id" readonly style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-2);color:var(--text);font-family:inherit;outline:none;" />
+                                </div>
+                            </div>
+                        </div>
+
 
                         <div class="card" style="margin-bottom: 16px">
                             <h2>Catalog source</h2>
@@ -6193,9 +6222,6 @@
             }
 
             async function doSignup(btn) {
-                const name = document
-                    .getElementById("signup-name")
-                    .value.trim();
                 const email = document
                     .getElementById("signup-email")
                     .value.trim();
@@ -6204,7 +6230,7 @@
                 const signupMode =
                     localStorage.getItem("bb_signup_store_mode") || "custom";
 
-                if (!name || !email || !password)
+                if (!email || !password)
                     return showAlert(
                         "signup-alert",
                         "Please fill all fields.",
@@ -6219,7 +6245,7 @@
                     const res = await fetch(`${API}/signup`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name, email, password }),
+                        body: JSON.stringify({ email, password }),
                     });
                     const data = await res.json();
                     if (data.success && data.requiresVerification) {
@@ -6412,6 +6438,49 @@
                     .replace(/"/g, "&quot;");
             }
 
+            async function completeStoreSetup(btn) {
+                const name = document.getElementById("setup-store-name").value.trim();
+                const alertEl = document.getElementById("setup-alert");
+                
+                if (!name) {
+                    alertEl.textContent = "Please enter a store name.";
+                    alertEl.style.color = "#ef4444";
+                    alertEl.style.display = "block";
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.textContent = "Saving...";
+                
+                try {
+                    const res = await fetch(`${API}/store-setup`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ name })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        localStorage.setItem("bb_token", data.token);
+                        window.location.reload();
+                    } else {
+                        alertEl.textContent = data.error || "Failed to complete setup.";
+                        alertEl.style.color = "#ef4444";
+                        alertEl.style.display = "block";
+                        btn.disabled = false;
+                        btn.textContent = "Complete Setup";
+                    }
+                } catch (e) {
+                    alertEl.textContent = "Connection error.";
+                    alertEl.style.color = "#ef4444";
+                    alertEl.style.display = "block";
+                    btn.disabled = false;
+                    btn.textContent = "Complete Setup";
+                }
+            }
+
             // ─── ENTER APP ────────────────────────────────────────────
             async function enterApp(prefetchedData) {
                 if (!token) {
@@ -6451,6 +6520,15 @@
                         JSON.stringify(currentStore),
                     );
 
+                    if (currentStore.storeId && currentStore.storeId.startsWith("temp-")) {
+                        document.getElementById("page-app").style.display = "none";
+                        document.getElementById("page-setup").style.display = "flex";
+                        return; // Stop rendering the rest of dashboard
+                    } else {
+                        document.getElementById("page-setup").style.display = "none";
+                        document.getElementById("page-app").style.display = "block";
+                    }
+
                     const emailEl = document.getElementById("nav-user-email");
                     const emailElTop =
                         document.getElementById("nav-user-email-top");
@@ -6466,6 +6544,11 @@
                         avatarEl.textContent = (
                             (currentStore.email || "").trim().charAt(0) || "U"
                         ).toUpperCase();
+
+                    if (document.getElementById("profile-store-name")) {
+                        document.getElementById("profile-store-name").value = currentStore.name || "";
+                        document.getElementById("profile-store-id").value = currentStore.storeId || "";
+                    }
 
                     document.getElementById("welcome-msg").textContent =
                         `Welcome back, ${currentStore.name}! Here's what's happening with your store.`;

@@ -79,13 +79,9 @@ async function completeEmailVerification(email) {
     return null;
   }
 
-  // Generate a unique store ID from the user's name
-  const baseSlug = pending.name
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  const randomSuffix = crypto.randomBytes(3).toString("hex");
-  const storeId = `${baseSlug}-${randomSuffix}`;
+  // Generate a temporary store ID for the onboarding session
+  const randomSuffix = crypto.randomBytes(4).toString("hex");
+  const storeId = `temp-${randomSuffix}`;
 
   try {
     // Create the real store record — this is the moment the account comes into existence
@@ -138,10 +134,11 @@ async function authMiddleware(req, res, next) {
 
 // ─── SIGNUP ───────────────────────────────────────────────
 router.post("/signup", async (req, res) => {
-  const { name, email, password } = req.body;
+  const { email, password } = req.body;
+  const name = "setup-pending";
 
-  if (!name || !email || !password)
-    return res.status(400).json({ error: "All fields are required" });
+  if (!email || !password)
+    return res.status(400).json({ error: "Email and password are required" });
 
   if (!isValidEmail(email))
     return res
@@ -436,19 +433,16 @@ router.post("/google-auth", async (req, res) => {
     let store = await storeDB.findByEmail(email);
 
     if (!store) {
-      // Create new store for Google user
-      const baseSlug = name
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
-      const randomSuffix = crypto.randomBytes(3).toString("hex");
-      const storeId = `${baseSlug}-${randomSuffix}`;
+      // Create new store for Google user with temporary ID
+      const randomSuffix = crypto.randomBytes(4).toString("hex");
+      const storeId = `temp-${randomSuffix}`;
+      const storeName = "setup-pending";
 
       // Generate a strong random password for Google users
       const randomPassword = crypto.randomBytes(16).toString("hex") + "G@1";
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
-      await storeDB.create(storeId, name, email, hashedPassword, googleId);
+      await storeDB.create(storeId, storeName, email, hashedPassword, googleId);
       store = await storeDB.findByEmail(email);
       await pendingSignupDB.deleteByEmail(email); // discard any pending email/password signup
 
@@ -560,6 +554,44 @@ router.put("/change-password", authMiddleware, async (req, res) => {
   await storeDB.updatePassword(store.email, hashedPassword);
 
   res.json({ success: true, message: "Password changed successfully!" });
+});
+
+// ─── COMPLETE STORE SETUP ─────────────────────────────────
+router.put("/store-setup", authMiddleware, async (req, res) => {
+  const { name } = req.body;
+  if (!name || name.trim() === "")
+    return res.status(400).json({ error: "Store name is required" });
+
+  const oldStoreId = req.store.storeId;
+  if (!oldStoreId.startsWith("temp-")) {
+    return res.status(400).json({ error: "Store is already set up" });
+  }
+
+  const cleanName = name.trim();
+  const baseSlug = cleanName
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+
+  if (!baseSlug) return res.status(400).json({ error: "Invalid store name" });
+
+  const randomSuffix = crypto.randomBytes(3).toString("hex");
+  const newStoreId = `${baseSlug}-${randomSuffix}`;
+
+  try {
+    await storeDB.upgradeSetup(oldStoreId, newStoreId, cleanName);
+
+    // Issue a new token with the permanent store ID
+    const token = jwt.sign(
+      { storeId: newStoreId, email: req.store.email, name: cleanName },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ success: true, token, storeId: newStoreId, name: cleanName });
+  } catch (err) {
+    res.status(500).json({ error: "Could not complete setup: " + err.message });
+  }
 });
 
 // ─── MARKETING EMAIL PREFERENCE ───────────────────────────

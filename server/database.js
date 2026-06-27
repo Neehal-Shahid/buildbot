@@ -243,6 +243,24 @@ const storeDB = {
     return res.rows[0] || null;
   },
 
+  upgradeSetup: async (oldStoreId, newStoreId, newName) => {
+    // This is safe because new accounts don't have FK constraint violations (products/payments) yet
+    await client.batch([
+      {
+        sql: "UPDATE stores SET store_id = ?, name = ? WHERE store_id = ?",
+        args: [newStoreId, newName, oldStoreId],
+      },
+      {
+        sql: "UPDATE email_send_log SET store_id = ? WHERE store_id = ?",
+        args: [newStoreId, oldStoreId],
+      },
+      {
+        sql: "UPDATE trial_emails_sent SET store_id = ? WHERE store_id = ?",
+        args: [newStoreId, oldStoreId],
+      }
+    ], "write");
+  },
+
   updateBranding: async (storeId, brandColor, currency) => {
     return await client.execute({
       sql: "UPDATE stores SET brand_color = ?, currency = ? WHERE store_id = ?",

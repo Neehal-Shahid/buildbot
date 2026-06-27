@@ -275,6 +275,43 @@
       padding: 40px;
       width: 100%;
       max-width: 420px;
+      position: relative;
+    }
+
+    .auth-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.85);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: inherit;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+    .auth-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    .auth-overlay-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(79, 70, 229, 0.15);
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: authSpin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    .auth-overlay-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+    @keyframes authSpin {
+      to { transform: rotate(360deg); }
     }
 
     .auth-box h2 {
@@ -3439,10 +3476,17 @@
 
     // ─── GOOGLE AUTH ────────────────────────────────────────────
     async function handleGoogleCredentialResponse(response) {
-      // Show loading feedback immediately
-      const alertMsg = 'Authenticating with Google... Please wait.';
-      showAlert('login-alert', alertMsg, 'success');
-      showAlert('signup-alert', alertMsg, 'success');
+      let overlay = document.querySelector('.page.active .auth-box .auth-overlay');
+      if (!overlay) {
+        const activeBox = document.querySelector('.page.active .auth-box');
+        if (activeBox) {
+          overlay = document.createElement('div');
+          overlay.className = 'auth-overlay';
+          overlay.innerHTML = '<div class="auth-overlay-spinner"></div><div class="auth-overlay-text">Authenticating...</div>';
+          activeBox.appendChild(overlay);
+        }
+      }
+      if (overlay) overlay.classList.add('active');
 
       try {
         const res = await fetch(`${API}/google-auth`, {
@@ -3466,11 +3510,13 @@
           }
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
         } else {
+          if (overlay) overlay.classList.remove('active');
           showAlert('login-alert', data.error || 'Google Login failed.', 'error');
           showAlert('signup-alert', data.error || 'Google Login failed.', 'error');
         }
       } catch (err) {
         console.error(err);
+        if (overlay) overlay.classList.remove('active');
         showAlert('login-alert', 'Connection error.', 'error');
         showAlert('signup-alert', 'Connection error.', 'error');
       }

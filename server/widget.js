@@ -874,5 +874,9 @@
   }
 
   
-  initWidget();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWidget);
+  } else {
+    initWidget();
+  }
 })();

@@ -3258,6 +3258,7 @@
       const origText = btn.innerText;
       btn.disabled = true;
       btn.innerText = 'Sending...';
+      showAuthOverlay('Sending link...');
 
       try {
         const res = await fetch(`${API}/forgot-password`, {
@@ -3474,19 +3475,36 @@
 
     // ─── AUTH ─────────────────────────────────────────────────
 
+    function showAuthOverlay(text = 'Authenticating...') {
+      let activeBox = document.querySelector('.page.active .auth-box');
+      if (!activeBox) activeBox = document.body;
+      
+      let overlay = activeBox.querySelector(':scope > .auth-overlay') || document.querySelector('body > .auth-overlay');
+      
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'auth-overlay';
+        if (activeBox === document.body) {
+          overlay.style.position = 'fixed';
+          overlay.style.zIndex = '9999';
+        }
+        overlay.innerHTML = `<div class="auth-overlay-spinner"></div><div class="auth-overlay-text" id="auth-overlay-text-el">${text}</div>`;
+        activeBox.appendChild(overlay);
+      } else {
+        const textEl = overlay.querySelector('#auth-overlay-text-el');
+        if (textEl) textEl.textContent = text;
+      }
+      
+      overlay.classList.add('active');
+    }
+
+    function hideAuthOverlay() {
+      document.querySelectorAll('.auth-overlay').forEach(el => el.classList.remove('active'));
+    }
+
     // ─── GOOGLE AUTH ────────────────────────────────────────────
     async function handleGoogleCredentialResponse(response) {
-      let overlay = document.querySelector('.page.active .auth-box .auth-overlay');
-      if (!overlay) {
-        const activeBox = document.querySelector('.page.active .auth-box');
-        if (activeBox) {
-          overlay = document.createElement('div');
-          overlay.className = 'auth-overlay';
-          overlay.innerHTML = '<div class="auth-overlay-spinner"></div><div class="auth-overlay-text">Authenticating...</div>';
-          activeBox.appendChild(overlay);
-        }
-      }
-      if (overlay) overlay.classList.add('active');
+      showAuthOverlay('Authenticating with Google...');
 
       try {
         const res = await fetch(`${API}/google-auth`, {
@@ -3510,13 +3528,13 @@
           }
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
         } else {
-          if (overlay) overlay.classList.remove('active');
+          hideAuthOverlay();
           showAlert('login-alert', data.error || 'Google Login failed.', 'error');
           showAlert('signup-alert', data.error || 'Google Login failed.', 'error');
         }
       } catch (err) {
         console.error(err);
-        if (overlay) overlay.classList.remove('active');
+        hideAuthOverlay();
         showAlert('login-alert', 'Connection error.', 'error');
         showAlert('signup-alert', 'Connection error.', 'error');
       }
@@ -3768,6 +3786,7 @@
       const origText = btn.innerText;
       btn.disabled = true;
       btn.innerText = 'Please wait...';
+      showAuthOverlay('Creating account...');
 
       try {
         const res = await fetch(`${API}/signup`, {
@@ -3789,6 +3808,7 @@
       } catch {
         showAlert('signup-alert', 'Cannot connect to server.', 'error');
       } finally {
+        hideAuthOverlay();
         btn.disabled = false;
         btn.innerText = origText;
       }
@@ -3886,6 +3906,7 @@
       const origText = btn.innerText;
       btn.disabled = true;
       btn.innerText = 'Logging in...';
+      showAuthOverlay('Authenticating...');
 
       try {
         const res = await fetch(`${API}/login`, {
@@ -3913,6 +3934,7 @@
       } catch {
         showAlert('login-alert', 'Cannot connect to server.', 'error');
       } finally {
+        hideAuthOverlay();
         btn.disabled = false;
         btn.innerText = origText;
       }

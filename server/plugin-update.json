@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "download_url": "https://buildbot-production-b9e6.up.railway.app/buildbot-woocommerce.zip",
   "tested": "6.5",
   "requires": "5.0",

@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDBOT_API',     'https://buildbot-production-b9e6.up.railway.app/api');
-define('BUILDBOT_VERSION', '1.8.0');
+define('BUILDBOT_VERSION', '1.9.0');
 define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-b9e6.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────

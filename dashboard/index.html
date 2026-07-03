@@ -2550,6 +2550,7 @@
       </div>
       <div class="nav-link" id="nav-dashboard-link" style="display:none"
         onclick="window.location.href='dashboard.html'">Dashboard</div>
+      <div class="nav-link" id="nav-logout-link" style="display:none" onclick="doLogout()">Sign Out</div>
       <div class="nav-link" id="nav-login-link" onclick="showPage('login')">Login</div>
       <div class="nav-link btn-primary btn" id="nav-signup-link" onclick="showPage('signup')">Start Free Trial</div>
     </div>
@@ -3332,12 +3333,21 @@
 
       // Show/hide nav links immediately from localStorage — no server call needed
       const dashLink = document.getElementById('nav-dashboard-link');
+      const logoutLink = document.getElementById('nav-logout-link');
       const loginLink = document.getElementById('nav-login-link');
       const signupLink = document.getElementById('nav-signup-link');
+      
+      const updateNavForSession = (isLoggedIn) => {
+        if (dashLink) dashLink.style.display = isLoggedIn ? 'inline-flex' : 'none';
+        if (logoutLink) logoutLink.style.display = isLoggedIn ? 'inline-flex' : 'none';
+        if (loginLink) loginLink.style.display = isLoggedIn ? 'none' : 'inline-flex';
+        if (signupLink) signupLink.style.display = isLoggedIn ? 'none' : 'inline-flex';
+      };
+
       if (token && currentStore && !isSessionExpired()) {
-        if (dashLink) dashLink.style.display = 'inline-flex';
-        if (loginLink) loginLink.style.display = 'none';
-        if (signupLink) signupLink.style.display = 'none';
+        updateNavForSession(true);
+      } else {
+        updateNavForSession(false);
       }
 
       if (token && currentStore) {
@@ -3355,7 +3365,12 @@
           });
           const data = await res.json();
           if (data.success) {
-            window.location.href = 'dashboard.html';
+            // Session is valid. We keep them on the landing page so they can browse,
+            // but update the header if it wasn't already.
+            updateNavForSession(true);
+            
+            // If they explicitly requested dashboard via URL param, redirect them
+            if (FORCE_DASHBOARD) window.location.href = 'dashboard.html';
           } else if (res.status === 403 && data.requiresVerification) {
             pendingVerificationEmail = currentStore?.email || '';
             clearSession();
@@ -3371,11 +3386,13 @@
           }
         } catch {
           // Server unreachable (Railway cold start).
-          // If local session looks valid, trust it and redirect to dashboard.
+          // If local session looks valid, let them browse the landing page.
           // Dashboard handles its own token verification independently.
           if (token && currentStore && !isSessionExpired()) {
-            window.location.href = 'dashboard.html';
+            updateNavForSession(true);
+            if (FORCE_DASHBOARD) window.location.href = 'dashboard.html';
           } else {
+            updateNavForSession(false);
             showPage(FORCE_DASHBOARD ? 'login' : 'landing');
           }
         }
@@ -3946,6 +3963,17 @@
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
       localStorage.removeItem('bb_token_expires');
+      
+      // Update nav immediately
+      const dashLink = document.getElementById('nav-dashboard-link');
+      const logoutLink = document.getElementById('nav-logout-link');
+      const loginLink = document.getElementById('nav-login-link');
+      const signupLink = document.getElementById('nav-signup-link');
+      if (dashLink) dashLink.style.display = 'none';
+      if (logoutLink) logoutLink.style.display = 'none';
+      if (loginLink) loginLink.style.display = 'inline-flex';
+      if (signupLink) signupLink.style.display = 'inline-flex';
+
       showPage('landing');
       document.getElementById('nav-links').style.display = 'flex';
       document.getElementById('nav-user').style.display = 'none';

@@ -98,7 +98,7 @@
         .login-logo {
             display: flex;
             align-items: center;
-            gap: 9px;
+            gap: 10px;
             margin-bottom: 24px;
         }
 
@@ -1927,7 +1927,8 @@
                             </div>
                         </div>
                         <div style="font-size:12px;color:var(--muted);margin:-8px 0 16px;line-height:1.5;">
-                            Recommendation limits and AI model settings are in <strong style="color:var(--text);">API &amp; Model</strong> tab.
+                            Recommendation limits and AI model settings are in <strong style="color:var(--text);">API
+                                &amp; Model</strong> tab.
                         </div>
                         <div style="
                                     display: grid;
@@ -2091,7 +2092,8 @@
                             <div class="form-group">
                                 <label class="form-label">Max Output Tokens</label>
                                 <input type="number" id="api-cfg-max-tokens" min="1024" max="64000" step="256" />
-                                <div style="font-size:11px;color:var(--muted);margin-top:4px;">8192–12000 recommended for 3 builds. Too low = truncated JSON errors.</div>
+                                <div style="font-size:11px;color:var(--muted);margin-top:4px;">8192–12000 recommended
+                                    for 3 builds. Too low = truncated JSON errors.</div>
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <div class="form-group">
@@ -2128,12 +2130,16 @@
                             <div class="card-head">
                                 <div>
                                     <h2>Profit per Plan</h2>
-                                    <div class="card-sub">Revenue per rec vs estimated API cost (if every rec hits AI)</div>
+                                    <div class="card-sub">Revenue per rec vs estimated API cost (if every rec hits AI)
+                                    </div>
                                 </div>
                             </div>
                             <div id="api-profit-plans" style="font-size:13px;color:var(--text-2);"></div>
-                            <div style="margin-top:14px;padding:12px;background:var(--surface-2);border-radius:var(--r-md);font-size:12px;color:var(--muted);line-height:1.6;">
-                                <strong style="color:var(--text);">Tip:</strong> If Starter shows negative margin, lower its monthly limit or raise price. Cache hits cost Rs 0 — higher cache rate improves profit.
+                            <div
+                                style="margin-top:14px;padding:12px;background:var(--surface-2);border-radius:var(--r-md);font-size:12px;color:var(--muted);line-height:1.6;">
+                                <strong style="color:var(--text);">Tip:</strong> If Starter shows negative margin, lower
+                                its monthly limit or raise price. Cache hits cost Rs 0 — higher cache rate improves
+                                profit.
                             </div>
                         </div>
                     </div>
@@ -2142,7 +2148,8 @@
                         <div class="card-head">
                             <div>
                                 <h2>Usage by Store</h2>
-                                <div class="card-sub">This month — AI calls, cache hits, and estimated cost per store</div>
+                                <div class="card-sub">This month — AI calls, cache hits, and estimated cost per store
+                                </div>
                             </div>
                             <button class="btn btn-sm" onclick="loadApiModelTab()">Refresh</button>
                         </div>
@@ -2160,7 +2167,9 @@
                                     </tr>
                                 </thead>
                                 <tbody id="api-store-tbody">
-                                    <tr><td colspan="7" class="table-empty">Loading…</td></tr>
+                                    <tr>
+                                        <td colspan="7" class="table-empty">Loading…</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2429,11 +2438,13 @@
                         <div class="card-head">
                             <div>
                                 <h2>Email Send Log</h2>
-                                <div class="card-sub">Automated drip deduplication audit — each type sends once per store</div>
+                                <div class="card-sub">Automated drip deduplication audit — each type sends once per
+                                    store</div>
                             </div>
                             <button class="btn btn-sm" onclick="loadEmailLog()">Refresh</button>
                         </div>
-                        <div id="email-log-table" style="font-size:12px;color:var(--muted);">Click Refresh to load recent sends.</div>
+                        <div id="email-log-table" style="font-size:12px;color:var(--muted);">Click Refresh to load
+                            recent sends.</div>
                     </div>
 
                     <div class="card" style="margin-top: 20px">
@@ -2444,7 +2455,8 @@
                             </div>
                             <button class="btn btn-sm" onclick="loadAdminSupportTickets()">Refresh</button>
                         </div>
-                        <div id="admin-support-tickets" style="font-size:12px;color:var(--muted);">Click Refresh to load tickets.</div>
+                        <div id="admin-support-tickets" style="font-size:12px;color:var(--muted);">Click Refresh to load
+                            tickets.</div>
                     </div>
 
                     <div class="card" style="margin-top: 20px">
@@ -4702,10 +4714,10 @@
 
         function statusBadge(s) {
             const es = s.effectiveStatus || s.plan_status || "unknown";
-            if (es === "trial_expired")  return `<span class="badge badge-danger"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Trial Expired</span>`;
-            if (es === "trial_active")   return `<span class="badge badge-warning"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Trial Active</span>`;
-            if (es === "active")         return `<span class="badge badge-success"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg>Active</span>`;
-            if (es === "disabled")       return `<span class="badge badge-muted">Disabled</span>`;
+            if (es === "trial_expired") return `<span class="badge badge-danger"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Trial Expired</span>`;
+            if (es === "trial_active") return `<span class="badge badge-warning"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Trial Active</span>`;
+            if (es === "active") return `<span class="badge badge-success"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg>Active</span>`;
+            if (es === "disabled") return `<span class="badge badge-muted">Disabled</span>`;
             return `<span class="badge badge-muted">${es}</span>`;
         }
 

@@ -292,10 +292,12 @@
       visibility: hidden;
       transition: all 0.2s;
     }
+
     .auth-overlay.active {
       opacity: 1;
       visibility: visible;
     }
+
     .auth-overlay-spinner {
       width: 36px;
       height: 36px;
@@ -305,13 +307,17 @@
       animation: authSpin 0.8s linear infinite;
       margin-bottom: 14px;
     }
+
     .auth-overlay-text {
       font-size: 14px;
       font-weight: 600;
       color: #111827;
     }
+
     @keyframes authSpin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .auth-box h2 {
@@ -2548,7 +2554,8 @@
       </div>
       <div class="nav-link" onclick="scrollToLandingSection('pricing');">Pricing
       </div>
-      <div class="nav-link" id="nav-logout-link" style="display:none; opacity: 0.7; font-size: 13px;" onclick="doLogout()">Sign Out</div>
+      <div class="nav-link" id="nav-logout-link" style="display:none; opacity: 0.7; font-size: 13px;"
+        onclick="doLogout()">Sign Out</div>
       <div class="nav-link btn-primary btn" id="nav-dashboard-link" style="display:none"
         onclick="window.location.href='dashboard.html'">Go to Dashboard</div>
       <div class="nav-link" id="nav-login-link" onclick="showPage('login')">Login</div>
@@ -3105,8 +3112,6 @@
         <div class="alert" id="login-alert"></div>
 
         <div class="auth-switch">Don't have an account? <a onclick="showPage('signup')">Start free trial</a></div>
-        <div class="auth-switch" style="margin-top:10px;font-size:12px;">Need help? <a id="login-support-link"
-            href="mailto:workwithneehal@gmail.com">Contact support</a></div>
 
       </div>
     </div>
@@ -3334,7 +3339,7 @@
       const logoutLink = document.getElementById('nav-logout-link');
       const loginLink = document.getElementById('nav-login-link');
       const signupLink = document.getElementById('nav-signup-link');
-      
+
       const updateNavForSession = (isLoggedIn) => {
         if (dashLink) dashLink.style.display = isLoggedIn ? 'inline-flex' : 'none';
         if (logoutLink) logoutLink.style.display = isLoggedIn ? 'inline-flex' : 'none';
@@ -3366,7 +3371,7 @@
             // Session is valid. We keep them on the landing page so they can browse,
             // but update the header if it wasn't already.
             updateNavForSession(true);
-            
+
             // If they explicitly requested dashboard via URL param, redirect them
             if (FORCE_DASHBOARD) window.location.href = 'dashboard.html';
           } else if (res.status === 403 && data.requiresVerification) {
@@ -3494,9 +3499,9 @@
     function showAuthOverlay(text = 'Authenticating...') {
       let activeBox = document.querySelector('.page.active .auth-box');
       if (!activeBox) activeBox = document.body;
-      
+
       let overlay = activeBox.querySelector(':scope > .auth-overlay') || document.querySelector('body > .auth-overlay');
-      
+
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.className = 'auth-overlay';
@@ -3510,7 +3515,7 @@
         const textEl = overlay.querySelector('#auth-overlay-text-el');
         if (textEl) textEl.textContent = text;
       }
-      
+
       overlay.classList.add('active');
     }
 
@@ -3961,7 +3966,7 @@
       localStorage.removeItem('bb_token');
       localStorage.removeItem('bb_store');
       localStorage.removeItem('bb_token_expires');
-      
+
       // Update nav immediately
       const dashLink = document.getElementById('nav-dashboard-link');
       const logoutLink = document.getElementById('nav-logout-link');

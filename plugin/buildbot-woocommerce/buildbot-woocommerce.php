@@ -15,9 +15,9 @@
 if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
-define('BUILDBOT_API',     'https://buildbot-production-b9e6.up.railway.app/api');
+define('BUILDBOT_API',     'https://buildbot-production-3f70.up.railway.app/api');
 define('BUILDBOT_VERSION', '1.9.0');
-define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-b9e6.up.railway.app/plugin-update.json');
+define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
 register_activation_hook(__FILE__, 'buildbot_activate');
@@ -1034,7 +1034,7 @@ function buildbot_inject_widget() {
   // Never inject in admin
   if (is_admin()) return;
 
-  $widget_url = 'https://buildbot-production-b9e6.up.railway.app/widget.js';
+  $widget_url = 'https://buildbot-production-3f70.up.railway.app/widget.js';
   echo '<!-- BuildBot AI PC Recommender -->' . "
 ";
   echo '<script src="' . esc_url($widget_url) . '" data-store-id="' . esc_attr($store_id) . '"></script>' . "

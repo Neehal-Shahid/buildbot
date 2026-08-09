@@ -3,9 +3,16 @@ const crypto = require("crypto");
 const { storeDB, productDB, client } = require("../database");
 const jwt = require("jsonwebtoken");
 const { normalizeWooUrl } = require("../lib/woo");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
+
+const pluginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 mins
+  max: 100, // max 100 sync/update requests per 15 mins per store
+  message: { error: "Too many plugin requests. Please try again later." },
+});
 
 // ─── AUTHENTICATE PLUGIN REQUEST ──────────────────────────
 async function authenticatePlugin(req, res) {
@@ -31,6 +38,15 @@ async function authenticatePlugin(req, res) {
     res.status(403).json({
       success: false,
       error: "This store account has been disabled.",
+    });
+    return null;
+  }
+
+  const active = await storeDB.isActive(store.store_id);
+  if (!active) {
+    res.status(403).json({
+      success: false,
+      error: "This store subscription is inactive or expired.",
     });
     return null;
   }
@@ -497,8 +513,7 @@ router.post("/plugin/widget-toggle", async (req, res) => {
   }
 });
 
-// ─── FULL SYNC ────────────────────────────────────────────
-router.post("/plugin/sync", async (req, res) => {
+router.post("/plugin/sync", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
 
@@ -568,8 +583,7 @@ router.post("/plugin/sync", async (req, res) => {
   }
 });
 
-// ─── UPDATE SINGLE PRODUCT ────────────────────────────────
-router.post("/plugin/product/update", async (req, res) => {
+router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
 
@@ -640,7 +654,7 @@ router.post("/plugin/product/update", async (req, res) => {
 });
 
 // ─── DELETE SINGLE PRODUCT ────────────────────────────────
-router.post("/plugin/product/delete", async (req, res) => {
+router.post("/plugin/product/delete", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
 

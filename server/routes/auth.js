@@ -10,6 +10,7 @@ const {
   pendingSignupDB,
 } = require("../database");
 const { OAuth2Client } = require("google-auth-library");
+const rateLimit = require("express-rate-limit");
 const {
   sendEmail,
   welcomeEmail,
@@ -22,6 +23,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs for auth routes
+  message: { error: "Too many attempts, please try again after 15 minutes" }
+});
 
 // ─── PASSWORD STRENGTH CHECK ──────────────────────────────
 function isStrongPassword(password) {
@@ -133,7 +140,7 @@ async function authMiddleware(req, res, next) {
 }
 
 // ─── SIGNUP ───────────────────────────────────────────────
-router.post("/signup", async (req, res) => {
+router.post("/signup", authLimiter, async (req, res) => {
   const { email, password } = req.body;
   const name = "setup-pending";
 
@@ -222,7 +229,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // ─── RESEND VERIFICATION ──────────────────────────────────
-router.post("/resend-verification", async (req, res) => {
+router.post("/resend-verification", authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "Email and password are required" });
@@ -279,8 +286,8 @@ router.post("/resend-verification", async (req, res) => {
   });
 });
 
-// ─── VERIFY EMAIL ─────────────────────────────────────────
-router.get("/verify-email", async (req, res) => {
+// ─── VERIFY EMAIL (MAGIC LINK) ────────────────────────────
+router.get("/verify-email", authLimiter, async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: "Token required" });
 
@@ -306,9 +313,10 @@ router.get("/verify-email", async (req, res) => {
   res.json({ success: true, message: "Email verified! You can now sign in." });
 });
 
-// ─── VERIFY EMAIL OTP ─────────────────────────────────────
-router.post("/verify-email-otp", async (req, res) => {
-  const { email, code } = req.body;
+// ─── VERIFY EMAIL (OTP) ───────────────────────────────────
+router.post("/verify-email-otp", authLimiter, async (req, res) => {
+  const { email, otp } = req.body;
+  const code = otp || req.body.code; // support both
   if (!email || !code)
     return res
       .status(400)
@@ -360,7 +368,7 @@ router.post("/verify-email-otp", async (req, res) => {
 });
 
 // ─── LOGIN ────────────────────────────────────────────────
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "Email and password required" });
@@ -414,8 +422,8 @@ router.post("/login", async (req, res) => {
   });
 });
 
-// ─── GOOGLE AUTH ──────────────────────────────────────────
-router.post("/google-auth", async (req, res) => {
+// ─── GOOGLE LOGIN/SIGNUP ──────────────────────────────────
+router.post("/google-auth", authLimiter, async (req, res) => {
   const { credential } = req.body;
   if (!credential)
     return res.status(400).json({ error: "Credential is required" });
@@ -449,8 +457,18 @@ router.post("/google-auth", async (req, res) => {
       // Auto-verify their email since Google verified it
       await verifyDB.setVerified(email);
       await storeDB.startTrial(store.store_id);
-      sendEmail(welcomeEmail(name, email));
+      await sendEmail(welcomeEmail(name, email));
       store = await storeDB.findById(store.store_id);
+    } else {
+      // Existing account — Google confirms email ownership; verify if still pending
+      const isVerified = await verifyDB.isVerified(email);
+      if (!isVerified) {
+        await verifyDB.setVerified(email);
+        if (!store.trial_started_at) {
+          await storeDB.startTrial(store.store_id);
+        }
+        store = await storeDB.findById(store.store_id);
+      }
     }
 
     const token = jwt.sign(
@@ -480,7 +498,7 @@ router.post("/google-auth", async (req, res) => {
 });
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", authLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email required" });
 
@@ -495,7 +513,7 @@ router.post("/forgot-password", async (req, res) => {
 
   const resetToken = crypto.randomBytes(32).toString("hex");
   await tokenDB.save(email, resetToken, "reset");
-  sendEmail(passwordResetEmail(store.name, email, resetToken));
+  await sendEmail(passwordResetEmail(store.name, email, resetToken));
 
   res.json({
     success: true,
@@ -504,7 +522,7 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 // ─── RESET PASSWORD ───────────────────────────────────────
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", authLimiter, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password)
     return res.status(400).json({ error: "Token and password required" });
@@ -584,7 +602,7 @@ router.put("/store-setup", authMiddleware, async (req, res) => {
     // Issue a new token with the permanent store ID
     const token = jwt.sign(
       { storeId: newStoreId, email: req.store.email, name: cleanName },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -702,12 +720,21 @@ router.get("/me", authMiddleware, async (req, res) => {
     ? Math.max(0, Math.ceil((trialEndsMs - Date.now()) / 86400000))
     : 0;
 
+  let planDaysLeft = null;
+  if (refreshed.plan !== "trial" && refreshed.plan_ends) {
+    const planEndsMs = new Date(refreshed.plan_ends).getTime();
+    if (!isNaN(planEndsMs)) {
+      planDaysLeft = Math.max(0, Math.ceil((planEndsMs - Date.now()) / 86400000));
+    }
+  }
+
   const { password, plugin_secret, ...safeStore } = refreshed;
   res.json({
     success: true,
     store: safeStore,
     trialDays,
     trialDaysLeft,
+    planDaysLeft,
   });
 });
 
@@ -757,6 +784,17 @@ router.get("/store-config/:storeId", async (req, res) => {
     };
   }
 
+  // Get budget presets from platform config
+  const { configDB } = require("../database");
+  let budgetPresets = [50000, 80000, 120000, 200000]; // fallback defaults
+  try {
+    const rawPresets = await configDB.get("budget_presets", "");
+    if (rawPresets) {
+      const parsed = rawPresets.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v > 0);
+      if (parsed.length >= 2) budgetPresets = parsed;
+    }
+  } catch (_) {}
+
   res.json({
     success: true,
     active: true,
@@ -767,6 +805,7 @@ router.get("/store-config/:storeId", async (req, res) => {
     buttonText: widgetSettings.buttonText,
     widgetBg: widgetSettings.widgetBg,
     widgetEnabled: store.widget_enabled !== 0,
+    budgetPresets,
   });
 });
 
@@ -801,53 +840,6 @@ router.put("/widget-settings", authMiddleware, async (req, res) => {
     res.json({ success: true, message: "Widget settings saved!" });
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── PAYMENT (DASHBOARD) ───────────────────────────────
-router.post("/payment", authMiddleware, async (req, res) => {
-  const { amount, method, transactionRef, plan } = req.body;
-  if (!amount || !method || !transactionRef || !plan)
-    return res.status(400).json({ error: "All fields are required" });
-
-  try {
-    await paymentDB.create(
-      req.store.storeId,
-      amount,
-      method,
-      transactionRef,
-      plan,
-    );
-
-    // Notify admin of new payment submission
-    try {
-      const store = await storeDB.findById(req.store.storeId);
-      if (store) {
-        const {
-          sendEmail: _sendEmail,
-          adminNewPaymentEmail,
-        } = require("../email");
-        _sendEmail(
-          adminNewPaymentEmail(
-            store.name,
-            store.email,
-            plan,
-            amount,
-            method,
-            transactionRef,
-          ),
-        );
-      }
-    } catch {}
-
-    res.json({
-      success: true,
-      message: "Payment submitted! We will verify and activate your plan.",
-    });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Payment submission failed: " + err.message });
   }
 });
 

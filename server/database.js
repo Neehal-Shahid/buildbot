@@ -173,7 +173,8 @@ async function initDB() {
   ('api_output_price_per_million', '5'),
   ('usd_to_pkr', '280'),
   ('starter_monthly_limit', '500'),
-  ('growth_monthly_limit', '2000')`,
+  ('growth_monthly_limit', '2000'),
+  ('budget_presets', '50000,80000,120000,200000')`,
     `ALTER TABLE recommendations ADD COLUMN source TEXT DEFAULT ''`,
     `ALTER TABLE recommendations ADD COLUMN model TEXT DEFAULT ''`,
     `ALTER TABLE recommendations ADD COLUMN input_tokens INTEGER DEFAULT 0`,
@@ -189,6 +190,7 @@ async function initDB() {
   password   TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 )`,
+    `INSERT OR IGNORE INTO platform_config (key, value) VALUES ('budget_presets', '50000,80000,120000,200000')`,
   ];
   for (const sql of migrations) {
     try {
@@ -282,9 +284,17 @@ const storeDB = {
     });
     const store = res.rows[0];
     if (!store) return false;
-    if (store.plan_status === "active" && store.plan !== "trial") return true;
+    if (store.plan_status === "disabled") return false;
     if (store.plan === "trial") {
+      if (!store.trial_ends) return true;
       return new Date() < new Date(store.trial_ends);
+    }
+    if (store.plan_status === "active") {
+      if (store.plan_ends) {
+        const ends = new Date(store.plan_ends);
+        if (!isNaN(ends.getTime()) && new Date() >= ends) return false;
+      }
+      return true;
     }
     return false;
   },
@@ -485,14 +495,38 @@ const storeDB = {
     });
   },
 
+  // Expire paid subscriptions past plan_ends
+  expireLapsedPlans: async () => {
+    const res = await client.execute({
+      sql: `UPDATE stores SET plan_status = 'expired'
+            WHERE plan != 'trial'
+            AND plan_status = 'active'
+            AND plan_ends != ''
+            AND plan_ends IS NOT NULL
+            AND date(plan_ends) < date('now')`,
+    });
+    return res.rowsAffected || 0;
+  },
+
+  // Mark expired trials in DB for admin reporting (widget already blocked via trial_ends)
+  expireExpiredTrials: async () => {
+    const res = await client.execute({
+      sql: `UPDATE stores SET plan_status = 'expired'
+            WHERE plan = 'trial'
+            AND plan_status = 'active'
+            AND trial_ends != ''
+            AND date(trial_ends) < date('now')`,
+    });
+    return res.rowsAffected || 0;
+  },
+
   disconnectWoo: async (storeId) => {
     return await client.execute({
       sql: `UPDATE stores SET
               woo_connected = 0,
               woo_url = '',
               woo_last_sync = '',
-              woo_product_count = 0,
-              widget_enabled = 0
+              woo_product_count = 0
             WHERE store_id = ?`,
       args: [storeId],
     });
@@ -530,11 +564,13 @@ const storeDB = {
 
   // Get paid stores whose plan_ends was exactly N days ago — used for dunning emails
   // plan_ends is set when a payment is approved. Requires plan_ends column (migration added above).
+  // Note: includes both 'active' and 'expired' statuses because expireLapsedPlans runs first
+  // and may have already flipped the status to 'expired' before dunning emails are sent.
   getPlanLapsedBy: async (days) => {
     const res = await client.execute({
       sql: `SELECT * FROM stores
             WHERE plan != 'trial'
-            AND plan_status = 'active'
+            AND plan_status IN ('active', 'expired')
             AND plan_ends != ''
             AND plan_ends IS NOT NULL
             AND date(plan_ends) = date('now', '-${days} days')`,
@@ -642,9 +678,13 @@ const productDB = {
       args: [storeId],
     });
 
-    // Insert all new products
-    for (const p of products) {
-      await client.execute({
+    if (!products || !products.length) return 0;
+
+    // Use batch insertion in chunks for extreme performance
+    const chunkSize = 500;
+    for (let i = 0; i < products.length; i += chunkSize) {
+      const chunk = products.slice(i, i + chunkSize);
+      const stmts = chunk.map((p) => ({
         sql: `INSERT INTO products (store_id, name, category, price, description)
                VALUES (?, ?, ?, ?, ?)`,
         args: [
@@ -654,7 +694,8 @@ const productDB = {
           parseFloat(p.price || p.Price || 0),
           p.description || p.Description || "",
         ],
-      });
+      }));
+      await client.batch(stmts, "write");
     }
     return products.length;
   },
@@ -737,33 +778,40 @@ const analyticsDB = {
     return res.rows[0] ? JSON.parse(res.rows[0].result) : null;
   },
 
-  getStats: async (storeId) => {
+  getStats: async (storeId, days = 0) => {
+    const dayNum = Number(days) || 0;
+    const dateFilter =
+      dayNum > 0
+        ? `AND created_at >= datetime('now', '-${Math.min(dayNum, 365)} days')`
+        : "";
+    const dailyLimit = dayNum > 0 ? Math.min(dayNum, 365) : 7;
+
     const total = await client.execute({
-      sql: "SELECT COUNT(*) as count FROM recommendations WHERE store_id = ?",
+      sql: `SELECT COUNT(*) as count FROM recommendations WHERE store_id = ? ${dateFilter}`,
       args: [storeId],
     });
 
     const byPurpose = await client.execute({
       sql: `SELECT purpose, COUNT(*) as count FROM recommendations
-             WHERE store_id = ? GROUP BY purpose ORDER BY count DESC`,
+             WHERE store_id = ? ${dateFilter} GROUP BY purpose ORDER BY count DESC`,
       args: [storeId],
     });
 
     const avgBudget = await client.execute({
-      sql: "SELECT AVG(budget) as avg FROM recommendations WHERE store_id = ?",
+      sql: `SELECT AVG(budget) as avg FROM recommendations WHERE store_id = ? ${dateFilter}`,
       args: [storeId],
     });
 
     const recent = await client.execute({
       sql: `SELECT budget, purpose, extras, created_at FROM recommendations
-             WHERE store_id = ? ORDER BY created_at DESC LIMIT 10`,
+             WHERE store_id = ? ${dateFilter} ORDER BY created_at DESC LIMIT 10`,
       args: [storeId],
     });
 
     const daily = await client.execute({
       sql: `SELECT date(created_at) as day, COUNT(*) as count
-             FROM recommendations WHERE store_id = ?
-             GROUP BY day ORDER BY day DESC LIMIT 7`,
+             FROM recommendations WHERE store_id = ? ${dateFilter}
+             GROUP BY day ORDER BY day DESC LIMIT ${dailyLimit}`,
       args: [storeId],
     });
 
@@ -848,12 +896,18 @@ const paymentDB = {
       sql: "UPDATE payments SET status = 'approved' WHERE id = ?",
       args: [paymentId],
     });
-    // Set plan and record plan_ends as 30 days from today for dunning tracking
+    // Set plan_ends relative to payment created_at (not today) — ensures fair subscription period
+    // even if admin approves with delay
     await client.execute({
       sql: `UPDATE stores
-            SET plan = ?, plan_status = 'active', plan_ends = date('now', '+30 days')
+            SET plan = ?, plan_status = 'active',
+                plan_ends = date(
+                  COALESCE(
+                    (SELECT created_at FROM payments WHERE id = ?),
+                    datetime('now')
+                  ), '+30 days')
             WHERE store_id = ?`,
-      args: [plan, storeId],
+      args: [plan, paymentId, storeId],
     });
   },
 
@@ -1011,7 +1065,10 @@ const verifyDB = {
       });
       return res.rows[0]?.email_verified === 1;
     } catch (e) {
-      return true; // if column doesn't exist yet, allow login
+      // If column doesn't exist yet (pre-migration), deny access for safety.
+      // Returning true here would be a security bypass.
+      console.error('verifyDB.isVerified error:', e.message);
+      return false;
     }
   },
 };

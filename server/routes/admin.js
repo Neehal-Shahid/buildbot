@@ -34,6 +34,7 @@ const adminAuthLimiter = rateLimit({
 // It does NOT automatically reflect trial expiry. This helper closes that gap.
 function computeEffectiveStatus(store) {
   if (store.plan_status === "disabled") return "disabled";
+  if (store.plan_status === "expired") return "expired";
   if (store.plan === "trial") {
     if (!store.trial_ends) return "trial_active";
     const expired = new Date() >= new Date(store.trial_ends);
@@ -135,32 +136,47 @@ router.get("/admin/payments", adminAuth, async (req, res) => {
 
 router.post("/admin/approve-payment", adminAuth, async (req, res) => {
   const { id, storeId, plan } = req.body;
-  await paymentDB.approve(id, storeId, plan);
+  if (!id || !storeId || !plan)
+    return res.status(400).json({ error: "id, storeId and plan required" });
+  try {
+    await paymentDB.approve(id, storeId, plan);
 
-  // Send email notification
-  const store = await storeDB.findById(storeId);
-  if (store) {
-    const { sendEmail, paymentApprovedEmail } = require("../email");
-    sendEmail(paymentApprovedEmail(store.name, store.email, plan));
+    // Send email notification
+    const store = await storeDB.findById(storeId);
+    if (store) {
+      const { sendEmail, paymentApprovedEmail } = require("../email");
+      sendEmail(paymentApprovedEmail(store.name, store.email, plan)).catch(
+        (e) => console.error("Approve payment email failed:", e.message)
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  res.json({ success: true });
 });
 
 router.post("/admin/reject-payment", adminAuth, async (req, res) => {
   const { id, storeId, plan } = req.body;
-  await paymentDB.reject(id);
+  if (!id) return res.status(400).json({ error: "id required" });
+  try {
+    await paymentDB.reject(id);
 
-  // Send email notification
-  if (storeId && plan) {
-    const store = await storeDB.findById(storeId);
-    if (store) {
-      const { sendEmail, paymentRejectedEmail } = require("../email");
-      sendEmail(paymentRejectedEmail(store.name, store.email, plan));
+    // Send email notification
+    if (storeId && plan) {
+      const store = await storeDB.findById(storeId);
+      if (store) {
+        const { sendEmail, paymentRejectedEmail } = require("../email");
+        sendEmail(paymentRejectedEmail(store.name, store.email, plan)).catch(
+          (e) => console.error("Reject payment email failed:", e.message)
+        );
+      }
     }
-  }
 
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/admin/disable-store", adminAuth, async (req, res) => {
@@ -209,8 +225,14 @@ router.post("/admin/delete-store", adminAuth, async (req, res) => {
 });
 
 router.post("/admin/activate-store", adminAuth, async (req, res) => {
-  await storeDB.activateStore(req.body.storeId);
-  res.json({ success: true });
+  const storeId = String(req.body.storeId || "").trim();
+  if (!storeId) return res.status(400).json({ error: "storeId required" });
+  try {
+    await storeDB.activateStore(storeId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/admin/forgot-password", adminAuthLimiter, async (req, res) => {
@@ -240,10 +262,24 @@ router.post("/admin/reset-password", adminAuthLimiter, async (req, res) => {
   if (!token || !password)
     return res.status(400).json({ error: "Token and password required" });
 
-  if (password.length < 8)
+  // Enforce strong password (same rules as store users)
+  function isStrongAdminPassword(pw) {
+    return (
+      pw.length >= 8 &&
+      /[A-Z]/.test(pw) &&
+      /[a-z]/.test(pw) &&
+      /[0-9]/.test(pw) &&
+      /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
+    );
+  }
+
+  if (!isStrongAdminPassword(password))
     return res
       .status(400)
-      .json({ error: "Password must be at least 8 characters" });
+      .json({
+        error:
+          "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+      });
 
   const record = await tokenDB.verify(token, "admin_reset");
   if (!record)
@@ -680,6 +716,7 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
     "usd_to_pkr",
     "starter_monthly_limit",
     "growth_monthly_limit",
+    "budget_presets",
   ];
 
   // Validate values
@@ -794,9 +831,24 @@ async function runScheduledEmails() {
     onboarding: 0,
     dunning: 0,
     stalePayments: 0,
+    expiredPlans: 0,
+    expiredTrials: 0,
     skipped: 0,
     errors: [],
   };
+
+  // 0. Auto-expire lapsed subscriptions and trials in DB
+  try {
+    results.expiredPlans = await storeDB.expireLapsedPlans();
+    results.expiredTrials = await storeDB.expireExpiredTrials();
+    if (results.expiredPlans > 0 || results.expiredTrials > 0) {
+      console.log(
+        `Expired plans: ${results.expiredPlans} paid, ${results.expiredTrials} trial`,
+      );
+    }
+  } catch (e) {
+    results.errors.push(`expirePlans: ${e.message}`);
+  }
 
   async function sendDripOnce(storeId, emailType, template) {
     const claimed = await emailLogDB.tryClaim(

@@ -2,7 +2,19 @@
   const script    = document.currentScript ||
                     document.querySelector('script[data-store-id]');
   const STORE_ID  = script ? script.getAttribute('data-store-id') : null;
-  const API       = 'https://buildbot-production-3f70.up.railway.app/api';
+
+  function resolveApiBase() {
+    const explicit = script?.getAttribute('data-api-url');
+    if (explicit) return explicit.replace(/\/$/, '');
+    if (script?.src) {
+      try {
+        return new URL(script.src).origin + '/api';
+      } catch (_) { /* fall through */ }
+    }
+    return 'https://buildbot-production-3f70.up.railway.app/api';
+  }
+
+  const API = resolveApiBase();
 
   let BRAND_COLOR  = '#7c6af7';
   let WIDGET_BG    = '#0f1117'; // Default; can be overridden per-store via store-config
@@ -48,6 +60,10 @@
       const res = await fetch(`${API}/store-config/${STORE_ID}`);
       const storeConfig = await res.json();
 
+      if (!res.ok || storeConfig.success === false) {
+        return;
+      }
+
       if (storeConfig.active === false || storeConfig.widgetEnabled === false) {
         return;
       }
@@ -56,7 +72,7 @@
       if (storeConfig.widgetBg)   WIDGET_BG   = storeConfig.widgetBg;
       if (storeConfig.currency)    CURRENCY    = storeConfig.currency;
       if (storeConfig.widgetTitle) WIDGET_TITLE = storeConfig.widgetTitle;
-      if (storeConfig.welcomeMessage) WELCOME_MSG  = storeConfig.welcomeMessage;
+      if (storeConfig.welcomeMsg) WELCOME_MSG  = storeConfig.welcomeMsg;
       if (storeConfig.buttonText)  BUTTON_TEXT  = storeConfig.buttonText;
       
       // Store budget presets for later use
@@ -68,11 +84,7 @@
       injectHTML();
       bindEvents();
     } catch (err) {
-      console.error('BuildBot: Failed to load store config, using defaults.', err);
-      // Fallback to defaults
-      injectStyles();
-      injectHTML();
-      bindEvents();
+      console.error('BuildBot: Failed to load store config.', err);
     }
   }
 
@@ -441,18 +453,19 @@
         $('bb-s6').classList.add('active');
         setProgress(100);
 
-        if (data.success) {
-          _lastBuilds = data.builds || [];
-          _lastCurrency = data.currency || CURRENCY;
-          renderResults(
-            data.builds || [],
-            data.currency || CURRENCY,
-            data.canBuild !== false,
-            data.noBuildsReason || ''
-          );
-        } else {
+        if (!res.ok || !data.success) {
           renderError(data.error || 'Something went wrong.', data.limitReached);
+          return;
         }
+
+        _lastBuilds = data.builds || [];
+        _lastCurrency = data.currency || CURRENCY;
+        renderResults(
+          data.builds || [],
+          data.currency || CURRENCY,
+          data.canBuild !== false,
+          data.noBuildsReason || ''
+        );
       } catch {
         if (bbTimer) clearInterval(bbTimer);
         
@@ -554,10 +567,10 @@
         <div class="bb-build-card ${isFeatured ? 'featured' : ''}" data-build-idx="${i}">
           <div class="bb-card-top">
             <span class="bb-card-tier-badge">${build.tier || 'Build ' + (i+1)}</span>
-            <span class="bb-card-price">${currency} ${Number(build.totalPrice).toLocaleString()}</span>
+            <span class="bb-card-price">${currency} ${Number(build.totalPrice || 0).toLocaleString()}</span>
           </div>
-          <div class="bb-card-name">${build.buildName}</div>
-          <div class="bb-card-tagline">${build.tagline || build.summary || ''}</div>
+          <div class="bb-card-name">${build.buildName || 'Custom PC Build'}</div>
+          <div class="bb-card-tagline">${build.tagline || build.summary || 'A custom build selected for your needs.'}</div>
           <span class="bb-card-budget-tag ${isOver ? 'over' : 'within'}">
             ${isOver
               ? '⚠️ Slightly over budget'
@@ -603,8 +616,8 @@
 
     // Header
     document.getElementById('bb-modal-tier-badge').textContent = build.tier || 'Recommended Build';
-    document.getElementById('bb-modal-title').textContent      = build.buildName;
-    document.getElementById('bb-modal-tagline').textContent    = build.tagline || '';
+    document.getElementById('bb-modal-title').textContent      = build.buildName || 'Custom PC Build';
+    document.getElementById('bb-modal-tagline').textContent    = build.tagline || 'A custom build selected for your needs.';
 
     // Compatibility badge
     const compatibilityBadge = isCompatible 

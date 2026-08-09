@@ -40,11 +40,25 @@ router.post('/recommend', async (req, res) => {
     });
   }
   
+  ipRequests.set(ip, currentRequests + 1);
+
+  // Note: counter is only incremented once here. The duplicate at the end of success path was removed.
+  
   const { budget, purpose, extras, storeId } = req.body;
-const safeExtras = (extras || '').trim().slice(0, 200);
+  const safeExtras = (extras || '').trim().slice(0, 200);
 
   if (!budget || !purpose || !storeId)
     return res.status(400).json({ error: 'budget, purpose and storeId required' });
+
+  try {
+    const maintenanceMode = await configDB.get('maintenance_mode', 'false');
+    if (maintenanceMode === 'true') {
+      return res.status(503).json({
+        error: 'Our service is temporarily under maintenance. Please try again later.',
+        customerMessage: true
+      });
+    }
+  } catch (_) { /* if config DB fails, allow through */ }
 
   const parsedBudget = Number(budget);
   if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
@@ -54,7 +68,8 @@ const safeExtras = (extras || '').trim().slice(0, 200);
     });
   }
 
-  // Check store exists
+  try {
+    // ─── STORE & LIMIT CHECKS (inside try so DB errors are caught) ────
   const store = await storeDB.findById(storeId);
   if (!store)
     return res.status(404).json({ error: 'Store not found' });
@@ -85,15 +100,23 @@ const safeExtras = (extras || '').trim().slice(0, 200);
 
   // Get products
   const products = await productDB.getByStore(storeId);
-  if (!products.length)
-    return res.status(404).json({ error: 'No products in catalog' });
+  if (!products.length) {
+    return res.status(404).json({ 
+      error: 'This store has not added any products to their catalog yet.',
+      customerMessage: true 
+    });
+  }
 
   // Filter out products that are more expensive than the entire budget
   const maxPrice = parsedBudget;
   const filteredProducts = products.filter(p => parseFloat(p.price) <= maxPrice);
 
-  if (!filteredProducts.length)
-    return res.status(404).json({ error: 'No affordable products in catalog' });
+  if (!filteredProducts.length) {
+    return res.status(404).json({ 
+      error: 'Your budget is too low for the products currently available in this store. Please try a higher budget.',
+      customerMessage: true 
+    });
+  }
 
   const currency = store.currency || 'PKR';
   // Compact catalog line — descriptions are NOT sent (saves ~80% input tokens vs full listings)
@@ -102,19 +125,29 @@ const safeExtras = (extras || '').trim().slice(0, 200);
   ).join('\n');
 
   // Check for cached recommendation first (0 API cost)
-  const cachedRec = await analyticsDB.getCachedRecommendation(storeId, parsedBudget, purpose, extras || '');
+  const cachedRec = await analyticsDB.getCachedRecommendation(storeId, parsedBudget, purpose, safeExtras);
   if (cachedRec) {
-    // We still log it so analytics are accurate, but it costs 0 credits
-    await analyticsDB.logRecommendation(storeId, parsedBudget, purpose, safeExtras, cachedRec, {
-      source: 'cached',
-    });
-    // If cached rec is old single-build format (has .buildName), wrap it
-    const isOldFormat = cachedRec.buildName !== undefined && !cachedRec.builds;
+    // cachedRec is the full parsed object stored by logRecommendation
+    // New format: { canBuild, builds: [...], noBuildsReason }
+    // Old format (pre-fix): a single build object with .buildName but no .builds
+    const isOldSingleBuild = cachedRec.buildName !== undefined && !cachedRec.builds;
+    const isFullResult = cachedRec.builds && Array.isArray(cachedRec.builds);
+
+    const buildsToServe = isFullResult
+      ? cachedRec.builds
+      : isOldSingleBuild
+        ? [{ ...cachedRec, tier: cachedRec.tier || 'Recommended Build', tagline: cachedRec.tagline || 'Previously generated recommendation' }]
+        : [];
+
+    const canBuild = isFullResult ? (cachedRec.canBuild !== false) : (buildsToServe.length > 0);
+    const noBuildsReason = isFullResult ? (cachedRec.noBuildsReason || '') : '';
+
+    // Note: IP counter already incremented above; no double-increment here
     return res.json({
       success: true,
-      builds:   isOldFormat ? [{ ...cachedRec, tier: 'Recommended Build', tagline: 'Previously generated recommendation' }] : (cachedRec.builds || [cachedRec]),
-      canBuild: true,
-      noBuildsReason: '',
+      builds:   buildsToServe,
+      canBuild,
+      noBuildsReason,
       currency,
       usage: {
         used:      limitCheck.used + 1,
@@ -229,8 +262,10 @@ ${productList}
 
 TASK: Create exactly 3 builds — "Budget Build" (70-80% budget), "Balanced Build" (88-95%), "Max Build" (~100%).
 Use ONLY exact product names from the catalog. Never invent products. Different total prices per tier.
-If budget < 30000 ${currency}, set canBuild false with noBuildsReason.
+If it is completely impossible to build a functioning PC from the catalog within the budget, set canBuild false and provide a noBuildsReason.
+If essential components (e.g. CPU, Motherboard, RAM) are missing from the catalog, still create the build using what IS available, set compatible to false, list the missing categories in the missingCategories array, and explain what is missing in compatibilityNote.
 Match CPU socket, RAM type (DDR4/DDR5), PSU wattage (20% headroom), case/board size. Quantities allowed (e.g. 2x RAM).
+Calculate totalPrice precisely as the sum of (price * quantity) for all parts. budgetRemaining = ${parsedBudget} - totalPrice.
 
 Optimize for purpose: Gaming→GPU+CPU; Editing→RAM+CPU+SSD; Office→value CPU+8GB RAM; Coding→16GB+fast CPU.
 
@@ -281,12 +316,14 @@ JSON schema:
       aiSettings.outputPricePerM
     );
 
+    // Store the FULL parsed object (all builds) — not just builds[0]
+    // This ensures getCachedRecommendation returns all 3 builds correctly
     await analyticsDB.logRecommendation(
       storeId,
       parsedBudget,
       purpose,
-      extras || '',
-      parsed.builds?.[0] || parsed,
+      safeExtras,
+      parsed,
       {
         source: 'ai',
         model: aiSettings.model,
@@ -310,9 +347,6 @@ JSON schema:
       }
     });
 
-    // Only count successful requests towards the IP limit
-    ipRequests.set(ip, currentRequests + 1);
-
   } catch (err) {
     if (err.status === 401) {
       console.error(
@@ -331,6 +365,16 @@ JSON schema:
       error: 'Our AI is taking a quick coffee break! Please try again in a few minutes.',
       customerMessage: true
     });
+  }
+  } catch (outerErr) {
+    // Catch any DB/network errors from store checks, product fetching, or cache lookup
+    console.error('Recommend handler error:', outerErr.message || outerErr);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Service temporarily unavailable. Please try again.',
+        customerMessage: true
+      });
+    }
   }
 });
 

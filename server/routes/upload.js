@@ -4,12 +4,31 @@ const csv     = require('csv-parser');
 const { Readable } = require('stream');
 const { productDB, storeDB, client } = require('../database');
 const { authMiddleware }    = require('./auth');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB max
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 mins
+  max: 20, // max 20 uploads per 15 mins per store
+  message: { error: 'Too many uploads. Please try again later.' }
+});
 
 // ─── UPLOAD CSV ───────────────────────────────────────────
-router.post('/upload', authMiddleware, upload.single('catalog'), async (req, res) => {
+router.post('/upload', authMiddleware, uploadLimiter, (req, res, next) => {
+  upload.single('catalog')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE')
+        return res.status(400).json({ error: 'File too large. Maximum size is 2MB.' });
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const storeId  = req.store.storeId;
   const products = [];
@@ -37,6 +56,15 @@ router.post('/upload', authMiddleware, upload.single('catalog'), async (req, res
 
 // ─── GET ALL PRODUCTS (public, for widget) ────────────────
 router.get('/products/:storeId', async (req, res) => {
+  // Only expose catalog for active, widget-enabled stores
+  const store = await storeDB.findById(req.params.storeId);
+  if (!store) return res.status(404).json({ error: 'Store not found' });
+
+  const active = await storeDB.isActive(req.params.storeId);
+  if (!active || store.widget_enabled === 0 || store.plan_status === 'disabled') {
+    return res.status(403).json({ error: 'Store catalog not available' });
+  }
+
   const products = await productDB.getByStore(req.params.storeId);
   if (!products.length)
     return res.status(404).json({ error: 'No products found' });
@@ -81,12 +109,14 @@ router.put('/product/:id', authMiddleware, async (req, res) => {
   if (!name || !category || !price)
     return res.status(400).json({ error: 'Name, category and price are required' });
   try {
-    await client.execute({
+    const result = await client.execute({
       sql:  `UPDATE products SET name=?, category=?, price=?, description=?
              WHERE id=? AND store_id=?`,
       args: [name, category, parseFloat(price), description || '',
              req.params.id, req.store.storeId]
     });
+    if ((result.rowsAffected ?? 0) === 0)
+      return res.status(404).json({ error: 'Product not found or access denied' });
     await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true, message: 'Product updated!' });
   } catch(err) {
@@ -112,10 +142,12 @@ router.put('/product/:id/stock', authMiddleware, async (req, res) => {
 // ─── DELETE PRODUCT ───────────────────────────────────────
 router.delete('/product/:id', authMiddleware, async (req, res) => {
   try {
-    await client.execute({
+    const result = await client.execute({
       sql:  'DELETE FROM products WHERE id=? AND store_id=?',
       args: [req.params.id, req.store.storeId]
     });
+    if ((result.rowsAffected ?? 0) === 0)
+      return res.status(404).json({ error: 'Product not found or access denied' });
     await storeDB.touchCatalog(req.store.storeId);
     res.json({ success: true, message: 'Product deleted!' });
   } catch(err) {

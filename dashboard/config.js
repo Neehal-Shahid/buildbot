@@ -14,6 +14,36 @@ window.BB_API = BUILDBOT_API;
 window.BB_ORIGIN = BUILDBOT_API.replace(/\/api\/?$/, '');
 window.BB_SUPPORT_EMAIL = 'workwithneehal@gmail.com';
 
+// Session TTL — must match server JWT expiry (7 days)
+window.BB_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+window.BB_setTokenSession = function (token, store) {
+  localStorage.setItem('bb_token', token);
+  if (store) localStorage.setItem('bb_store', JSON.stringify(store));
+  localStorage.setItem('bb_token_expires', String(Date.now() + window.BB_TOKEN_TTL_MS));
+};
+
+window.BB_refreshTokenExpiry = function () {
+  localStorage.setItem('bb_token_expires', String(Date.now() + window.BB_TOKEN_TTL_MS));
+};
+
+window.BB_isTokenExpired = function () {
+  const expires = localStorage.getItem('bb_token_expires');
+  if (!expires) return false;
+  return Date.now() > Number(expires);
+};
+
+window.BB_clearSession = function () {
+  localStorage.removeItem('bb_token');
+  localStorage.removeItem('bb_store');
+  localStorage.removeItem('bb_token_expires');
+};
+
+window.BB_getWidgetScriptUrl = function (storeId) {
+  const origin = window.BB_ORIGIN || BUILDBOT_API.replace(/\/api\/?$/, '');
+  return `<script src="${origin}/widget.js" data-store-id="${storeId}"><\/script>`;
+};
+
 // Global Loader Interceptor
 let fetchCount = 0;
 const originalFetch = window.fetch;

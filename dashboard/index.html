@@ -152,11 +152,24 @@
         border-radius: 14px;
         padding: 28px;
         text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      }
+
+      .feature:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        border-color: var(--primary);
       }
 
       .feature .fi {
         font-size: 36px;
         margin-bottom: 16px;
+        display: inline-block;
+        transition: transform 0.3s ease;
+      }
+      
+      .feature:hover .fi {
+        transform: scale(1.1);
       }
 
       .feature h3 {
@@ -203,6 +216,12 @@
         border-radius: 14px;
         padding: 28px;
         text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      
+      .plan-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
       }
 
       .plan-card.featured {
@@ -3689,15 +3708,31 @@
       const FORCE_DASHBOARD =
         new URLSearchParams(window.location.search).get("dashboard") === "1";
       function clearSession() {
-        localStorage.removeItem("bb_token");
-        localStorage.removeItem("bb_store");
-        localStorage.removeItem("bb_token_expires");
+        if (window.BB_clearSession) window.BB_clearSession();
+        else {
+          localStorage.removeItem("bb_token");
+          localStorage.removeItem("bb_store");
+          localStorage.removeItem("bb_token_expires");
+        }
       }
 
       function isSessionExpired() {
+        if (window.BB_isTokenExpired) return window.BB_isTokenExpired();
         const expires = localStorage.getItem("bb_token_expires");
-        if (!expires) return false; // old sessions without expiry: don't force logout, let server verify
+        if (!expires) return false;
         return Date.now() > Number(expires);
+      }
+
+      function saveSession(token, store) {
+        if (window.BB_setTokenSession) window.BB_setTokenSession(token, store);
+        else {
+          localStorage.setItem("bb_token", token);
+          if (store) localStorage.setItem("bb_store", JSON.stringify(store));
+          localStorage.setItem(
+            "bb_token_expires",
+            String(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          );
+        }
       }
 
       // Auto-clear expired session before anything else runs
@@ -4138,12 +4173,7 @@
           });
           const data = await res.json();
           if (data.success) {
-            localStorage.setItem("bb_token", data.token);
-            localStorage.setItem("bb_store", JSON.stringify(data.store));
-            localStorage.setItem(
-              "bb_token_expires",
-              String(Date.now() + 3 * 24 * 60 * 60 * 1000),
-            );
+            saveSession(data.token, data.store);
             token = data.token;
             currentStore = data.store;
 
@@ -4654,14 +4684,7 @@
           if (data.success) {
             token = data.token;
             currentStore = data.store;
-            localStorage.removeItem("bb_token");
-            localStorage.removeItem("bb_store");
-            localStorage.setItem("bb_token", token);
-            localStorage.setItem("bb_store", JSON.stringify(currentStore));
-            localStorage.setItem(
-              "bb_token_expires",
-              String(Date.now() + 3 * 24 * 60 * 60 * 1000),
-            );
+            saveSession(token, currentStore);
             window.location.href = "dashboard.html";
           } else if (res.status === 403 && data.requiresVerification) {
             pendingVerificationEmail = email;

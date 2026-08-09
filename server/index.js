@@ -17,7 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({ origin: "*" }));
-app.use(express.json());
+// Limit JSON body to 1MB to prevent payload-based DoS attacks
+app.use(express.json({ limit: "1mb" }));
 
 // Routes
 app.use("/api", authRoute);
@@ -77,6 +78,24 @@ app.get("/plugin-update.json", (req, res) => {
 // Health check
 app.get("/", (req, res) => {
   res.json({ status: "BuildBot server is running!", version: "2.0" });
+});
+
+// ─── GLOBAL ERROR HANDLER ─────────────────────────────────
+// Catches any unhandled async errors thrown from route handlers
+// Prevents the server from hanging or returning HTML error pages
+app.use((err, req, res, next) => {
+  console.error("Unhandled route error:", err.message || err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── PROCESS-LEVEL CRASH GUARDS ───────────────────────────
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception — server will keep running:", err.message);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Promise Rejection:", reason);
 });
 
 // Start server only after DB is ready

@@ -261,7 +261,7 @@ CATALOG (format: #. [category] exact_product_name | price ${currency}):
 ${productList}
 
 TASK: Create exactly 3 builds — "Budget Build" (70-80% budget), "Balanced Build" (88-95%), "Max Build" (~100%).
-Use ONLY exact product names from the catalog. Never invent products. Different total prices per tier.
+IMPORTANT: Use ONLY EXACT product names from the catalog. Never abbreviate or invent products.
 If it is completely impossible to build a functioning PC from the catalog within the budget, set canBuild false and provide a noBuildsReason.
 If essential components (e.g. CPU, Motherboard, RAM) are missing from the catalog, still create the build using what IS available, set compatible to false, list the missing categories in the missingCategories array, and explain what is missing in compatibilityNote.
 Match CPU socket, RAM type (DDR4/DDR5), PSU wattage (20% headroom), case/board size. Quantities allowed (e.g. 2x RAM).
@@ -306,6 +306,38 @@ JSON schema:
 
     if (!parsed)
       return res.status(500).json({ error: 'AI response invalid', customerMessage: true });
+
+    // POST-PROCESSING: Fix AI Math & Prices
+    if (parsed.builds && Array.isArray(parsed.builds)) {
+      // Create a quick lookup for real prices based on exact name (case-insensitive)
+      const catalogMap = new Map();
+      filteredProducts.forEach(p => {
+        if (p.name) catalogMap.set(p.name.trim().toLowerCase(), parseFloat(p.price));
+      });
+
+      parsed.builds.forEach(build => {
+        if (build.parts && Array.isArray(build.parts)) {
+          let realBuildTotal = 0;
+          build.parts.forEach(part => {
+            // Find real price from catalog
+            const nameKey = (part.name || '').trim().toLowerCase();
+            const realPrice = catalogMap.has(nameKey) ? catalogMap.get(nameKey) : parseFloat(part.price) || 0;
+            
+            // Enforce real price and math
+            part.price = realPrice;
+            const qty = parseInt(part.quantity) || 1;
+            part.quantity = qty;
+            part.totalPrice = realPrice * qty;
+            
+            realBuildTotal += part.totalPrice;
+          });
+          
+          build.totalPrice = realBuildTotal;
+          build.budgetRemaining = parsedBudget - realBuildTotal;
+          build.withinBudget = build.budgetRemaining >= 0;
+        }
+      });
+    }
 
     const inputTokens = message.usage?.input_tokens || 0;
     const outputTokens = message.usage?.output_tokens || 0;

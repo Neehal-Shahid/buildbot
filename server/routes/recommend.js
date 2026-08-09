@@ -103,6 +103,22 @@ function getPurposeProfile(purpose) {
       storageBias: 1.08,
       tag: "Streaming",
     };
+  if (text.includes("office"))
+    return {
+      gpuBias: 0.6,
+      cpuBias: 1.0,
+      ramBias: 1.05,
+      storageBias: 1.15,
+      tag: "Office",
+    };
+  if (text.includes("stud"))
+    return {
+      gpuBias: 0.7,
+      cpuBias: 1.0,
+      ramBias: 1.1,
+      storageBias: 1.05,
+      tag: "Studies",
+    };
   return {
     gpuBias: 1.0,
     cpuBias: 1.0,
@@ -211,6 +227,34 @@ function psuSufficient(psu, cpu, gpu) {
   const psuW = detectWattage(psu);
   if (!psuW) return true; // no wattage info — don't block, best effort
   return psuW >= requiredPsuWattage(cpu, gpu);
+}
+
+// Whether a CPU can drive a display on its own (no discrete GPU needed).
+// Used only when a GPU had to be dropped from a build to fit budget, so we
+// can warn the customer if the picked CPU truly needs a graphics card to
+// output any video at all. "unknown" means the name/description gave no
+// clear signal either way — we still allow the build, but flag it.
+function integratedGraphicsStatus(cpu) {
+  const text = specText(cpu).toLowerCase();
+  if (
+    text.includes("integrated graphics") ||
+    text.includes("igpu") ||
+    text.includes("uhd graphics") ||
+    text.includes("iris xe") ||
+    text.includes("iris x") ||
+    text.includes("radeon graphics") ||
+    text.includes("vega graphics") ||
+    /\b\d{3,5}ge?\b/i.test(text) // AMD Ryzen "G"/"GE" APU suffix, e.g. 5600G
+  )
+    return "present";
+  if (
+    text.includes("no integrated graphics") ||
+    text.includes("without integrated graphics") ||
+    text.includes("no igpu") ||
+    /\b\d{3,5}k?f\b/i.test(text) // Intel "F"/"KF" suffix, e.g. 13400F, 13900KF
+  )
+    return "none";
+  return "unknown";
 }
 
 // ─── Candidate pools ───────────────────────────────────────────────
@@ -361,7 +405,8 @@ const FILL_ORDER = [
 // every category just takes its cheapest compatible option. This is used
 // both to find the Budget tier and, during the feasibility scan, to find
 // which anchor pairs can even form a complete build at all.
-function cheapestFillFromPair(catalogByCategory, pair) {
+function cheapestFillFromPair(catalogByCategory, pair, skipCategories) {
+  const skip = skipCategories || EMPTY_SKIP_SET;
   const ctx = {
     cpu: pair.cpu,
     board: pair.board,
@@ -374,6 +419,10 @@ function cheapestFillFromPair(catalogByCategory, pair) {
   let spent = pair.cpu.price + pair.board.price;
 
   FILL_ORDER.forEach((category) => {
+    if (skip.has(category)) {
+      missing.push({ category, reason: "excluded_for_budget" });
+      return;
+    }
     const allInCat = catalogByCategory.get(category) || [];
     const compatible = compatibleCandidates(category, catalogByCategory, ctx);
     if (!compatible.length) {
@@ -391,6 +440,7 @@ function cheapestFillFromPair(catalogByCategory, pair) {
 
   return { parts, total: spent, missing, ctx };
 }
+const EMPTY_SKIP_SET = new Set();
 
 // Hard safety net: guarantees the final total never exceeds budget by
 // swapping in the next-cheapest compatible alternative for whichever
@@ -538,7 +588,14 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
   const totalPrice = Math.round(b.total);
   const withinBudget = totalPrice <= budget;
   const budgetRemaining = budget - totalPrice;
-  const missingCategories = b.missing.map((m) => m.category);
+  // "excluded_for_budget" parts (currently only GPU) are in stock but were
+  // deliberately left out to keep the build affordable — that's a different
+  // story than a category the store simply doesn't stock, so it's kept out
+  // of missingCategories/missingNote (which read as "not available in
+  // store") and surfaced separately via gpuExcludedForBudget/gpuBudgetNote.
+  const missingCategories = b.missing
+    .filter((m) => m.reason !== "excluded_for_budget")
+    .map((m) => m.category);
   const compatible = !b.missing.some((m) => REQUIRED_SET.has(m.category));
 
   const buildName =
@@ -566,6 +623,20 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     ? ` Not available in the store's current inventory: ${missingCategories.join(", ")}.`
     : "";
 
+  const gpuExcludedForBudget = b.missing.some(
+    (m) => m.category === "GPU" && m.reason === "excluded_for_budget",
+  );
+  const gpuBudgetNote = gpuExcludedForBudget
+    ? (() => {
+        const igpu = integratedGraphicsStatus(b.ctx.cpu);
+        if (igpu === "present")
+          return ` No graphics card in this build — this CPU has built-in (integrated) graphics, so you'll still get a display; a graphics card wasn't added because doing so would push this build over your budget with the store's current stock.`;
+        if (igpu === "none")
+          return ` No graphics card in this build — adding one would push this build over your budget with the store's current stock, and this CPU does NOT have integrated graphics, so you will need to add a graphics card separately (even a cheap one) to get any display output.`;
+        return ` No graphics card in this build — adding one would push this build over your budget with the store's current stock. Please confirm this CPU has integrated graphics before buying; if it doesn't, you'll need a separate graphics card for a display signal.`;
+      })()
+    : "";
+
   return {
     tier,
     tagline,
@@ -579,7 +650,8 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
       : `This store's inventory is missing required parts: ${missingCategories.join(", ")}.`,
     parts: b.parts,
     missingCategories,
-    summary: summaryBase + missingNote,
+    gpuExcludedForBudget,
+    summary: summaryBase + missingNote + gpuBudgetNote,
     tips:
       tier === "Budget Build"
         ? "Every part here was picked to keep cost as low as possible while staying compatible."
@@ -640,10 +712,42 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     return { canBuild: false, noBuildsReason, builds: [] };
   }
 
-  const cheapestEntry = feasible.reduce(
+  let cheapestEntry = feasible.reduce(
     (min, e) => (e.floor.total < min.floor.total ? e : min),
     feasible[0],
   );
+
+  // If even the cheapest build (including a discrete GPU) blows the budget,
+  // try again with the GPU dropped — a cheaper CPU+board+RAM+storage+PSU+case
+  // build without a graphics card may still fit, and is more useful to the
+  // customer than a flat "can't build" refusal. Only worth trying when a
+  // GPU was actually part of what pushed the cost over.
+  if (
+    cheapestEntry.floor.total > budget &&
+    cheapestEntry.floor.parts.some((p) => p.category === "GPU")
+  ) {
+    const gpuSkip = new Set(["GPU"]);
+    const noGpuFeasible = candidatePairs
+      .map((pair) => ({
+        pair,
+        floor: cheapestFillFromPair(catalogByCategory, pair, gpuSkip),
+      }))
+      .filter((e) => !requiredMissing(e.floor) && e.floor.total <= budget);
+
+    if (noGpuFeasible.length) {
+      // Prefer anchor pairs whose CPU is known/likely to have integrated
+      // graphics (so the customer still gets a display out of the box);
+      // among equally-confident options, pick the cheapest.
+      const igpuRank = { present: 2, unknown: 1, none: 0 };
+      noGpuFeasible.sort((a, b) => {
+        const rank =
+          igpuRank[integratedGraphicsStatus(b.pair.cpu)] -
+          igpuRank[integratedGraphicsStatus(a.pair.cpu)];
+        return rank !== 0 ? rank : a.floor.total - b.floor.total;
+      });
+      cheapestEntry = noGpuFeasible[0];
+    }
+  }
 
   if (cheapestEntry.floor.total > budget) {
     const cheapestTotal = Math.round(cheapestEntry.floor.total);

@@ -589,6 +589,11 @@
                   : "✓ Within budget"
             }
           </span>
+          ${
+            build.gpuExcludedForBudget
+              ? `<span class="bb-card-gpu-warn" style="display:inline-block;margin-top:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#fff3cd;color:#8a6100;">⚠️ No graphics card (didn't fit your budget)</span>`
+              : ""
+          }
           <div class="bb-card-parts-preview">${previewParts}</div>
           <div class="bb-card-cta">
             <span class="bb-card-cta-text">View full build</span>

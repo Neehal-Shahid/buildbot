@@ -257,6 +257,46 @@ function integratedGraphicsStatus(cpu) {
   return "unknown";
 }
 
+// Whether the CPU itself already ships with a usable stock cooler, judged
+// only from that CPU's own listing text — most boxed, non-overclocking CPUs
+// include one, and store owners who bundle a cooler tend to say so. Absence
+// of a signal defaults to "needs a cooler" (today's behavior), since that's
+// the safer assumption for high-TDP/unlocked chips that never include one.
+function cpuHasBundledCooler(cpu) {
+  const text = specText(cpu).toLowerCase();
+  return (
+    text.includes("stock cooler") ||
+    text.includes("cooler included") ||
+    text.includes("bundled cooler") ||
+    text.includes("includes cooler") ||
+    text.includes("comes with cooler") ||
+    text.includes("boxed with cooler") ||
+    text.includes("with stock fan")
+  );
+}
+
+// Whether the case already comes with enough fans for decent airflow,
+// judged only from that case's own listing text. Absence of a signal
+// defaults to "needs fans" (today's behavior) — most bare case listings
+// only guarantee a single stock fan, not enough for real airflow.
+function caseIncludesFans(caseItem) {
+  const text = specText(caseItem).toLowerCase();
+  if (
+    text.includes("no fans") ||
+    text.includes("fan not included") ||
+    text.includes("fans not included")
+  )
+    return false;
+  return (
+    text.includes("fans included") ||
+    text.includes("fan included") ||
+    text.includes("pre-installed fan") ||
+    text.includes("pre installed fan") ||
+    text.includes("preinstalled fan") ||
+    /\b[2-9]\s*x?\s*fans?\b/i.test(text) // "3 fans", "2x fans" etc — one fan alone isn't enough airflow
+  );
+}
+
 // ─── Candidate pools ───────────────────────────────────────────────
 
 function buildCatalogByCategory(products) {
@@ -423,6 +463,14 @@ function cheapestFillFromPair(catalogByCategory, pair, skipCategories) {
       missing.push({ category, reason: "excluded_for_budget" });
       return;
     }
+    if (category === "CPU Cooler" && cpuHasBundledCooler(ctx.cpu)) {
+      missing.push({ category, reason: "not_needed" });
+      return;
+    }
+    if (category === "Case Fans" && ctx.case && caseIncludesFans(ctx.case)) {
+      missing.push({ category, reason: "not_needed" });
+      return;
+    }
     const allInCat = catalogByCategory.get(category) || [];
     const compatible = compatibleCandidates(category, catalogByCategory, ctx);
     if (!compatible.length) {
@@ -436,6 +484,7 @@ function cheapestFillFromPair(catalogByCategory, pair, skipCategories) {
     parts.push(partEntry(category, chosen));
     spent += chosen.price;
     if (category === "GPU") ctx.gpu = chosen;
+    if (category === "Case") ctx.case = chosen;
   });
 
   return { parts, total: spent, missing, ctx };
@@ -588,13 +637,13 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
   const totalPrice = Math.round(b.total);
   const withinBudget = totalPrice <= budget;
   const budgetRemaining = budget - totalPrice;
-  // "excluded_for_budget" parts (currently only GPU) are in stock but were
-  // deliberately left out to keep the build affordable — that's a different
-  // story than a category the store simply doesn't stock, so it's kept out
-  // of missingCategories/missingNote (which read as "not available in
-  // store") and surfaced separately via gpuExcludedForBudget/gpuBudgetNote.
+  // "excluded_for_budget" (currently only GPU) and "not_needed" (CPU Cooler/
+  // Case Fans the build genuinely doesn't need) parts are deliberate
+  // omissions, not gaps in the store's stock — kept out of
+  // missingCategories/missingNote (which read as "not available in store")
+  // and surfaced separately via their own notes below.
   const missingCategories = b.missing
-    .filter((m) => m.reason !== "excluded_for_budget")
+    .filter((m) => m.reason !== "excluded_for_budget" && m.reason !== "not_needed")
     .map((m) => m.category);
   const compatible = !b.missing.some((m) => REQUIRED_SET.has(m.category));
 
@@ -637,6 +686,19 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
       })()
     : "";
 
+  const notNeededCategories = b.missing
+    .filter((m) => m.reason === "not_needed")
+    .map((m) => m.category);
+  const notNeededNote = notNeededCategories
+    .map((c) =>
+      c === "CPU Cooler"
+        ? " No separate CPU cooler included — this CPU already ships with its own stock cooler, which is enough for standard use."
+        : c === "Case Fans"
+          ? " No extra case fans included — the chosen case already comes with fans pre-installed."
+          : "",
+    )
+    .join("");
+
   return {
     tier,
     tagline,
@@ -651,7 +713,7 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     parts: b.parts,
     missingCategories,
     gpuExcludedForBudget,
-    summary: summaryBase + missingNote + gpuBudgetNote,
+    summary: summaryBase + missingNote + gpuBudgetNote + notNeededNote,
     tips:
       tier === "Budget Build"
         ? "Every part here was picked to keep cost as low as possible while staying compatible."

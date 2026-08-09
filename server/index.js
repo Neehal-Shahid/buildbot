@@ -9,7 +9,6 @@ const uploadRoute = require("./routes/upload");
 const recommendRoute = require("./routes/recommend");
 const { router: authRoute } = require("./routes/auth");
 const analyticsRoute = require("./routes/analytics");
-const paymentRoute = require("./routes/payment");
 const adminRoute = require("./routes/admin");
 const pluginRoute = require("./routes/plugin");
 
@@ -25,7 +24,6 @@ app.use("/api", authRoute);
 app.use("/api", uploadRoute);
 app.use("/api", recommendRoute);
 app.use("/api", analyticsRoute);
-app.use("/api", paymentRoute);
 app.use("/api", adminRoute);
 app.use("/api", pluginRoute);
 

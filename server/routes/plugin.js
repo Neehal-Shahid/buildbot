@@ -34,19 +34,11 @@ async function authenticatePlugin(req, res) {
     return null;
   }
 
-  if (store.plan_status === "disabled") {
-    res.status(403).json({
-      success: false,
-      error: "This store account has been disabled.",
-    });
-    return null;
-  }
-
   const active = await storeDB.isActive(store.store_id);
   if (!active) {
     res.status(403).json({
       success: false,
-      error: "This store subscription is inactive or expired.",
+      error: "This store account has been disabled.",
     });
     return null;
   }
@@ -695,7 +687,6 @@ router.post("/plugin/ping", async (req, res) => {
       message: "Connected successfully!",
       storeName: store.name,
       storeId: store.store_id,
-      plan: store.plan,
       wooConnected: store.woo_connected === 1,
     });
   } catch (err) {

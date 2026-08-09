@@ -184,101 +184,6 @@
         line-height: 1.6;
       }
 
-      .pricing {
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 0 20px 80px;
-      }
-
-      .pricing h2 {
-        text-align: center;
-        font-size: 28px;
-        color: #fff;
-        margin-bottom: 8px;
-      }
-
-      .pricing .sub {
-        text-align: center;
-        color: var(--muted);
-        font-size: 14px;
-        margin-bottom: 40px;
-      }
-
-      .plans-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-      }
-
-      .plan-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 28px;
-        text-align: center;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-      }
-      
-      .plan-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      }
-
-      .plan-card.featured {
-        border-color: var(--primary);
-        position: relative;
-      }
-
-      .plan-badge {
-        position: absolute;
-        top: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--primary);
-        color: #fff;
-        font-size: 11px;
-        font-weight: 700;
-        padding: 4px 14px;
-        border-radius: 20px;
-      }
-
-      .plan-name {
-        font-size: 14px;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
-
-      .plan-price {
-        font-size: 32px;
-        font-weight: 800;
-        color: #fff;
-        margin-bottom: 4px;
-      }
-
-      .plan-price span {
-        font-size: 14px;
-        color: var(--muted);
-        font-weight: 400;
-      }
-
-      .plan-features {
-        list-style: none;
-        margin: 20px 0;
-        text-align: left;
-      }
-
-      .plan-features li {
-        font-size: 13px;
-        color: var(--muted);
-        padding: 6px 0;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .plan-features li::before {
-        content: "✓ ";
-        color: var(--success);
-      }
-
       /* ── AUTH ── */
       .auth-wrap {
         display: flex;
@@ -505,65 +410,6 @@
         text-align: right;
       }
 
-      /* ── PLAN SELECTOR ── */
-      .plan-selector {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-
-      .plan-opt {
-        border: 2px solid var(--border);
-        border-radius: 10px;
-        padding: 16px;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
-      }
-
-      .plan-opt:hover {
-        border-color: var(--primary);
-      }
-
-      .plan-opt.selected {
-        border-color: var(--primary);
-        background: #1a1a3a;
-      }
-
-      .plan-opt .po-name {
-        font-size: 13px;
-        font-weight: 700;
-        color: #fff;
-        margin-bottom: 4px;
-      }
-
-      .plan-opt .po-price {
-        font-size: 12px;
-        color: var(--primary);
-      }
-
-      /* ── TRIAL BANNER ── */
-      .trial-banner {
-        background: linear-gradient(135deg, #1a1a3a, #2a1a3a);
-        border: 1px solid var(--primary);
-        border-radius: 10px;
-        padding: 14px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 24px;
-      }
-
-      .trial-banner p {
-        font-size: 13px;
-        color: var(--text);
-      }
-
-      .trial-banner span {
-        color: var(--primary);
-        font-weight: 700;
-      }
 
       .two-col {
         display: grid;
@@ -1712,143 +1558,6 @@
         text-align: center;
       }
 
-      .pricing-section {
-        background: var(--bg-elevated);
-      }
-
-      .pricing-grid {
-        max-width: 900px;
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-      }
-
-      .price-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 36px 28px;
-        position: relative;
-        overflow: hidden;
-        transition:
-          transform 0.25s ease,
-          border-color 0.25s ease,
-          box-shadow 0.25s ease;
-        isolation: isolate;
-      }
-
-      .price-card::before {
-        content: "";
-        position: absolute;
-        inset: -50% auto auto -30%;
-        width: 180px;
-        height: 180px;
-        background: radial-gradient(
-          circle,
-          rgba(108, 92, 231, 0.16),
-          transparent 70%
-        );
-        pointer-events: none;
-        transform: translateY(-10px);
-      }
-
-      .price-card:hover {
-        transform: translateY(-6px);
-        border-color: var(--border-light);
-        box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
-      }
-
-      .price-card.featured {
-        border-color: var(--accent);
-      }
-
-      .price-badge {
-        position: absolute;
-        top: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--accent);
-        color: #fff;
-        border-radius: 100px;
-        padding: 5px 12px;
-        font-size: 11px;
-        letter-spacing: 1px;
-      }
-
-      .price-plan {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: var(--text-secondary);
-      }
-
-      .price-amount {
-        font-family: "Montserrat", sans-serif;
-        font-weight: 800;
-        font-size: 40px;
-        color: var(--text-primary);
-        margin-top: 12px;
-      }
-
-      .price-amount span {
-        font-family: "Poppins", sans-serif;
-        font-size: 14px;
-        color: var(--text-secondary);
-        font-weight: 400;
-      }
-
-      .price-divider {
-        border-top: 1px solid var(--border);
-        margin: 24px 0;
-      }
-
-      .price-features {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 24px;
-        display: grid;
-        gap: 8px;
-        color: var(--text-secondary);
-        font-size: 14px;
-      }
-
-      .price-features li::before {
-        content: "✓";
-        color: var(--success);
-        margin-right: 8px;
-        font-weight: 700;
-      }
-
-      .price-btn {
-        width: 100%;
-        border-radius: 100px;
-        padding: 13px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .price-btn.outline {
-        border: 1px solid var(--border-light);
-        background: transparent;
-        color: var(--text-primary);
-      }
-
-      .price-btn.solid {
-        border: 1px solid var(--accent);
-        background: var(--accent);
-        color: #fff;
-      }
-
-      .price-foot {
-        margin-top: 22px;
-        text-align: center;
-        font-size: 13px;
-        color: var(--text-dim);
-      }
-
       .faq-list {
         max-width: 680px;
         margin: 0 auto;
@@ -2611,7 +2320,6 @@
         .how-steps,
         .features-grid,
         .demo-layout,
-        .pricing-grid,
         .impact-grid,
         .use-cases-grid,
         .integrations-row {
@@ -2620,10 +2328,6 @@
 
         .how-steps::before {
           display: none;
-        }
-
-        .pricing-grid .price-card.featured {
-          order: -1;
         }
 
         .widget-panel {
@@ -2670,9 +2374,6 @@
         <div class="nav-link" onclick="scrollToLandingSection('how-it-works')">
           Features
         </div>
-        <div class="nav-link" onclick="scrollToLandingSection('pricing')">
-          Pricing
-        </div>
         <div
           class="nav-link"
           id="nav-logout-link"
@@ -2697,7 +2398,7 @@
           id="nav-signup-link"
           onclick="showPage('signup')"
         >
-          Start Free Trial
+          Get Started Free
         </div>
       </div>
       <div class="nav-user" id="nav-user" style="display: none"></div>
@@ -2725,7 +2426,7 @@
           </p>
           <div class="hero-ctas">
             <button class="landing-btn primary" onclick="showPage('signup')">
-              Start Free Trial — 14 Days Free
+              Get Started — Free
             </button>
             <button
               class="landing-btn secondary"
@@ -2867,7 +2568,7 @@
               <div class="feature-icon">🇵🇰</div>
               <h3>Built for Pakistan</h3>
               <p>
-                PKR pricing, JazzCash & EasyPaisa payments, built by someone who
+                Recommendations priced in PKR, built by someone who
                 understands the local market.
               </p>
             </article>
@@ -3022,68 +2723,6 @@
           </div>
         </section>
 
-        <section class="pricing-section grid-overlay" id="pricing" data-reveal>
-          <div class="section-label">PRICING</div>
-          <h2 class="section-title">Start Free. Scale When You're Ready.</h2>
-          <p class="section-subtitle" id="pricing-subtitle">Loading plans…</p>
-          <div class="pricing-grid">
-            <article class="price-card">
-              <div class="price-plan">Starter</div>
-              <div class="price-amount" id="price-starter-amount">
-                Rs — <span>/mo</span>
-              </div>
-              <div class="price-divider"></div>
-              <ul class="price-features">
-                <li id="price-starter-limit">— recommendations/month</li>
-                <li>CSV product upload</li>
-                <li>Basic analytics</li>
-                <li>Brand color customization</li>
-                <li>Email support</li>
-              </ul>
-              <button class="price-btn outline" onclick="showPage('signup')">
-                Start Free Trial
-              </button>
-            </article>
-            <article class="price-card featured">
-              <div class="price-badge">MOST POPULAR</div>
-              <div class="price-plan">Growth</div>
-              <div class="price-amount" id="price-growth-amount">
-                Rs — <span>/mo</span>
-              </div>
-              <div class="price-divider"></div>
-              <ul class="price-features">
-                <li id="price-growth-limit">— recommendations/month</li>
-                <li>WooCommerce auto-sync</li>
-                <li>Full analytics dashboard</li>
-                <li>Custom widget text and branding</li>
-                <li>Priority support</li>
-              </ul>
-              <button class="price-btn solid" onclick="showPage('signup')">
-                Start Free Trial
-              </button>
-            </article>
-            <article class="price-card">
-              <div class="price-plan">Pro</div>
-              <div class="price-amount" id="price-pro-amount">
-                Rs — <span>/mo</span>
-              </div>
-              <div class="price-divider"></div>
-              <ul class="price-features">
-                <li>Unlimited recommendations</li>
-                <li>White-label (no BuildBot branding)</li>
-                <li>Advanced analytics</li>
-                <li>Dedicated WhatsApp support</li>
-                <li>Early access to new features</li>
-              </ul>
-              <button class="price-btn outline" onclick="showPage('signup')">
-                Start Free Trial
-              </button>
-            </article>
-          </div>
-          <div class="price-foot" id="pricing-foot">
-            Loading payment details…
-          </div>
-        </section>
 
         <section data-reveal>
           <div class="section-label">FAQ</div>
@@ -3116,39 +2755,21 @@
                 are marked in-stock. Your customers stay on your store.
               </p>
             </details>
-            <details class="faq-item">
-              <summary>How do I pay?</summary>
-              <p>
-                We accept JazzCash and EasyPaisa. After sending payment, you
-                submit your transaction ID in the dashboard. We manually verify
-                and activate your plan within 24 hours.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary id="faq-trial-summary">
-                What happens after my free trial?
-              </summary>
-              <p>
-                Your widget will stop generating recommendations until you
-                subscribe to a paid plan. All your settings, products, and data
-                are saved. You pick up exactly where you left off.
-              </p>
-            </details>
           </div>
         </section>
 
         <section class="final-cta" data-reveal>
           <h2>Your Competitors' Customers<br />Are Already Asking BuildBot.</h2>
           <p id="cta-trial-text">
-            Start your free trial today. No credit card. No commitment. Just a
-            smarter PC store.
+            Get started today — free to use, no credit card, no commitment.
+            Just a smarter PC store.
           </p>
           <button
             class="landing-btn primary"
             style="padding: 16px 44px; font-size: 16px"
             onclick="showPage('signup')"
           >
-            Start My Free Trial →
+            Get Started Free →
           </button>
           <div class="tiny">Takes less than 2 minutes to set up.</div>
         </section>
@@ -3165,11 +2786,9 @@
             <div class="footer-right">
               <a onclick="scrollToLandingSection('how-it-works')">Features</a>
               <span style="color: var(--text-dim)">·</span>
-              <a onclick="scrollToLandingSection('pricing')">Pricing</a>
-              <span style="color: var(--text-dim)">·</span>
               <a onclick="showPage('login')">Login</a>
               <span style="color: var(--text-dim)">·</span>
-              <a onclick="showPage('signup')">Start Free Trial</a>
+              <a onclick="showPage('signup')">Get Started Free</a>
             </div>
           </div>
           <div class="footer-bottom">© 2025 BuildBot · All rights reserved</div>
@@ -3242,7 +2861,7 @@
           </div>
 
           <h2>Create your account</h2>
-          <p id="auth-trial-note">Free trial. No credit card needed.</p>
+          <p id="auth-trial-note">Free to use. No credit card needed.</p>
 
           <!-- Google Sign-In -->
           <div
@@ -3641,7 +3260,7 @@
 
           <div class="auth-switch">
             Don't have an account?
-            <a onclick="showPage('signup')">Start free trial</a>
+            <a onclick="showPage('signup')">Get started free</a>
           </div>
         </div>
       </div>
@@ -3754,63 +3373,9 @@
 
       // Safety net: ensure landing content reveals on initial load even if the normal
       // routing/onload flow is interrupted (landing uses [data-reveal] which starts hidden).
-      async function loadPublicPricing() {
-        try {
-          const res = await fetch(`${API}/plans`);
-          const data = await res.json();
-          if (!data.success) return;
-          const fmt = (n) => Number(n).toLocaleString("en-PK");
-          const setPrice = (id, amount) => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = `Rs ${fmt(amount)} <span>/mo</span>`;
-          };
-          const setLimit = (id, limit) => {
-            const el = document.getElementById(id);
-            if (el)
-              el.textContent =
-                limit == null
-                  ? "Unlimited recommendations"
-                  : `${fmt(limit)} recommendations/month`;
-          };
-          setPrice("price-starter-amount", data.plans.starter.price);
-          setPrice("price-growth-amount", data.plans.growth.price);
-          setPrice("price-pro-amount", data.plans.pro.price);
-          setLimit("price-starter-limit", data.plans.starter.monthlyLimit);
-          setLimit("price-growth-limit", data.plans.growth.monthlyLimit);
-          const sub = document.getElementById("pricing-subtitle");
-          if (sub)
-            sub.textContent = `${data.trialDays}-day free trial on all plans. Pay via JazzCash or EasyPaisa. No card needed.`;
-          const foot = document.getElementById("pricing-foot");
-          const payNum = data.paymentNumber || "contact support";
-          if (foot)
-            foot.textContent = `All plans include a ${data.trialDays}-day free trial · Pay via JazzCash/EasyPaisa (${payNum}) · Activated within 24 hours`;
-          document
-            .querySelectorAll(".landing-btn.primary, #nav-signup-link")
-            .forEach((el) => {
-              if (el.textContent && el.textContent.includes("14 Days")) {
-                el.textContent = el.textContent.replace(
-                  "14 Days",
-                  `${data.trialDays} Days`,
-                );
-              }
-            });
-          window.bbPublicPlans = data;
-          const faq = document.getElementById("faq-trial-summary");
-          if (faq)
-            faq.textContent = `What happens after my ${data.trialDays}-day trial?`;
-          const cta = document.getElementById("cta-trial-text");
-          if (cta)
-            cta.textContent = `Start your ${data.trialDays}-day free trial today. No credit card. No commitment.`;
-          const authNote = document.getElementById("auth-trial-note");
-          if (authNote)
-            authNote.textContent = `${data.trialDays}-day free trial. No credit card needed.`;
-        } catch {}
-      }
-
       document.addEventListener(
         "DOMContentLoaded",
         () => {
-          loadPublicPricing();
           try {
             const landing = document.getElementById("page-landing");
             if (landing && landing.classList.contains("active")) {
@@ -4177,7 +3742,7 @@
             token = data.token;
             currentStore = data.store;
 
-            const isSignup = !currentStore.plan;
+            const isSignup = !!data.isNewAccount;
             if (isSignup) {
               showAlert(
                 "signup-alert",

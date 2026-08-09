@@ -66,7 +66,6 @@ async function completeEmailVerification(email) {
   if (existingStore && existingStore.email_verified !== 1) {
     await verifyDB.setVerified(email);
     await tokenDB.invalidateOtp(email);
-    await storeDB.startTrial(existingStore.store_id);
     await sendEmail(welcomeEmail(existingStore.name, existingStore.email));
     const { adminNewStoreEmail } = require("../email");
     await sendEmail(
@@ -100,9 +99,6 @@ async function completeEmailVerification(email) {
     // Clean up ephemeral data
     await tokenDB.invalidateOtp(email);
     await pendingSignupDB.deleteByEmail(email);
-
-    // Activate the trial (sets trial_started_at and trial_ends)
-    await storeDB.startTrial(storeId);
 
     // Notify user and admin
     await sendEmail(welcomeEmail(pending.name, email));
@@ -413,9 +409,7 @@ router.post("/login", authLimiter, async (req, res) => {
       storeId: store.store_id,
       name: store.name,
       email: store.email,
-      plan: store.plan,
       planStatus: store.plan_status,
-      trialEnds: store.trial_ends,
       brandColor: store.brand_color,
       currency: store.currency,
     },
@@ -439,6 +433,7 @@ router.post("/google-auth", authLimiter, async (req, res) => {
     const googleId = payload.sub;
 
     let store = await storeDB.findByEmail(email);
+    let isNewAccount = false;
 
     if (!store) {
       // Create new store for Google user with temporary ID
@@ -456,17 +451,14 @@ router.post("/google-auth", authLimiter, async (req, res) => {
 
       // Auto-verify their email since Google verified it
       await verifyDB.setVerified(email);
-      await storeDB.startTrial(store.store_id);
       await sendEmail(welcomeEmail(name, email));
       store = await storeDB.findById(store.store_id);
+      isNewAccount = true;
     } else {
       // Existing account — Google confirms email ownership; verify if still pending
       const isVerified = await verifyDB.isVerified(email);
       if (!isVerified) {
         await verifyDB.setVerified(email);
-        if (!store.trial_started_at) {
-          await storeDB.startTrial(store.store_id);
-        }
         store = await storeDB.findById(store.store_id);
       }
     }
@@ -480,13 +472,12 @@ router.post("/google-auth", authLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
+      isNewAccount,
       store: {
         storeId: store.store_id,
         name: store.name,
         email: store.email,
-        plan: store.plan,
         planStatus: store.plan_status,
-        trialEnds: store.trial_ends,
         brandColor: store.brand_color,
         currency: store.currency,
       },
@@ -629,7 +620,7 @@ router.put("/email-preferences", authMiddleware, async (req, res) => {
       success: true,
       message: marketingEmailsEnabled
         ? "Marketing emails enabled"
-        : "Marketing emails disabled. You will still receive account and billing emails.",
+        : "Marketing emails disabled. You will still receive account emails.",
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -710,31 +701,10 @@ router.get("/me", authMiddleware, async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  await storeDB.ensureTrialDates(store.store_id);
-  const refreshed = await storeDB.findById(req.store.storeId);
-  const trialDays = Number(await configDB.get("trial_days", "14")) || 14;
-  const trialEndsMs = refreshed.trial_ends
-    ? new Date(refreshed.trial_ends).getTime()
-    : 0;
-  const trialDaysLeft = trialEndsMs
-    ? Math.max(0, Math.ceil((trialEndsMs - Date.now()) / 86400000))
-    : 0;
-
-  let planDaysLeft = null;
-  if (refreshed.plan !== "trial" && refreshed.plan_ends) {
-    const planEndsMs = new Date(refreshed.plan_ends).getTime();
-    if (!isNaN(planEndsMs)) {
-      planDaysLeft = Math.max(0, Math.ceil((planEndsMs - Date.now()) / 86400000));
-    }
-  }
-
-  const { password, plugin_secret, ...safeStore } = refreshed;
+  const { password, plugin_secret, ...safeStore } = store;
   res.json({
     success: true,
     store: safeStore,
-    trialDays,
-    trialDaysLeft,
-    planDaysLeft,
   });
 });
 
@@ -781,11 +751,7 @@ router.get("/store-config/:storeId", async (req, res) => {
   if (!store) return res.status(404).json({ error: "Store not found" });
 
   const active = await storeDB.isActive(req.params.storeId);
-  if (
-    !active ||
-    store.plan_status === "disabled" ||
-    store.widget_enabled === 0
-  ) {
+  if (!active || store.widget_enabled === 0) {
     return res.json({
       success: true,
       active: false,

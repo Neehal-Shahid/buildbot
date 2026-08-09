@@ -27,9 +27,7 @@ async function initDB() {
       name        TEXT NOT NULL,
       email       TEXT UNIQUE NOT NULL,
       password    TEXT NOT NULL,
-      plan        TEXT DEFAULT 'trial',
       plan_status TEXT DEFAULT 'active',
-      trial_ends  TEXT DEFAULT (date('now', '+14 days')),
       logo_url    TEXT DEFAULT '',
       brand_color TEXT DEFAULT '#7c6af7',
       currency    TEXT DEFAULT 'PKR',
@@ -56,17 +54,6 @@ async function initDB() {
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
 )`,
-      `CREATE TABLE IF NOT EXISTS payments (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  store_id        TEXT NOT NULL,
-  amount          REAL NOT NULL,
-  method          TEXT NOT NULL,
-  transaction_ref TEXT DEFAULT '',
-  plan            TEXT NOT NULL,
-  status          TEXT DEFAULT 'pending',
-  created_at      TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
-)`,
       `CREATE TABLE IF NOT EXISTS tokens (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       email      TEXT NOT NULL,
@@ -75,11 +62,6 @@ async function initDB() {
       expires_at TEXT NOT NULL,
       used       INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
-    )`,
-      `CREATE TABLE IF NOT EXISTS trial_emails_sent (
-      store_id TEXT,
-      days_left INTEGER,
-      PRIMARY KEY (store_id, days_left)
     )`,
       `CREATE TABLE IF NOT EXISTS platform_config (
   key   TEXT PRIMARY KEY,
@@ -132,7 +114,6 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN catalog_last_updated TEXT DEFAULT ''`,
     `ALTER TABLE products ADD COLUMN woo_id INTEGER DEFAULT NULL`,
     `ALTER TABLE stores ADD COLUMN google_id TEXT DEFAULT NULL`,
-    `ALTER TABLE stores ADD COLUMN plan_ends TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN admin_notes TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN marketing_emails_enabled INTEGER DEFAULT 1`,
     `ALTER TABLE stores ADD COLUMN drip_emails_paused INTEGER DEFAULT 0`,
@@ -160,27 +141,18 @@ async function initDB() {
     )`,
     `CREATE TABLE IF NOT EXISTS platform_config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES
-  ('trial_days', '14'),
-  ('trial_daily_limit', '3'),
-  ('starter_price', '2999'),
-  ('growth_price', '4999'),
-  ('pro_price', '7999'),
-  ('payment_number', ''),
   ('maintenance_mode', 'false'),
   ('anthropic_model', 'claude-haiku-4-5'),
   ('anthropic_max_tokens', '8192'),
   ('api_input_price_per_million', '1'),
   ('api_output_price_per_million', '5'),
   ('usd_to_pkr', '280'),
-  ('starter_monthly_limit', '500'),
-  ('growth_monthly_limit', '2000'),
   ('budget_presets', '50000,80000,120000,200000')`,
     `ALTER TABLE recommendations ADD COLUMN source TEXT DEFAULT ''`,
     `ALTER TABLE recommendations ADD COLUMN model TEXT DEFAULT ''`,
     `ALTER TABLE recommendations ADD COLUMN input_tokens INTEGER DEFAULT 0`,
     `ALTER TABLE recommendations ADD COLUMN output_tokens INTEGER DEFAULT 0`,
     `ALTER TABLE recommendations ADD COLUMN est_cost_usd REAL DEFAULT 0`,
-    `ALTER TABLE stores ADD COLUMN trial_started_at TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_flag INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_note TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS pending_signups (
@@ -246,7 +218,7 @@ const storeDB = {
   },
 
   upgradeSetup: async (oldStoreId, newStoreId, newName) => {
-    // This is safe because new accounts don't have FK constraint violations (products/payments) yet
+    // This is safe because new accounts don't have FK constraint violations (products) yet
     await client.batch([
       {
         sql: "UPDATE stores SET store_id = ?, name = ? WHERE store_id = ?",
@@ -256,10 +228,6 @@ const storeDB = {
         sql: "UPDATE email_send_log SET store_id = ? WHERE store_id = ?",
         args: [newStoreId, oldStoreId],
       },
-      {
-        sql: "UPDATE trial_emails_sent SET store_id = ? WHERE store_id = ?",
-        args: [newStoreId, oldStoreId],
-      }
     ], "write");
   },
 
@@ -270,33 +238,14 @@ const storeDB = {
     });
   },
 
-  updatePlan: async (storeId, plan, status) => {
-    return await client.execute({
-      sql: "UPDATE stores SET plan = ?, plan_status = ? WHERE store_id = ?",
-      args: [plan, status, storeId],
-    });
-  },
-
   isActive: async (storeId) => {
     const res = await client.execute({
-      sql: "SELECT * FROM stores WHERE store_id = ?",
+      sql: "SELECT plan_status FROM stores WHERE store_id = ?",
       args: [storeId],
     });
     const store = res.rows[0];
     if (!store) return false;
-    if (store.plan_status === "disabled") return false;
-    if (store.plan === "trial") {
-      if (!store.trial_ends) return true;
-      return new Date() < new Date(store.trial_ends);
-    }
-    if (store.plan_status === "active") {
-      if (store.plan_ends) {
-        const ends = new Date(store.plan_ends);
-        if (!isNaN(ends.getTime()) && new Date() >= ends) return false;
-      }
-      return true;
-    }
-    return false;
+    return store.plan_status !== "disabled";
   },
 
   getAll: async () => {
@@ -402,12 +351,7 @@ const storeDB = {
           sql: "DELETE FROM recommendations WHERE store_id = ?",
           args: [storeId],
         },
-        { sql: "DELETE FROM payments WHERE store_id = ?", args: [storeId] },
         { sql: "DELETE FROM products WHERE store_id = ?", args: [storeId] },
-        {
-          sql: "DELETE FROM trial_emails_sent WHERE store_id = ?",
-          args: [storeId],
-        },
         ...(storeEmail
           ? [{ sql: "DELETE FROM tokens WHERE email = ?", args: [storeEmail] }]
           : []),
@@ -417,107 +361,6 @@ const storeDB = {
     );
 
     return true;
-  },
-
-  // Set plan manually with optional plan_ends date (admin override)
-  setPlan: async (storeId, plan, planStatus, planEnds = null) => {
-    if (planEnds) {
-      return await client.execute({
-        sql: "UPDATE stores SET plan = ?, plan_status = ?, plan_ends = ? WHERE store_id = ?",
-        args: [plan, planStatus, planEnds, storeId],
-      });
-    }
-    return await client.execute({
-      sql: "UPDATE stores SET plan = ?, plan_status = ? WHERE store_id = ?",
-      args: [plan, planStatus, storeId],
-    });
-  },
-
-  // Extend trial by N days from today or current trial_ends, whichever is later
-  extendTrial: async (storeId, days) => {
-    return await client.execute({
-      sql: `UPDATE stores SET
-              trial_ends = date(MAX(COALESCE(NULLIF(trial_ends,''), date('now')), date('now')), '+${days} days'),
-              plan = 'trial',
-              plan_status = 'active'
-            WHERE store_id = ?`,
-      args: [storeId],
-    });
-  },
-
-  startTrial: async (storeId) => {
-    const store = await storeDB.findById(storeId);
-    const trialDays = Number(await configDB.get("trial_days", "14")) || 14;
-    if (store?.trial_started_at) {
-      return await client.execute({
-        sql: `UPDATE stores SET
-                trial_ends = date(trial_started_at, '+${trialDays} days'),
-                plan = 'trial',
-                plan_status = 'active'
-              WHERE store_id = ?`,
-        args: [storeId],
-      });
-    }
-    return await client.execute({
-      sql: `UPDATE stores SET
-              trial_started_at = datetime('now'),
-              trial_ends = date('now', '+${trialDays} days'),
-              plan = 'trial',
-              plan_status = 'active'
-            WHERE store_id = ?`,
-      args: [storeId],
-    });
-  },
-
-  ensureTrialDates: async (storeId) => {
-    const store = await storeDB.findById(storeId);
-    if (!store || store.plan !== "trial") return;
-    if (store.trial_started_at) return;
-
-    const trialDays = Number(await configDB.get("trial_days", "14")) || 14;
-    const startAt = store.created_at || new Date().toISOString();
-    await client.execute({
-      sql: `UPDATE stores SET
-              trial_started_at = ?,
-              trial_ends = date(?, '+${trialDays} days')
-            WHERE store_id = ?`,
-      args: [startAt, startAt, storeId],
-    });
-  },
-
-  recalculateTrialEndsForAll: async (trialDays) => {
-    const days = Number(trialDays) || 14;
-    await client.execute({
-      sql: `UPDATE stores SET
-              trial_ends = date(COALESCE(NULLIF(trial_started_at, ''), created_at), '+${days} days')
-            WHERE plan = 'trial' AND plan_status != 'disabled'
-              AND COALESCE(NULLIF(trial_started_at, ''), created_at) IS NOT NULL`,
-    });
-  },
-
-  // Expire paid subscriptions past plan_ends
-  expireLapsedPlans: async () => {
-    const res = await client.execute({
-      sql: `UPDATE stores SET plan_status = 'expired'
-            WHERE plan != 'trial'
-            AND plan_status = 'active'
-            AND plan_ends != ''
-            AND plan_ends IS NOT NULL
-            AND date(plan_ends) < date('now')`,
-    });
-    return res.rowsAffected || 0;
-  },
-
-  // Mark expired trials in DB for admin reporting (widget already blocked via trial_ends)
-  expireExpiredTrials: async () => {
-    const res = await client.execute({
-      sql: `UPDATE stores SET plan_status = 'expired'
-            WHERE plan = 'trial'
-            AND plan_status = 'active'
-            AND trial_ends != ''
-            AND date(trial_ends) < date('now')`,
-    });
-    return res.rowsAffected || 0;
   },
 
   disconnectWoo: async (storeId) => {
@@ -548,59 +391,6 @@ const storeDB = {
       sql: "UPDATE stores SET admin_notes = ? WHERE store_id = ?",
       args: [notes, storeId],
     });
-  },
-
-  // Get trial stores expiring in exactly N days — used for trial warning emails
-  getTrialEndingIn: async (days) => {
-    const res = await client.execute({
-      sql: `SELECT * FROM stores
-            WHERE plan = 'trial'
-            AND plan_status = 'active'
-            AND date(trial_ends) = date('now', '+${days} days')`,
-      args: [],
-    });
-    return res.rows;
-  },
-
-  // Get paid stores whose plan_ends was exactly N days ago — used for dunning emails
-  // plan_ends is set when a payment is approved. Requires plan_ends column (migration added above).
-  // Note: includes both 'active' and 'expired' statuses because expireLapsedPlans runs first
-  // and may have already flipped the status to 'expired' before dunning emails are sent.
-  getPlanLapsedBy: async (days) => {
-    const res = await client.execute({
-      sql: `SELECT * FROM stores
-            WHERE plan != 'trial'
-            AND plan_status IN ('active', 'expired')
-            AND plan_ends != ''
-            AND plan_ends IS NOT NULL
-            AND date(plan_ends) = date('now', '-${days} days')`,
-      args: [],
-    });
-    return res.rows;
-  },
-
-  // Get stores that created their account exactly N days ago — used for onboarding drip
-  getSignedUpDaysAgo: async (days) => {
-    const res = await client.execute({
-      sql: `SELECT * FROM stores
-            WHERE date(created_at) = date('now', '-${days} days')`,
-      args: [],
-    });
-    return res.rows;
-  },
-
-  // Day-N signups eligible for marketing drip (verified, not paused, opted in)
-  getSignedUpDaysAgoForDrip: async (days) => {
-    const res = await client.execute({
-      sql: `SELECT * FROM stores
-            WHERE date(created_at) = date('now', '-${days} days')
-            AND email_verified = 1
-            AND COALESCE(marketing_emails_enabled, 1) = 1
-            AND COALESCE(drip_emails_paused, 0) = 0
-            AND plan_status != 'disabled'`,
-      args: [],
-    });
-    return res.rows;
   },
 
   // Day 4 — widget not live: no products and WooCommerce not connected
@@ -831,138 +621,8 @@ const analyticsDB = {
     return res.rows[0].c;
   },
 
-  checkLimit: async (storeId, plan) => {
-    const trialLimit =
-      Number(await configDB.get("trial_daily_limit", "3")) || 3;
-
-    if (plan === "trial") {
-      const res = await client.execute({
-        sql: `SELECT COUNT(*) as count FROM recommendations
-              WHERE store_id = ?
-              AND date(created_at) = date('now')`,
-        args: [storeId],
-      });
-      const used = res.rows[0].count;
-      return {
-        allowed: used < trialLimit,
-        used,
-        limit: trialLimit,
-        period: "today",
-        remaining: Math.max(0, trialLimit - used),
-      };
-    }
-
-    const starterLimit =
-      Number(await configDB.get("starter_monthly_limit", "500")) || 500;
-    const growthLimit =
-      Number(await configDB.get("growth_monthly_limit", "2000")) || 2000;
-    const limits = { starter: starterLimit, growth: growthLimit, pro: 999999 };
-    const limit = limits[plan] || starterLimit;
-
-    if (limit === 999999) {
-      return { allowed: true, used: 0, limit: 999999, remaining: 999999 };
-    }
-
-    const res = await client.execute({
-      sql: `SELECT COUNT(*) as count FROM recommendations
-            WHERE store_id = ?
-            AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')`,
-      args: [storeId],
-    });
-
-    const used = res.rows[0].count;
-    return {
-      allowed: used < limit,
-      used,
-      limit,
-      period: "this month",
-      remaining: Math.max(0, limit - used),
-    };
-  },
 };
 
-// ─── PAYMENT FUNCTIONS ────────────────────────────────────
-const paymentDB = {
-  create: async (storeId, amount, method, transactionRef, plan) => {
-    return await client.execute({
-      sql: `INSERT INTO payments (store_id, amount, method, transaction_ref, plan)
-             VALUES (?, ?, ?, ?, ?)`,
-      args: [storeId, amount, method, transactionRef, plan],
-    });
-  },
-
-  approve: async (paymentId, storeId, plan) => {
-    await client.execute({
-      sql: "UPDATE payments SET status = 'approved' WHERE id = ?",
-      args: [paymentId],
-    });
-    // Set plan_ends relative to payment created_at (not today) — ensures fair subscription period
-    // even if admin approves with delay
-    await client.execute({
-      sql: `UPDATE stores
-            SET plan = ?, plan_status = 'active',
-                plan_ends = date(
-                  COALESCE(
-                    (SELECT created_at FROM payments WHERE id = ?),
-                    datetime('now')
-                  ), '+30 days')
-            WHERE store_id = ?`,
-      args: [plan, paymentId, storeId],
-    });
-  },
-
-  reject: async (paymentId) => {
-    return await client.execute({
-      sql: "UPDATE payments SET status = 'rejected' WHERE id = ?",
-      args: [paymentId],
-    });
-  },
-
-  getByStore: async (storeId) => {
-    const res = await client.execute({
-      sql: "SELECT * FROM payments WHERE store_id = ? ORDER BY created_at DESC",
-      args: [storeId],
-    });
-    return res.rows;
-  },
-
-  getPending: async () => {
-    const res = await client.execute(`
-      SELECT p.*, s.name, s.email FROM payments p
-      JOIN stores s ON p.store_id = s.store_id
-      WHERE p.status = 'pending' ORDER BY p.created_at DESC
-    `);
-    return res.rows;
-  },
-
-  getAll: async () => {
-    const res = await client.execute(`
-      SELECT p.*, s.name, s.email FROM payments p
-      JOIN stores s ON p.store_id = s.store_id
-      ORDER BY p.created_at DESC
-    `);
-    return res.rows;
-  },
-
-  getRevenue: async () => {
-    const res = await client.execute(
-      "SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'approved'",
-    );
-    return res.rows[0].total;
-  },
-
-  // Get pending payments older than N hours — used for admin stale payment alert
-  getStalePending: async (hours) => {
-    const res = await client.execute({
-      sql: `SELECT p.*, s.name, s.email FROM payments p
-            JOIN stores s ON p.store_id = s.store_id
-            WHERE p.status = 'pending'
-            AND p.created_at <= datetime('now', '-${hours} hours')`,
-      args: [],
-    });
-    return res.rows;
-  },
-};
 // ─── EMAIL VERIFICATION & PASSWORD RESET TOKENS ──────────
 const tokenDB = {
   save: async (email, token, type) => {
@@ -1223,8 +883,6 @@ const apiUsageDB = {
       sql: `SELECT
               r.store_id,
               s.name,
-              s.plan,
-              s.plan_status,
               COUNT(*) AS total_recs,
               SUM(CASE WHEN r.source = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
               SUM(CASE WHEN r.source = 'cached' THEN 1 ELSE 0 END) AS cached_calls,
@@ -1240,8 +898,6 @@ const apiUsageDB = {
     return res.rows.map((row) => ({
       storeId: row.store_id,
       name: row.name || row.store_id,
-      plan: row.plan || "trial",
-      planStatus: row.plan_status || "",
       totalRecs: Number(row.total_recs) || 0,
       aiCalls: Number(row.ai_calls) || 0,
       cachedCalls: Number(row.cached_calls) || 0,
@@ -1249,95 +905,6 @@ const apiUsageDB = {
       outputTokens: Number(row.output_tokens) || 0,
       estCostUsd: Number(row.est_cost_usd) || 0,
     }));
-  },
-
-  async getProfitAnalysis(config) {
-    const starterPrice = Number(config.starter_price || 2999);
-    const growthPrice = Number(config.growth_price || 4999);
-    const proPrice = Number(config.pro_price || 7999);
-    const trialLimit = Number(config.trial_daily_limit || 3);
-    const starterLimit = Number(config.starter_monthly_limit || 500);
-    const growthLimit = Number(config.growth_monthly_limit || 2000);
-    const inputPrice = Number(config.api_input_price_per_million || 1);
-    const outputPrice = Number(config.api_output_price_per_million || 5);
-
-    const monthSummary = await apiUsageDB.getSummary("month");
-    const avgCostPerAi =
-      monthSummary.aiCalls > 0
-        ? monthSummary.estCostUsd / monthSummary.aiCalls
-        : apiUsageDB.estimateCostUsd(4000, 5000, inputPrice, outputPrice);
-
-    const activeRes = await client.execute({
-      sql: `SELECT plan, COUNT(*) AS c FROM stores
-            WHERE plan_status = 'active' AND plan != 'trial'
-            GROUP BY plan`,
-    });
-    let mrrPkr = 0;
-    const paidCounts = { starter: 0, growth: 0, pro: 0 };
-    for (const row of activeRes.rows) {
-      const plan = row.plan;
-      const count = Number(row.c) || 0;
-      paidCounts[plan] = count;
-      const prices = {
-        starter: starterPrice,
-        growth: growthPrice,
-        pro: proPrice,
-      };
-      mrrPkr += count * (prices[plan] || 0);
-    }
-
-    const usdToPkr = Number(config.usd_to_pkr || 280);
-    const apiCostPkr = monthSummary.estCostUsd * usdToPkr;
-
-    const plans = [
-      {
-        plan: "trial",
-        pricePkr: 0,
-        limit: trialLimit,
-        period: "day",
-        revenuePerRec: 0,
-        estApiCostPerRec: avgCostPerAi * usdToPkr,
-      },
-      {
-        plan: "starter",
-        pricePkr: starterPrice,
-        limit: starterLimit,
-        period: "month",
-        revenuePerRec: starterLimit ? starterPrice / starterLimit : 0,
-        estApiCostPerRec: avgCostPerAi * usdToPkr,
-      },
-      {
-        plan: "growth",
-        pricePkr: growthPrice,
-        limit: growthLimit,
-        period: "month",
-        revenuePerRec: growthLimit ? growthPrice / growthLimit : 0,
-        estApiCostPerRec: avgCostPerAi * usdToPkr,
-      },
-      {
-        plan: "pro",
-        pricePkr: proPrice,
-        limit: null,
-        period: "month",
-        revenuePerRec: null,
-        estApiCostPerRec: avgCostPerAi * usdToPkr,
-      },
-    ].map((p) => ({
-      ...p,
-      marginPerRec:
-        p.revenuePerRec != null ? p.revenuePerRec - p.estApiCostPerRec : null,
-      profitable:
-        p.revenuePerRec != null ? p.revenuePerRec > p.estApiCostPerRec : true,
-    }));
-
-    return {
-      mrrPkr,
-      apiCostPkr,
-      profitPkr: mrrPkr - apiCostPkr,
-      paidCounts,
-      avgCostPerAiUsd: avgCostPerAi,
-      plans,
-    };
   },
 };
 
@@ -1486,7 +1053,6 @@ module.exports = {
   storeDB,
   productDB,
   analyticsDB,
-  paymentDB,
   tokenDB,
   verifyDB,
   widgetDB,

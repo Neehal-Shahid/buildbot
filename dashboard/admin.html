@@ -1396,7 +1396,6 @@
                     </div>
                     BuildBot Admin
                 </div>
-                <span class="nav-badge" id="pending-badge" style="display: none">0 pending</span>
             </div>
             <div class="nav-right">
                 <span id="nav-admin-name" style="color: var(--text); font-weight: 500"></span>
@@ -1431,14 +1430,6 @@
                     </svg>
                     All Stores
                 </div>
-                <div class="sb-item" onclick="showTab('payments')" id="atab-payments">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                        <line x1="1" y1="10" x2="23" y2="10" />
-                    </svg>
-                    Payments
-                    <span class="sb-badge" id="sb-pending-count" style="display: none">0</span>
-                </div>
                 <div class="sb-item" onclick="showTab('analytics')" id="atab-analytics">
                     <svg viewBox="0 0 24 24">
                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -1471,14 +1462,6 @@
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                     </svg>
                     DB Health
-                </div>
-                <div class="sb-item" onclick="showTab('revenue')" id="atab-revenue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="1" x2="12" y2="23" />
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Revenue
                 </div>
                 <div class="sb-item" onclick="showTab('activity')" id="atab-activity">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
@@ -1535,69 +1518,6 @@
                                 Total Recommendations
                             </div>
                         </div>
-                        <div class="stat">
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="12" y1="1" x2="12" y2="23" />
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="ov-revenue">—</div>
-                            <div class="stat-lbl">Total Revenue (PKR)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--warning-bg);
-                                        color: var(--warning);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="ov-pending">—</div>
-                            <div class="stat-lbl">Pending Payments</div>
-                        </div>
-                    </div>
-
-                    <div class="card" id="pending-alert-card" style="
-                                display: none;
-                                border-color: var(--warning);
-                                border-left: 3px solid var(--warning);
-                            ">
-                        <div class="card-head">
-                            <div>
-                                <h2 style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 6px;
-                                        ">
-                                    <span class="pending-dot"></span>Payments Awaiting Approval
-                                </h2>
-                                <div class="card-sub">
-                                    Action required — review and approve or
-                                    reject below
-                                </div>
-                            </div>
-                            <button class="btn btn-warning btn-sm" onclick="showTab('payments')">
-                                Review all
-                            </button>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Store</th>
-                                    <th>Plan</th>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                    <th>Ref</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ov-pending-table"></tbody>
-                        </table>
                     </div>
 
                     <div class="card">
@@ -1614,7 +1534,6 @@
                                 <tr>
                                     <th>Store</th>
                                     <th>Email</th>
-                                    <th>Plan</th>
                                     <th>Status</th>
                                     <th>Joined</th>
                                 </tr>
@@ -1647,7 +1566,6 @@
                                     <tr>
                                         <th>Store</th>
                                         <th>Email</th>
-                                        <th>Plan</th>
                                         <th>Status</th>
                                         <th>Products</th>
                                         <th>Recs</th>
@@ -1658,70 +1576,6 @@
                                 <tbody id="stores-table"></tbody>
                             </table>
                         </div>
-                    </div>
-                </div>
-
-                <!-- PAYMENTS -->
-                <div id="tab-payments" style="display: none">
-                    <div class="section-title">Payment Management</div>
-                    <div class="section-sub">
-                        Approve or reject JazzCash and EasyPaisa payment
-                        submissions.
-                    </div>
-
-                    <div class="card" id="pending-payments-card" style="border-left: 3px solid var(--warning)">
-                        <div class="card-head">
-                            <div>
-                                <h2 style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 6px;
-                                        ">
-                                    <span class="pending-dot"></span>Pending
-                                    Payments
-                                </h2>
-                            </div>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Store</th>
-                                    <th>Email</th>
-                                    <th>Plan</th>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                    <th>Ref ID</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pending-table"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-head">
-                            <div>
-                                <h2>Payment History</h2>
-                                <div class="card-sub">
-                                    All approved and rejected payments
-                                </div>
-                            </div>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Store</th>
-                                    <th>Plan</th>
-                                    <th>Amount</th>
-                                    <th>Method</th>
-                                    <th>Ref</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody id="all-payments-table"></tbody>
-                        </table>
                     </div>
                 </div>
 
@@ -1742,45 +1596,6 @@
                             <div class="stat-val" id="an-stores">—</div>
                             <div class="stat-lbl">Active Stores</div>
                         </div>
-                        <div class="stat">
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="an-trial">—</div>
-                            <div class="stat-lbl">On Trial</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--success-bg);
-                                        color: var(--success);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="1" y="4" width="22" height="16" rx="2" />
-                                    <line x1="1" y1="10" x2="23" y2="10" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="an-paid">—</div>
-                            <div class="stat-lbl">Paid Stores</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--success-bg);
-                                        color: var(--success);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="12" y1="1" x2="12" y2="23" />
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="an-rev">—</div>
-                            <div class="stat-lbl">Total Revenue</div>
-                        </div>
                     </div>
                     <div class="two-col">
                         <div class="card">
@@ -1797,19 +1612,10 @@
                                     <tr>
                                         <th>Store</th>
                                         <th>Recommendations</th>
-                                        <th>Plan</th>
                                     </tr>
                                 </thead>
                                 <tbody id="top-stores-table"></tbody>
                             </table>
-                        </div>
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <h2>Plan Distribution</h2>
-                                </div>
-                            </div>
-                            <div id="plan-dist" style="margin-top: 4px"></div>
                         </div>
                     </div>
                 </div>
@@ -1910,44 +1716,9 @@
                                 Save
                             </button>
                         </div>
-                        <div style="
-                                    display: grid;
-                                    grid-template-columns: 1fr 1fr 1fr;
-                                    gap: 16px;
-                                    margin-bottom: 16px;
-                                ">
-                            <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Trial Period (days)</label>
-                                <input type="number" id="cfg-trial-days" min="1" max="90" placeholder="14" />
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Payment Number
-                                    (JazzCash/EasyPaisa)</label>
-                                <input type="text" id="cfg-payment-number" placeholder="03xxxxxxxxx" />
-                            </div>
-                        </div>
-                        <div style="font-size:12px;color:var(--muted);margin:-8px 0 16px;line-height:1.5;">
+                        <div style="font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.5;">
                             Recommendation limits and AI model settings are in <strong style="color:var(--text);">API
                                 &amp; Model</strong> tab.
-                        </div>
-                        <div style="
-                                    display: grid;
-                                    grid-template-columns: 1fr 1fr 1fr;
-                                    gap: 16px;
-                                    margin-bottom: 16px;
-                                ">
-                            <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Starter Plan Price (PKR)</label>
-                                <input type="number" id="cfg-starter-price" min="0" placeholder="2999" />
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Growth Plan Price (PKR)</label>
-                                <input type="number" id="cfg-growth-price" min="0" placeholder="4999" />
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0">
-                                <label class="form-label">Pro Plan Price (PKR)</label>
-                                <input type="number" id="cfg-pro-price" min="0" placeholder="7999" />
-                            </div>
                         </div>
                         <div style="
                                     display: flex;
@@ -2036,7 +1807,7 @@
                 <div id="tab-apimodel" style="display: none">
                     <div class="section-title">API &amp; Model</div>
                     <div class="section-sub">
-                        Monitor Anthropic usage, profit vs cost, and control the AI model and plan limits.
+                        Monitor Anthropic usage and cost, and control the AI model settings.
                     </div>
 
                     <div id="api-status-badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
@@ -2061,14 +1832,6 @@
                         <div class="stat">
                             <div class="stat-val" id="api-cost-pkr">—</div>
                             <div class="stat-lbl">Est. API Cost (PKR)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-mrr">—</div>
-                            <div class="stat-lbl">MRR (PKR)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-profit">—</div>
-                            <div class="stat-lbl">Est. Profit (PKR)</div>
                         </div>
                         <div class="stat">
                             <div class="stat-val" id="api-tokens">—</div>
@@ -2097,18 +1860,6 @@
                             </div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <div class="form-group">
-                                    <label class="form-label">Trial limit / day</label>
-                                    <input type="number" id="api-cfg-trial-limit" min="1" max="100" />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Starter limit / month</label>
-                                    <input type="number" id="api-cfg-starter-limit" min="10" max="100000" />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Growth limit / month</label>
-                                    <input type="number" id="api-cfg-growth-limit" min="10" max="100000" />
-                                </div>
-                                <div class="form-group">
                                     <label class="form-label">USD → PKR rate</label>
                                     <input type="number" id="api-cfg-usd-pkr" min="1" max="1000" />
                                 </div>
@@ -2124,23 +1875,6 @@
                                 </div>
                             </div>
                             <div class="alert" id="api-cfg-alert"></div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <h2>Profit per Plan</h2>
-                                    <div class="card-sub">Revenue per rec vs estimated API cost (if every rec hits AI)
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="api-profit-plans" style="font-size:13px;color:var(--text-2);"></div>
-                            <div
-                                style="margin-top:14px;padding:12px;background:var(--surface-2);border-radius:var(--r-md);font-size:12px;color:var(--muted);line-height:1.6;">
-                                <strong style="color:var(--text);">Tip:</strong> If Starter shows negative margin, lower
-                                its monthly limit or raise price. Cache hits cost Rs 0 — higher cache rate improves
-                                profit.
-                            </div>
                         </div>
                     </div>
 
@@ -2158,7 +1892,6 @@
                                 <thead>
                                     <tr>
                                         <th>Store</th>
-                                        <th>Plan</th>
                                         <th>Total Recs</th>
                                         <th>AI Calls</th>
                                         <th>Cached</th>
@@ -2298,16 +2031,6 @@
                                     <option value="">
                                         All active stores
                                     </option>
-                                    <option value="trial">
-                                        Trial only
-                                    </option>
-                                    <option value="starter">
-                                        Starter only
-                                    </option>
-                                    <option value="growth">
-                                        Growth only
-                                    </option>
-                                    <option value="pro">Pro only</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -2377,28 +2100,8 @@
                                             line-height: 2.1;
                                         ">
                                     <div>
-                                        — Trial ending in 3 days → warning
-                                        email
-                                    </div>
-                                    <div>
-                                        — Trial ending tomorrow → urgent
-                                        warning
-                                    </div>
-                                    <div>
                                         — Signed up 4 days ago, not live →
                                         setup nudge
-                                    </div>
-                                    <div>
-                                        — Signed up 10 days ago → upgrade
-                                        urgency
-                                    </div>
-                                    <div>
-                                        — Plan lapsed 1, 3, or 7 days ago →
-                                        dunning email
-                                    </div>
-                                    <div>
-                                        — Payment pending 6+ hours → admin
-                                        alert
                                     </div>
                                 </div>
                             </div>
@@ -2595,112 +2298,6 @@
                     </div>
                 </div>
 
-                <!-- REVENUE -->
-                <div id="tab-revenue" style="display: none">
-                    <div class="section-title">Revenue</div>
-                    <div class="section-sub">
-                        Monthly recurring revenue, plan breakdown, and
-                        at-risk stores.
-                    </div>
-                    <div class="stats" style="margin-bottom: 24px">
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--success-bg);
-                                        color: var(--success);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="12" y1="1" x2="12" y2="23" />
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="rev-mrr">—</div>
-                            <div class="stat-lbl">
-                                Monthly Revenue (MRR)
-                            </div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--accent-light);
-                                        color: var(--accent);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="1" y="4" width="22" height="16" rx="2" />
-                                    <line x1="1" y1="10" x2="23" y2="10" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="rev-paid">—</div>
-                            <div class="stat-lbl">Active Paid Stores</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="rev-trial">—</div>
-                            <div class="stat-lbl">Trial Stores</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-icon" style="
-                                        background: var(--danger-bg);
-                                        color: var(--danger);
-                                    ">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path
-                                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                                    <line x1="12" y1="9" x2="12" y2="13" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                            </div>
-                            <div class="stat-val" id="rev-risk">—</div>
-                            <div class="stat-lbl">Churn Risk This Week</div>
-                        </div>
-                    </div>
-                    <div class="two-col">
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <h2>Revenue by Plan</h2>
-                                    <div class="card-sub">
-                                        Monthly contribution per plan tier
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="rev-plan-breakdown" style="margin-top: 4px; min-height: 60px"></div>
-                        </div>
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <h2>At-Risk Stores</h2>
-                                    <div class="card-sub">
-                                        Paid subscriptions expiring within 7
-                                        days
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="overflow-x: auto">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Store</th>
-                                            <th>Plan</th>
-                                            <th>Expires</th>
-                                            <th>Time Left</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="rev-risk-table"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ACTIVITY LOG -->
                 <div id="tab-activity" style="display: none">
                     <div class="section-title">Activity Log</div>
@@ -2744,29 +2341,6 @@
                 </div>
             </div>
             <!-- end .main -->
-        </div>
-    </div>
-
-    <!-- APPROVE MODAL -->
-    <div class="modal-bg" id="approve-modal">
-        <div class="modal">
-            <div class="modal-icon" style="background: var(--success-bg); color: var(--success)">
-                <svg viewBox="0 0 24 24">
-                    <polyline points="20 6 9 17 4 12" />
-                </svg>
-            </div>
-            <h3>Approve Payment</h3>
-            <p>
-                This will immediately activate the store's selected plan and
-                send them a confirmation email
-            </p>
-            <div class="modal-detail" id="approve-details"></div>
-            <div class="modal-btns">
-                <button class="btn btn-success" id="approve-confirm-btn" onclick="confirmApprove()">
-                    Approve & Activate
-                </button>
-                <button class="btn" onclick="closeModal()">Cancel</button>
-            </div>
         </div>
     </div>
 
@@ -2837,7 +2411,7 @@
             <h3>Delete Store Permanently</h3>
             <p>
                 This will permanently delete the store and ALL their
-                products, payments, recommendations and data. This cannot be
+                products, recommendations and data. This cannot be
                 undone.
             </p>
             <div class="modal-detail" id="delete-details"></div>
@@ -2866,32 +2440,15 @@
             </div>
             <h3>Manage Store</h3>
             <p>
-                Override plan, extend trial, or send a manual email to this
-                store.
+                Change store status, or send a manual email to this store.
             </p>
             <div class="modal-detail" id="manage-details"></div>
-            <div class="two-col" style="margin-top: 16px">
-                <div class="form-group">
-                    <label class="form-label">Plan Override</label>
-                    <select id="manage-plan" style="width: 100%">
-                        <option value="trial">Trial</option>
-                        <option value="starter">Starter</option>
-                        <option value="growth">Growth</option>
-                        <option value="pro">Pro</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Plan Status</label>
-                    <select id="manage-status" style="width: 100%">
-                        <option value="active">Active</option>
-                        <option value="disabled">Disabled</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group" style="margin-top: 12px">
-                <label class="form-label">Extend Trial (days)</label>
-                <input type="number" id="manage-trial-days" min="1" max="90" placeholder="Leave 0 to not extend"
-                    style="width: 100%" />
+            <div class="form-group" style="margin-top: 16px">
+                <label class="form-label">Status</label>
+                <select id="manage-status" style="width: 100%">
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                </select>
             </div>
             <div class="form-group" style="margin-top: 4px">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
@@ -2939,80 +2496,6 @@
         </div>
     </div>
 
-    <!-- BROADCAST MODAL REMOVED -->
-    <!-- <div class="modal-bg" id="broadcast-modal">
-            <div class="modal" style="max-width: 520px">
-                <div
-                    class="modal-icon"
-                    style="
-                        background: var(--accent-light);
-                        color: var(--accent);
-                    "
-                >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M22 2L11 13" />
-                        <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-                    </svg>
-                </div>
-                <h3>Broadcast Email</h3>
-                <p>Send an email to all stores or filter by plan.</p>
-                <div class="form-group">
-                    <label class="form-label">Subject</label>
-                    <input
-                        type="text"
-                        id="broadcast-subject"
-                        maxlength="150"
-                        placeholder="Email subject"
-                        style="width: 100%"
-                    />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Message</label>
-                    <textarea
-                        id="broadcast-message"
-                        rows="6"
-                        maxlength="2000"
-                        placeholder="Email message (supports line breaks)"
-                        style="
-                            width: 100%;
-                            font-family: system-ui, sans-serif;
-                            font-size: 13px;
-                            resize: vertical;
-                        "
-                    ></textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Target Plan (optional)</label>
-                    <select id="broadcast-target-plan" style="width: 100%">
-                        <option value="">All stores</option>
-                        <option value="trial">Trial only</option>
-                        <option value="starter">Starter only</option>
-                        <option value="growth">Growth only</option>
-                        <option value="pro">Pro only</option>
-                    </select>
-                </div>
-                <div class="modal-btns">
-                    <button
-                        class="btn btn-primary"
-                        id="broadcast-send-btn"
-                        onclick="confirmBroadcast()"
-                    >
-                        Send Broadcast
-                    </button>
-                    <button class="btn" onclick="closeModal()">Cancel</button>
-                </div>
-            </div>
-        </div>
-
-        -->
-    <!-- end removed broadcast modal -->
 
     <!-- TOAST CONTAINER -->
     <div class="toast-wrap" id="toast-wrap"></div>
@@ -3279,13 +2762,11 @@
             [
                 "overview",
                 "stores",
-                "payments",
                 "analytics",
                 "settings",
                 "apimodel",
                 "dbhealth",
                 "comms",
-                "revenue",
                 "activity",
             ].forEach((t) => {
                 document.getElementById(`tab-${t}`).style.display = "none";
@@ -3298,18 +2779,12 @@
 
             if (name === "overview") loadOverview();
             if (name === "stores") loadStores();
-            if (name === "payments") loadPayments();
             if (name === "analytics") loadPlatformAnalytics();
             if (name === "settings") {
                 loadAdminSettings();
                 loadPlatformConfig();
             }
             if (name === "apimodel") loadApiModelTab();
-            if (name === "revenue") {
-                if (allStoresData.length === 0)
-                    loadStores().then(() => loadRevenueTab());
-                else loadRevenueTab();
-            }
             if (name === "activity") renderActivityLog();
             if (name === "comms") {
                 if (allStoresData.length === 0) loadStores();
@@ -3348,10 +2823,6 @@
                 lines.push(`- products: ${data.orphans?.products ?? 0}`);
                 lines.push(
                     `- recommendations: ${data.orphans?.recommendations ?? 0}`,
-                );
-                lines.push(`- payments: ${data.orphans?.payments ?? 0}`);
-                lines.push(
-                    `- trial_emails_sent: ${data.orphans?.trialEmailsSent ?? 0}`,
                 );
                 if ((data.orphans?.orphanProductsTop || []).length) {
                     lines.push("");
@@ -3482,62 +2953,11 @@
                     return;
                 }
 
-                const { stores, totalRecs, revenue, pending } = data;
+                const { stores, totalRecs } = data;
 
                 document.getElementById("ov-stores").textContent =
                     stores.length;
                 document.getElementById("ov-recs").textContent = totalRecs;
-                document.getElementById("ov-revenue").textContent =
-                    "Rs " + Number(revenue).toLocaleString();
-                document.getElementById("ov-pending").textContent =
-                    pending.length;
-
-                // Pending badge and sidebar count
-                const pendingCount = pending.length;
-                const badge = document.getElementById("pending-badge");
-                const sbCount = document.getElementById("sb-pending-count");
-                if (badge) {
-                    badge.textContent = `${pendingCount} pending`;
-                    badge.style.display =
-                        pendingCount > 0 ? "inline-block" : "none";
-                }
-                if (sbCount) {
-                    sbCount.textContent = pendingCount;
-                    sbCount.style.display =
-                        pendingCount > 0 ? "inline-flex" : "none";
-                }
-
-                if (pendingCount > 0) {
-                    document.getElementById(
-                        "pending-alert-card",
-                    ).style.display = "block";
-                    document.getElementById("ov-pending-table").innerHTML =
-                        pending
-                            .map(
-                                (p) => `
-          <tr>
-            <td>${safeText(p.name)}</td>
-            <td><span class="badge badge-primary">${p.plan}</span></td>
-            <td>Rs ${Number(p.amount).toLocaleString()}</td>
-            <td>${safeText(p.method)}</td>
-            <td style="font-family:monospace;">${safeText(p.transaction_ref)}</td>
-            <td>
-              <button class="btn btn-success btn-sm" style="display:inline-flex;align-items:center;gap:5px;"
-                onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Approve
-              </button>
-            </td>
-          </tr>`,
-                            )
-                            .join("");
-                } else {
-                    document.getElementById(
-                        "pending-alert-card",
-                    ).style.display = "none";
-                    document.getElementById("ov-pending-table").innerHTML =
-                        "";
-                }
 
                 // Recent stores
                 document.getElementById("ov-stores-table").innerHTML =
@@ -3549,13 +2969,12 @@
         <tr>
           <td><strong>${safeText(s.name)}</strong></td>
           <td>${safeText(s.email)}</td>
-          <td>${planBadge(s.plan)}</td>
           <td>${statusBadge(s)}</td>
           <td>${new Date(s.created_at).toLocaleDateString()}</td>
         </tr>`,
                             )
                             .join("")
-                        : `<tr><td colspan="5" class="table-empty">No stores registered yet.</td></tr>`;
+                        : `<tr><td colspan="4" class="table-empty">No stores registered yet.</td></tr>`;
             } catch (e) {
                 console.error(e);
             }
@@ -3564,7 +2983,7 @@
         // ─── STORES ───────────────────────────────────────────
         async function loadStores() {
             document.getElementById("stores-table").innerHTML =
-                `<tr class="table-loading"><td colspan="8">
+                `<tr class="table-loading"><td colspan="7">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
       Loading stores…
     </td></tr>`;
@@ -3608,7 +3027,6 @@
       <tr>
         <td><strong>${safeText(s.name)}</strong>${Number(s.connection_abuse_flag) ? ' <span class="badge badge-danger" title="' + safeText(s.connection_abuse_note || 'Credential abuse flagged') + '">Abuse</span>' : ''}</td>
         <td>${safeText(s.email)}</td>
-        <td>${planBadge(s.plan)}</td>
         <td>${statusBadge(s)}</td>
         <td>${s.product_count || 0}</td>
         <td>${s.rec_count || 0}</td>
@@ -3645,7 +3063,7 @@
     </button>
 
     <button class="action-btn act-manage" style="height:28px;"
-      onclick="openManageModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}','${safeText(s.plan)}','${safeText(s.plan_status)}','${encodeURIComponent(s.admin_notes || "")}','${s.drip_emails_paused || 0}')">
+      onclick="openManageModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}','${encodeURIComponent(s.email)}','${safeText(s.plan_status)}','${encodeURIComponent(s.admin_notes || "")}','${s.drip_emails_paused || 0}')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -3658,7 +3076,7 @@
       </tr>`,
                         )
                         .join("")
-                    : `<tr><td colspan="8" class="table-empty">No stores registered yet.</td></tr>`;
+                    : `<tr><td colspan="7" class="table-empty">No stores registered yet.</td></tr>`;
         }
 
         function openDelete(storeId, name) {
@@ -3721,91 +3139,6 @@
             renderStores(filtered);
         }
 
-        // ─── PAYMENTS ─────────────────────────────────────────
-        async function loadPayments() {
-            document.getElementById("pending-table").innerHTML =
-                `<tr class="table-loading"><td colspan="8">Loading payments…</td></tr>`;
-            document.getElementById("all-payments-table").innerHTML =
-                `<tr class="table-loading"><td colspan="7">Loading payment history…</td></tr>`;
-            try {
-                console.log(
-                    "Loading payments with token:",
-                    adminToken ? "present" : "missing",
-                );
-                const res = await fetch(`${API}/admin/payments`, {
-                    headers: { Authorization: `Bearer ${adminToken}` },
-                });
-                const data = await res.json();
-                console.log("Payments API response:", data);
-                if (!data.success && handleAdminAuthError(data)) return;
-                if (!data.success) {
-                    console.log("Payments API returned success=false");
-                    return;
-                }
-
-                const pending = data.payments.filter(
-                    (p) => p.status === "pending",
-                );
-                const all = data.payments;
-
-                document.getElementById("pending-table").innerHTML =
-                    pending.length
-                        ? pending
-                            .map(
-                                (p) => `
-            <tr>
-              <td><strong>${safeText(p.name)}</strong></td>
-              <td>${safeText(p.email)}</td>
-              <td>${planBadge(p.plan)}</td>
-              <td>Rs ${Number(p.amount).toLocaleString()}</td>
-              <td>${safeText(p.method)}</td>
-              <td style="font-family:monospace;">${safeText(p.transaction_ref)}</td>
-              <td>${new Date(p.created_at).toLocaleDateString()}</td>
-              <td style="display:flex;gap:6px;">
-                <button class="btn btn-success btn-sm" style="display:inline-flex;align-items:center;gap:5px;"
-                  onclick="openApprove(${p.id},'${safeText(p.store_id)}','${safeText(p.plan)}','${encodeURIComponent(p.name)}',${p.amount})">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Approve
-                </button>
-                <button class="btn btn-danger btn-sm" style="display:inline-flex;align-items:center;gap:5px;"
-                  onclick="rejectPayment(${p.id}, '${safeText(p.store_id)}', '${safeText(p.plan)}')">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  Reject
-                </button>
-              </td>
-            </tr>`,
-                            )
-                            .join("")
-                        : `<tr><td colspan="8" class="table-empty">No pending payments — all clear.</td></tr>`;
-
-                document.getElementById("all-payments-table").innerHTML =
-                    all.length > 0
-                        ? all
-                            .map(
-                                (p) => `
-        <tr>
-          <td>${safeText(p.name)}</td>
-          <td>${planBadge(p.plan)}</td>
-          <td>Rs ${Number(p.amount).toLocaleString()}</td>
-          <td>${safeText(p.method)}</td>
-          <td style="font-family:monospace;font-size:11px;">${safeText(p.transaction_ref)}</td>
-          <td><span class="badge ${p.status === "approved"
-                                        ? "badge-success"
-                                        : p.status === "pending"
-                                            ? "badge-warning"
-                                            : "badge-danger"
-                                    }">
-            ${p.status}</span></td>
-          <td>${new Date(p.created_at).toLocaleDateString()}</td>
-        </tr>`,
-                            )
-                            .join("")
-                        : `<tr><td colspan="7" class="table-empty">No payment history.</td></tr>`;
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
         // ─── PLATFORM ANALYTICS ───────────────────────────────
         async function loadPlatformAnalytics() {
             try {
@@ -3826,21 +3159,10 @@
                     return;
                 }
 
-                const { stores, totalRecs, revenue } = data;
-
-                const trial = stores.filter(
-                    (s) => s.plan === "trial",
-                ).length;
-                const paid = stores.filter(
-                    (s) => s.plan !== "trial",
-                ).length;
+                const { stores, totalRecs } = data;
 
                 document.getElementById("an-stores").textContent =
                     stores.length;
-                document.getElementById("an-trial").textContent = trial;
-                document.getElementById("an-paid").textContent = paid;
-                document.getElementById("an-rev").textContent =
-                    "Rs " + Number(revenue).toLocaleString();
 
                 // Top stores
                 const sorted = [...stores].sort(
@@ -3855,120 +3177,12 @@
         <tr>
           <td><strong>${safeText(s.name)}</strong></td>
           <td>${s.rec_count || 0}</td>
-          <td>${planBadge(s.plan)}</td>
         </tr>`,
                             )
                             .join("")
-                        : `<tr><td colspan="3" class="table-empty">No stores with recommendations yet.</td></tr>`;
-
-                // Plan distribution
-                const planCounts = {};
-                stores.forEach((s) => {
-                    planCounts[s.plan] = (planCounts[s.plan] || 0) + 1;
-                });
-                const maxPlan = Math.max(...Object.values(planCounts));
-                document.getElementById("plan-dist").innerHTML =
-                    Object.entries(planCounts).length === 0
-                        ? '<div style="text-align:center;padding:24px;color:var(--dim);font-size:13px;">No store data yet.</div>'
-                        : Object.entries(planCounts)
-                            .map(([plan, count]) => {
-                                const pct = Math.round(
-                                    (count / maxPlan) * 100,
-                                );
-                                const palette = {
-                                    trial: {
-                                        bar: "var(--warning)",
-                                        track: "var(--warning-bg)",
-                                    },
-                                    starter: {
-                                        bar: "var(--accent)",
-                                        track: "var(--accent-light)",
-                                    },
-                                    growth: {
-                                        bar: "var(--accent)",
-                                        track: "var(--accent-light)",
-                                    },
-                                    pro: {
-                                        bar: "var(--success)",
-                                        track: "var(--success-bg)",
-                                    },
-                                };
-                                const c = palette[plan] || {
-                                    bar: "var(--accent)",
-                                    track: "var(--accent-light)",
-                                };
-                                return `
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-              <div style="width:60px;font-size:12px;font-weight:500;color:var(--text-2);text-transform:capitalize;flex-shrink:0;">${plan}</div>
-              <div style="flex:1;background:${c.track};border-radius:6px;height:10px;overflow:hidden;">
-                <div style="height:100%;background:${c.bar};border-radius:6px;width:${pct}%;transition:width 0.6s ease;"></div>
-              </div>
-              <div style="font-size:12px;font-weight:600;color:var(--text);width:20px;text-align:right;flex-shrink:0;">${count}</div>
-            </div>`;
-                            })
-                            .join("");
+                        : `<tr><td colspan="2" class="table-empty">No stores with recommendations yet.</td></tr>`;
             } catch (e) {
                 console.error(e);
-            }
-        }
-
-        // ─── APPROVE MODAL ────────────────────────────────────
-        function openApprove(id, storeId, plan, name, amount) {
-            pendingAction = { id, storeId, plan };
-            const decodedName = decodeURIComponent(name || "");
-            document.getElementById("approve-details").innerHTML = `
-  <div style="margin-bottom:8px;">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store</div>
-    <strong style="color:var(--text);font-size:14px;">${safeText(decodedName)}</strong>
-  </div>
-  <div style="margin-bottom:8px;">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Plan</div>
-    <strong style="color:var(--text);font-size:14px;">${safeText(plan)}</strong>
-  </div>
-  <div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Amount</div>
-    <strong style="color:var(--text);font-size:14px;">Rs ${Number(amount).toLocaleString()}</strong>
-  </div>
-`;
-            document.getElementById("approve-modal").classList.add("open");
-        }
-
-        async function confirmApprove() {
-            if (!pendingAction) return;
-            const btn = document.getElementById("approve-confirm-btn");
-            setBtnLoading(btn, true);
-
-            try {
-                const res = await fetch(`${API}/admin/approve-payment`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify(pendingAction),
-                });
-                const data = await res.json();
-                setBtnLoading(btn, false);
-                closeModal();
-                if (data.success) {
-                    showToast(
-                        "Payment approved",
-                        "Store plan activated and email sent.",
-                        "success",
-                    );
-                    logActivity("Payment approved", pendingAction.plan);
-                    loadOverview();
-                    loadPayments();
-                } else {
-                    showToast(
-                        "Approval failed",
-                        data.error || "Something went wrong.",
-                        "error",
-                    );
-                }
-            } catch {
-                setBtnLoading(btn, false);
-                showToast("Error", "Could not connect to server.", "error");
             }
         }
 
@@ -3977,7 +3191,6 @@
             storeId,
             name,
             email,
-            plan,
             planStatus,
             adminNotes,
             dripPaused,
@@ -3991,10 +3204,8 @@
     <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Email</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedEmail)}</strong></div>
     <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store ID</div><strong style="color:var(--text);font-size:14px;">${safeText(storeId)}</strong></div>
   `;
-            document.getElementById("manage-plan").value = plan || "trial";
             document.getElementById("manage-status").value =
                 planStatus || "active";
-            document.getElementById("manage-trial-days").value = "";
             document.getElementById("manage-notes").value = decodedNotes;
             document.getElementById("manage-drip-paused").checked =
                 String(dripPaused) === "1";
@@ -4005,20 +3216,19 @@
             if (!pendingAction) return;
             const btn = document.getElementById("manage-save-btn");
             setBtnLoading(btn, true);
-            const plan = document.getElementById("manage-plan").value;
             const planStatus =
                 document.getElementById("manage-status").value;
-            const trialDays =
-                parseInt(
-                    document.getElementById("manage-trial-days").value,
-                ) || 0;
             const notes = document
                 .getElementById("manage-notes")
                 .value.trim();
 
             try {
-                // Set plan and status
-                await fetch(`${API}/admin/set-plan`, {
+                // Set store status via the dedicated disable/activate routes
+                const statusRoute =
+                    planStatus === "disabled"
+                        ? "disable-store"
+                        : "activate-store";
+                await fetch(`${API}/admin/${statusRoute}`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -4026,24 +3236,8 @@
                     },
                     body: JSON.stringify({
                         storeId: pendingAction.storeId,
-                        plan,
-                        planStatus,
                     }),
                 });
-                // Extend trial if days > 0
-                if (trialDays > 0) {
-                    await fetch(`${API}/admin/extend-trial`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${adminToken}`,
-                        },
-                        body: JSON.stringify({
-                            storeId: pendingAction.storeId,
-                            days: trialDays,
-                        }),
-                    });
-                }
                 // Save notes
                 await fetch(`${API}/admin/save-notes`, {
                     method: "POST",
@@ -4070,10 +3264,8 @@
                 setBtnLoading(btn, false);
                 closeModal();
                 logActivity(
-                    "Plan overridden",
-                    pendingAction.storeId +
-                    " → " +
-                    document.getElementById("manage-plan")?.value,
+                    "Store status updated",
+                    pendingAction.storeId + " → " + planStatus,
                 );
                 showToast(
                     "Store updated",
@@ -4207,7 +3399,7 @@
                   <div style="font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:8px;">
                     <span>${safeText(s.email)}</span>
                     <span>·</span>
-                    ${planBadge(s.plan)}
+                    ${statusBadge(s)}
                   </div>
                 </div>
               `,
@@ -4358,9 +3550,6 @@
             const message = document
                 .getElementById("broadcast-message")
                 .value.trim();
-            const targetPlan = document.getElementById(
-                "broadcast-target-plan",
-            ).value;
 
             if (!subject || !message) {
                 showToast(
@@ -4375,7 +3564,6 @@
 
             try {
                 const body = { subject, message };
-                if (targetPlan) body.targetPlan = targetPlan;
 
                 const res = await fetch(`${API}/admin/broadcast`, {
                     method: "POST",
@@ -4453,10 +3641,8 @@
 
                 const results = data.results;
                 const summary = `
-      Trial warnings: ${results.trialWarnings}
       Onboarding: ${results.onboarding}
-      Dunning: ${results.dunning}
-      Stale payments: ${results.stalePayments}
+      Skipped (already sent): ${results.skipped || 0}
       Errors: ${results.errors.length}
     `;
                 showToast(
@@ -4559,27 +3745,6 @@
             }
         }
 
-        async function rejectPayment(id, storeId, plan) {
-            try {
-                await fetch(`${API}/admin/reject-payment`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify({ id, storeId, plan }),
-                });
-                showToast(
-                    "Payment rejected",
-                    "The store has been notified.",
-                    "warning",
-                );
-                loadPayments();
-            } catch {
-                showToast("Error", "Could not reject payment.", "error");
-            }
-        }
-
         function closeModal() {
             document
                 .querySelectorAll(".modal-bg")
@@ -4679,7 +3844,7 @@
                     const r = data.results;
                     showAlert(
                         "comms-drip-alert",
-                        `Done — Sent: ${r.trialWarnings + r.onboarding + r.dunning + r.stalePayments} · Skipped (already sent): ${r.skipped || 0} · Trial: ${r.trialWarnings} · Onboarding: ${r.onboarding} · Dunning: ${r.dunning} · Stale: ${r.stalePayments}`,
+                        `Done — Sent: ${r.onboarding} · Skipped (already sent): ${r.skipped || 0}`,
                         "success",
                     );
                     loadEmailLog();
@@ -4702,20 +3867,8 @@
         }
 
         // ─── HELPERS ──────────────────────────────────────────
-        function planBadge(plan) {
-            const map = {
-                trial: "badge-muted",
-                starter: "badge-primary",
-                growth: "badge-success",
-                pro: "badge-warning",
-            };
-            return `<span class="badge ${map[plan] || "badge-muted"}">${plan}</span>`;
-        }
-
         function statusBadge(s) {
             const es = s.effectiveStatus || s.plan_status || "unknown";
-            if (es === "trial_expired") return `<span class="badge badge-danger"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Trial Expired</span>`;
-            if (es === "trial_active") return `<span class="badge badge-warning"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Trial Active</span>`;
             if (es === "active") return `<span class="badge badge-success"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg>Active</span>`;
             if (es === "disabled") return `<span class="badge badge-muted">Disabled</span>`;
             return `<span class="badge badge-muted">${es}</span>`;
@@ -4766,15 +3919,6 @@
                 const data = await res.json();
                 if (!data.success) return;
                 const c = data.config;
-                const set = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el && val !== undefined) el.value = val;
-                };
-                set("cfg-trial-days", c.trial_days);
-                set("cfg-starter-price", c.starter_price);
-                set("cfg-growth-price", c.growth_price);
-                set("cfg-pro-price", c.pro_price);
-                set("cfg-payment-number", c.payment_number);
                 const toggle = document.getElementById(
                     "cfg-maintenance-mode",
                 );
@@ -4787,14 +3931,7 @@
         async function savePlatformConfig() {
             const btn = document.getElementById("cfg-save-btn");
             setBtnLoading(btn, true);
-            const get = (id) =>
-                document.getElementById(id)?.value?.trim() || "";
             const config = {
-                trial_days: get("cfg-trial-days"),
-                starter_price: get("cfg-starter-price"),
-                growth_price: get("cfg-growth-price"),
-                pro_price: get("cfg-pro-price"),
-                payment_number: get("cfg-payment-number"),
                 maintenance_mode: String(
                     document.getElementById("cfg-maintenance-mode")
                         ?.checked || false,
@@ -4872,7 +4009,7 @@
         // ─── API & MODEL TAB ─────────────────────────────────────
         async function loadApiModelTab() {
             const tbody = document.getElementById("api-store-tbody");
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Loading…</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
 
             try {
                 const res = await fetch(`${API}/admin/api-usage`, {
@@ -4881,12 +4018,11 @@
                 const data = await res.json();
                 if (!data.success && handleAdminAuthError(data)) return;
                 if (!data.success) {
-                    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${safeText(data.error || "Failed to load")}</td></tr>`;
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${safeText(data.error || "Failed to load")}</td></tr>`;
                     return;
                 }
 
                 const s = data.summary;
-                const p = data.profit;
                 const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
                 set("api-ai-calls", s.aiCalls.toLocaleString());
@@ -4894,12 +4030,6 @@
                 set("api-cache-rate", s.cacheHitRate + "%");
                 set("api-cost-usd", "$" + s.estCostUsd.toFixed(2));
                 set("api-cost-pkr", "Rs " + Math.round(s.estCostPkr).toLocaleString());
-                set("api-mrr", "Rs " + Math.round(p.mrrPkr).toLocaleString());
-                const profitEl = document.getElementById("api-profit");
-                if (profitEl) {
-                    profitEl.textContent = "Rs " + Math.round(p.profitPkr).toLocaleString();
-                    profitEl.style.color = p.profitPkr >= 0 ? "var(--success)" : "var(--danger)";
-                }
                 set("api-tokens", (s.outputTokens || 0).toLocaleString());
 
                 const badges = document.getElementById("api-status-badges");
@@ -4927,37 +4057,15 @@
                 const cfg = data.settings;
                 const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
                 setVal("api-cfg-max-tokens", cfg.maxTokens);
-                setVal("api-cfg-trial-limit", cfg.trialDailyLimit);
-                setVal("api-cfg-starter-limit", cfg.starterMonthlyLimit);
-                setVal("api-cfg-growth-limit", cfg.growthMonthlyLimit);
                 setVal("api-cfg-usd-pkr", cfg.usdToPkr);
                 setVal("api-cfg-input-price", cfg.inputPricePerM);
                 setVal("api-cfg-output-price", cfg.outputPricePerM);
 
-                const plansEl = document.getElementById("api-profit-plans");
-                if (plansEl && p.plans) {
-                    plansEl.innerHTML = p.plans.map((pl) => {
-                        const limitLabel = pl.limit != null ? `${pl.limit}/${pl.period}` : "unlimited";
-                        const rev = pl.revenuePerRec != null ? `Rs ${Math.round(pl.revenuePerRec)}` : "—";
-                        const cost = `Rs ${Math.round(pl.estApiCostPerRec)}`;
-                        const margin = pl.marginPerRec != null ? `Rs ${Math.round(pl.marginPerRec)}` : "—";
-                        const ok = pl.profitable;
-                        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                            <div><strong style="text-transform:capitalize;">${pl.plan}</strong> <span style="color:var(--muted);font-size:11px;">${limitLabel}</span></div>
-                            <div style="text-align:right;font-size:12px;">
-                                <div>Rev/rec ${rev} · API/rec ${cost}</div>
-                                <div style="color:${ok ? "var(--success)" : "var(--danger)"};font-weight:600;">Margin ${margin}</div>
-                            </div>
-                        </div>`;
-                    }).join("");
-                }
-
                 if (tbody) {
                     tbody.innerHTML = !data.stores.length
-                        ? '<tr><td colspan="7" class="table-empty">No usage this month yet.</td></tr>'
+                        ? '<tr><td colspan="6" class="table-empty">No usage this month yet.</td></tr>'
                         : data.stores.map((st) => `<tr>
                             <td><strong>${safeText(st.name)}</strong><br><span style="font-size:11px;color:var(--muted);">${safeText(st.storeId)}</span></td>
-                            <td>${planBadge(st.plan)}</td>
                             <td>${st.totalRecs}</td>
                             <td>${st.aiCalls}</td>
                             <td>${st.cachedCalls}</td>
@@ -4966,7 +4074,7 @@
                         </tr>`).join("");
                 }
             } catch {
-                if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Server error</td></tr>';
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Server error</td></tr>';
             }
         }
 
@@ -4974,9 +4082,6 @@
             const config = {
                 anthropic_model: document.getElementById("api-cfg-model")?.value,
                 anthropic_max_tokens: document.getElementById("api-cfg-max-tokens")?.value,
-                trial_daily_limit: document.getElementById("api-cfg-trial-limit")?.value,
-                starter_monthly_limit: document.getElementById("api-cfg-starter-limit")?.value,
-                growth_monthly_limit: document.getElementById("api-cfg-growth-limit")?.value,
                 usd_to_pkr: document.getElementById("api-cfg-usd-pkr")?.value,
                 api_input_price_per_million: document.getElementById("api-cfg-input-price")?.value,
                 api_output_price_per_million: document.getElementById("api-cfg-output-price")?.value,
@@ -4996,138 +4101,6 @@
                 if (data.success) loadApiModelTab();
             } catch {
                 showAlert("api-cfg-alert", "Server error", "error");
-            }
-        }
-
-        // ─── REVENUE TAB ────────────────────────────────────────
-        function loadRevenueTab() {
-            const planPrices = {
-                trial: 0,
-                starter: parseInt(
-                    document.getElementById("cfg-starter-price")?.value ||
-                    "2999",
-                ),
-                growth: parseInt(
-                    document.getElementById("cfg-growth-price")?.value ||
-                    "4999",
-                ),
-                pro: parseInt(
-                    document.getElementById("cfg-pro-price")?.value ||
-                    "7999",
-                ),
-            };
-            const active = allStoresData.filter(
-                (s) => s.plan_status === "active",
-            );
-            const paidStores = active.filter((s) => s.plan !== "trial");
-            const trialStores = active.filter((s) => s.plan === "trial");
-            const mrr = paidStores.reduce(
-                (sum, s) => sum + (planPrices[s.plan] || 0),
-                0,
-            );
-            const now = new Date();
-            const atRisk = paidStores.filter((s) => {
-                if (!s.plan_ends) return false;
-                const ends = new Date(s.plan_ends);
-                const daysLeft = Math.ceil((ends - now) / 86400000);
-                return daysLeft >= 0 && daysLeft <= 7;
-            });
-            document.getElementById("rev-mrr").textContent =
-                mrr > 0 ? "Rs " + mrr.toLocaleString() : "Rs 0";
-            document.getElementById("rev-paid").textContent =
-                paidStores.length;
-            document.getElementById("rev-trial").textContent =
-                trialStores.length;
-            document.getElementById("rev-risk").textContent = atRisk.length;
-            const planCounts = {};
-            paidStores.forEach((s) => {
-                planCounts[s.plan] = (planCounts[s.plan] || 0) + 1;
-            });
-            const revenues = Object.entries(planCounts).map(([p, c]) => ({
-                plan: p,
-                count: c,
-                revenue: c * (planPrices[p] || 0),
-            }));
-            const maxRev = Math.max(...revenues.map((r) => r.revenue), 1);
-            const palette = {
-                starter: "var(--accent)",
-                growth: "var(--accent)",
-                pro: "var(--success)",
-            };
-            document.getElementById("rev-plan-breakdown").innerHTML =
-                revenues.length === 0
-                    ? '<div style="font-size:13px;color:var(--dim);padding:16px 0;">No paid stores yet.</div>'
-                    : revenues
-                        .map(
-                            ({ plan, count, revenue }) => `
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                      <div style="width:65px;font-size:12px;font-weight:500;color:var(--text-2);text-transform:capitalize;flex-shrink:0;">${plan}</div>
-                      <div style="flex:1;background:var(--surface-2);border-radius:6px;height:10px;overflow:hidden;">
-                        <div style="height:100%;background:${palette[plan] || "var(--accent)"};border-radius:6px;width:${Math.round((revenue / maxRev) * 100)}%;transition:width 0.6s ease;"></div>
-                      </div>
-                      <div style="font-size:12px;color:var(--muted);width:18px;text-align:center;">${count}</div>
-                      <div style="font-size:12px;font-weight:700;color:var(--text);width:100px;text-align:right;flex-shrink:0;">Rs ${revenue.toLocaleString()}</div>
-                    </div>`,
-                        )
-                        .join("");
-            document.getElementById("rev-risk-table").innerHTML =
-                atRisk.length === 0
-                    ? '<tr><td colspan="5" class="table-empty">No stores at risk this week.</td></tr>'
-                    : atRisk
-                        .map((s) => {
-                            const ends = new Date(s.plan_ends);
-                            const daysLeft = Math.ceil(
-                                (ends - now) / 86400000,
-                            );
-                            return `<tr>
-                      <td><strong>${safeText(s.name)}</strong><br><span style="font-size:11px;color:var(--muted);">${safeText(s.email)}</span></td>
-                      <td>${planBadge(s.plan)}</td>
-                      <td>${ends.toLocaleDateString()}</td>
-                      <td><span class="badge ${daysLeft <= 2 ? "badge-danger" : "badge-warning"}">${daysLeft}d left</span></td>
-                      <td>
-                        <button class="btn btn-sm btn-warning" onclick="sendRenewalReminder('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')" style="display:inline-flex;align-items:center;gap:4px;">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                          Remind
-                        </button>
-                      </td>
-                    </tr>`;
-                        })
-                        .join("");
-        }
-
-        async function sendRenewalReminder(storeId, name) {
-            const decodedName = decodeURIComponent(name);
-            try {
-                const res = await fetch(`${API}/admin/send-email`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify({
-                        storeId,
-                        subject:
-                            "Your BuildBot subscription is expiring soon",
-                        message: `Hi ${decodedName},\n\nYour BuildBot subscription is expiring within the next few days. To keep your widget running and serving customers, please renew your subscription from your dashboard.\n\nIf you have any questions or need help with payment, just reply to this email.\n\nThank you,\nBuildBot Team`,
-                    }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                    showToast(
-                        "Reminder sent",
-                        `Email sent to ${decodedName}`,
-                        "success",
-                    );
-                    logActivity("Renewal reminder", decodedName);
-                } else {
-                    showToast(
-                        "Failed",
-                        data.error || "Could not send email",
-                        "error",
-                    );
-                }
-            } catch {
-                showToast("Error", "Server error", "error");
             }
         }
 
@@ -5162,7 +4135,7 @@
                 if (!tbody) return;
                 tbody.innerHTML =
                     logs.length === 0
-                        ? '<tr><td colspan="3" class="table-empty">No activity recorded yet. Actions like approving payments, disabling stores, and sending emails will appear here.</td></tr>'
+                        ? '<tr><td colspan="3" class="table-empty">No activity recorded yet. Actions like disabling stores and sending emails will appear here.</td></tr>'
                         : logs
                             .map(
                                 (l) => `

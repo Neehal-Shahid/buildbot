@@ -5,7 +5,6 @@ const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 const {
   storeDB,
-  paymentDB,
   analyticsDB,
   productDB,
   client,
@@ -30,18 +29,9 @@ const adminAuthLimiter = rateLimit({
 });
 
 // ─── EFFECTIVE STATUS HELPER ──────────────────────────────
-// plan_status in the DB is only 'disabled' when explicitly disabled by admin.
-// It does NOT automatically reflect trial expiry. This helper closes that gap.
+// plan_status in the DB is 'disabled' only when explicitly disabled by admin.
 function computeEffectiveStatus(store) {
-  if (store.plan_status === "disabled") return "disabled";
-  if (store.plan_status === "expired") return "expired";
-  if (store.plan === "trial") {
-    if (!store.trial_ends) return "trial_active";
-    const expired = new Date() >= new Date(store.trial_ends);
-    return expired ? "trial_expired" : "trial_active";
-  }
-  if (store.plan_status === "active") return "active";
-  return store.plan_status || "unknown";
+  return store.plan_status === "disabled" ? "disabled" : "active";
 }
 
 async function enrichStoresWithCounts(stores) {
@@ -117,66 +107,14 @@ router.get("/admin/overview", adminAuth, async (req, res) => {
   const storesRaw = await storeDB.getAll();
   const stores = await enrichStoresWithCounts(storesRaw);
   const totalRecs = await analyticsDB.getTotalRecs();
-  const revenue = await paymentDB.getRevenue();
-  const pending = await paymentDB.getPending();
 
-  res.json({ success: true, stores, totalRecs, revenue, pending });
+  res.json({ success: true, stores, totalRecs });
 });
 
 router.get("/admin/stores", adminAuth, async (req, res) => {
   const storesRaw = await storeDB.getAll();
   const stores = await enrichStoresWithCounts(storesRaw);
   res.json({ success: true, stores });
-});
-
-router.get("/admin/payments", adminAuth, async (req, res) => {
-  const payments = await paymentDB.getAll();
-  res.json({ success: true, payments });
-});
-
-router.post("/admin/approve-payment", adminAuth, async (req, res) => {
-  const { id, storeId, plan } = req.body;
-  if (!id || !storeId || !plan)
-    return res.status(400).json({ error: "id, storeId and plan required" });
-  try {
-    await paymentDB.approve(id, storeId, plan);
-
-    // Send email notification
-    const store = await storeDB.findById(storeId);
-    if (store) {
-      const { sendEmail, paymentApprovedEmail } = require("../email");
-      sendEmail(paymentApprovedEmail(store.name, store.email, plan)).catch(
-        (e) => console.error("Approve payment email failed:", e.message)
-      );
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post("/admin/reject-payment", adminAuth, async (req, res) => {
-  const { id, storeId, plan } = req.body;
-  if (!id) return res.status(400).json({ error: "id required" });
-  try {
-    await paymentDB.reject(id);
-
-    // Send email notification
-    if (storeId && plan) {
-      const store = await storeDB.findById(storeId);
-      if (store) {
-        const { sendEmail, paymentRejectedEmail } = require("../email");
-        sendEmail(paymentRejectedEmail(store.name, store.email, plan)).catch(
-          (e) => console.error("Reject payment email failed:", e.message)
-        );
-      }
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 router.post("/admin/disable-store", adminAuth, async (req, res) => {
@@ -369,9 +307,7 @@ router.get("/admin/db-audit", adminAuth, async (req, res) => {
       "pending_signups",
       "products",
       "recommendations",
-      "payments",
       "tokens",
-      "trial_emails_sent",
     ];
     const counts = {};
     for (const t of tables) {
@@ -392,19 +328,6 @@ router.get("/admin/db-audit", adminAuth, async (req, res) => {
       LEFT JOIN stores s ON s.store_id = r.store_id
       WHERE s.store_id IS NULL
     `);
-    const orphanPayments = await client.execute(`
-      SELECT COUNT(*) AS c
-      FROM payments p
-      LEFT JOIN stores s ON s.store_id = p.store_id
-      WHERE s.store_id IS NULL
-    `);
-    const orphanTrials = await client.execute(`
-      SELECT COUNT(*) AS c
-      FROM trial_emails_sent t
-      LEFT JOIN stores s ON s.store_id = t.store_id
-      WHERE s.store_id IS NULL
-    `);
-
     // Tokens health
     const expiredTokens = await client.execute(`
       SELECT COUNT(*) AS c
@@ -434,8 +357,6 @@ router.get("/admin/db-audit", adminAuth, async (req, res) => {
       orphans: {
         products: Number(orphanProducts.rows[0]?.c || 0),
         recommendations: Number(orphanRecs.rows[0]?.c || 0),
-        payments: Number(orphanPayments.rows[0]?.c || 0),
-        trialEmailsSent: Number(orphanTrials.rows[0]?.c || 0),
         orphanProductsTop: topStoresByOrphans.rows,
       },
       tokens: {
@@ -447,45 +368,6 @@ router.get("/admin/db-audit", adminAuth, async (req, res) => {
         "Expired/used tokens can be periodically cleaned up without affecting app behavior.",
       ],
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Manual plan override
-router.post("/admin/set-plan", adminAuth, async (req, res) => {
-  const { storeId, plan, planStatus, planEnds } = req.body;
-  if (!storeId || !plan || !planStatus)
-    return res
-      .status(400)
-      .json({ error: "storeId, plan and planStatus required" });
-  const validPlans = ["trial", "starter", "growth", "pro"];
-  if (!validPlans.includes(plan))
-    return res
-      .status(400)
-      .json({ error: "Invalid plan. Must be: trial, starter, growth, pro" });
-  try {
-    await storeDB.setPlan(storeId, plan, planStatus, planEnds || null);
-    res.json({
-      success: true,
-      message: `Plan updated to ${plan} (${planStatus})`,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Trial extension
-router.post("/admin/extend-trial", adminAuth, async (req, res) => {
-  const { storeId, days } = req.body;
-  if (!storeId || !days)
-    return res.status(400).json({ error: "storeId and days required" });
-  const daysNum = Number(days);
-  if (daysNum < 1 || daysNum > 90)
-    return res.status(400).json({ error: "Days must be between 1 and 90" });
-  try {
-    await storeDB.extendTrial(storeId, daysNum);
-    res.json({ success: true, message: `Trial extended by ${daysNum} days` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -517,7 +399,7 @@ router.post("/admin/send-email", adminAuth, async (req, res) => {
 
 // Broadcast to all or filtered stores
 router.post("/admin/broadcast", adminAuth, async (req, res) => {
-  const { subject, message, targetPlan } = req.body;
+  const { subject, message } = req.body;
   if (!subject || !message)
     return res.status(400).json({ error: "subject and message required" });
   if (subject.length > 150)
@@ -526,11 +408,7 @@ router.post("/admin/broadcast", adminAuth, async (req, res) => {
     return res.status(400).json({ error: "Message too long (max 2000 chars)" });
   try {
     const allStores = await storeDB.getAll();
-    const targets = targetPlan
-      ? allStores.filter(
-          (s) => s.plan === targetPlan && s.plan_status !== "disabled",
-        )
-      : allStores.filter((s) => s.plan_status !== "disabled");
+    const targets = allStores.filter((s) => s.plan_status !== "disabled");
     const { sendEmail, adminManualEmail } = require("../email");
     let sent = 0;
     for (const store of targets) {
@@ -649,11 +527,9 @@ router.post(
 router.get("/admin/api-usage", adminAuth, async (req, res) => {
   try {
     const period = req.query.period === "today" ? "today" : "month";
-    const config = await configDB.getAll();
     const aiSettings = await configDB.getAiSettings();
     const summary = await apiUsageDB.getSummary(period);
     const stores = await apiUsageDB.getStoreBreakdown(period);
-    const profit = await apiUsageDB.getProfitAnalysis(config);
     const usdToPkr = aiSettings.usdToPkr;
 
     res.json({
@@ -667,17 +543,10 @@ router.get("/admin/api-usage", adminAuth, async (req, res) => {
         inputPricePerM: aiSettings.inputPricePerM,
         outputPricePerM: aiSettings.outputPricePerM,
         usdToPkr,
-        trialDailyLimit: Number(config.trial_daily_limit || 3),
-        starterMonthlyLimit: Number(config.starter_monthly_limit || 500),
-        growthMonthlyLimit: Number(config.growth_monthly_limit || 2000),
       },
       summary: {
         ...summary,
         estCostPkr: summary.estCostUsd * usdToPkr,
-      },
-      profit: {
-        ...profit,
-        apiCostPkr: profit.apiCostPkr,
       },
       stores: stores.map((s) => ({
         ...s,
@@ -720,36 +589,21 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
 
   // Whitelist allowed keys — never allow arbitrary keys
   const allowedKeys = [
-    "trial_days",
-    "trial_daily_limit",
-    "starter_price",
-    "growth_price",
-    "pro_price",
-    "payment_number",
     "maintenance_mode",
     "anthropic_model",
     "anthropic_max_tokens",
     "api_input_price_per_million",
     "api_output_price_per_million",
     "usd_to_pkr",
-    "starter_monthly_limit",
-    "growth_monthly_limit",
     "budget_presets",
   ];
 
   // Validate values
   const numericKeys = [
-    "trial_days",
-    "trial_daily_limit",
-    "starter_price",
-    "growth_price",
-    "pro_price",
     "anthropic_max_tokens",
     "api_input_price_per_million",
     "api_output_price_per_million",
     "usd_to_pkr",
-    "starter_monthly_limit",
-    "growth_monthly_limit",
   ];
   for (const key of numericKeys) {
     if (config[key] !== undefined) {
@@ -773,10 +627,6 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
       if (config[key] !== undefined) filtered[key] = config[key];
     }
     await configDB.setMany(filtered);
-
-    if (filtered.trial_days !== undefined) {
-      await storeDB.recalculateTrialEndsForAll(filtered.trial_days);
-    }
 
     res.json({ success: true, message: "Configuration saved" });
   } catch (err) {
@@ -811,20 +661,10 @@ router.post("/admin/db-cleanup", adminAuth, async (req, res) => {
       const r2 = await client.execute(`
         DELETE FROM recommendations WHERE store_id NOT IN (SELECT store_id FROM stores)
       `);
-      const r3 = await client.execute(`
-        DELETE FROM payments WHERE store_id NOT IN (SELECT store_id FROM stores)
-      `);
-      const r4 = await client.execute(`
-        DELETE FROM trial_emails_sent WHERE store_id NOT IN (SELECT store_id FROM stores)
-      `);
-      const total =
-        (r1.rowsAffected || 0) +
-        (r2.rowsAffected || 0) +
-        (r3.rowsAffected || 0) +
-        (r4.rowsAffected || 0);
+      const total = (r1.rowsAffected || 0) + (r2.rowsAffected || 0);
       res.json({
         success: true,
-        message: `Removed ${total} orphaned record${total !== 1 ? "s" : ""} (products: ${r1.rowsAffected || 0}, recommendations: ${r2.rowsAffected || 0}, payments: ${r3.rowsAffected || 0}, trial emails: ${r4.rowsAffected || 0})`,
+        message: `Removed ${total} orphaned record${total !== 1 ? "s" : ""} (products: ${r1.rowsAffected || 0}, recommendations: ${r2.rowsAffected || 0})`,
       });
     } else {
       res.status(400).json({ error: "Invalid action. Use: tokens | orphans" });
@@ -835,38 +675,13 @@ router.post("/admin/db-cleanup", adminAuth, async (req, res) => {
 });
 
 async function runScheduledEmails() {
-  const {
-    sendEmail,
-    trialEndingEmail,
-    onboardingDay4Email,
-    onboardingDay10Email,
-    planExpiredEmail,
-    adminPaymentStaleEmail,
-  } = require("../email");
+  const { sendEmail, onboardingDay4Email } = require("../email");
 
   const results = {
-    trialWarnings: 0,
     onboarding: 0,
-    dunning: 0,
-    stalePayments: 0,
-    expiredPlans: 0,
-    expiredTrials: 0,
     skipped: 0,
     errors: [],
   };
-
-  // 0. Auto-expire lapsed subscriptions and trials in DB
-  try {
-    results.expiredPlans = await storeDB.expireLapsedPlans();
-    results.expiredTrials = await storeDB.expireExpiredTrials();
-    if (results.expiredPlans > 0 || results.expiredTrials > 0) {
-      console.log(
-        `Expired plans: ${results.expiredPlans} paid, ${results.expiredTrials} trial`,
-      );
-    }
-  } catch (e) {
-    results.errors.push(`expirePlans: ${e.message}`);
-  }
 
   async function sendDripOnce(storeId, emailType, template) {
     const claimed = await emailLogDB.tryClaim(
@@ -883,41 +698,7 @@ async function runScheduledEmails() {
     return true;
   }
 
-  function canReceiveDrip(store) {
-    return (
-      store.email_verified === 1 &&
-      (store.marketing_emails_enabled ?? 1) === 1 &&
-      (store.drip_emails_paused ?? 0) === 0 &&
-      store.plan_status !== "disabled"
-    );
-  }
-
-  // 1. Trial ending warnings — 3 days before and 1 day before expiry
-  for (const days of [3, 1]) {
-    try {
-      const stores = await storeDB.getTrialEndingIn(days);
-      for (const store of stores) {
-        if (!canReceiveDrip(store)) continue;
-        try {
-          const template = trialEndingEmail(store.name, store.email, days);
-          const sent = await sendDripOnce(
-            store.store_id,
-            `trial_warning_${days}`,
-            template,
-          );
-          if (sent) results.trialWarnings++;
-        } catch (e) {
-          results.errors.push(
-            `trial-warning-day${days}: ${store.email}: ${e.message}`,
-          );
-        }
-      }
-    } catch (e) {
-      results.errors.push(`getTrialEndingIn(${days}): ${e.message}`);
-    }
-  }
-
-  // 2. Onboarding drip — Day 4 (not live yet) and Day 10 (upgrade urgency)
+  // Onboarding nudge — Day 4, store hasn't gone live yet (no products, no WooCommerce)
   try {
     const day4Stores = await storeDB.getSignedUpDaysAgoNotLive(4);
     for (const store of day4Stores) {
@@ -935,86 +716,6 @@ async function runScheduledEmails() {
     }
   } catch (e) {
     results.errors.push(`getSignedUpDaysAgoNotLive(4): ${e.message}`);
-  }
-
-  try {
-    const day10Stores = await storeDB.getSignedUpDaysAgoForDrip(10);
-    for (const store of day10Stores) {
-      try {
-        const template = onboardingDay10Email(store.name, store.email);
-        const sent = await sendDripOnce(
-          store.store_id,
-          "onboarding_day10",
-          template,
-        );
-        if (sent) results.onboarding++;
-      } catch (e) {
-        results.errors.push(`onboarding-day10: ${store.email}: ${e.message}`);
-      }
-    }
-  } catch (e) {
-    results.errors.push(`getSignedUpDaysAgoForDrip(10): ${e.message}`);
-  }
-
-  // 3. Dunning emails — Day 1, Day 3, Day 7 after plan_ends
-  for (const days of [1, 3, 7]) {
-    try {
-      const stores = await storeDB.getPlanLapsedBy(days);
-      for (const store of stores) {
-        if (!canReceiveDrip(store)) continue;
-        try {
-          const template = planExpiredEmail(store.name, store.email, days);
-          const sent = await sendDripOnce(
-            store.store_id,
-            `dunning_day${days}`,
-            template,
-          );
-          if (sent) results.dunning++;
-        } catch (e) {
-          results.errors.push(
-            `dunning-day${days}: ${store.email}: ${e.message}`,
-          );
-        }
-      }
-    } catch (e) {
-      results.errors.push(`getPlanLapsedBy(${days}): ${e.message}`);
-    }
-  }
-
-  // 4. Stale payment alert — payments pending for 6+ hours with no admin action
-  try {
-    const stalePayments = await paymentDB.getStalePending(6);
-    for (const payment of stalePayments) {
-      try {
-        const hoursWaiting = Math.floor(
-          (Date.now() - new Date(payment.created_at).getTime()) / 3600000,
-        );
-        const emailType = `stale_payment_${payment.id}`;
-        const template = adminPaymentStaleEmail(
-          payment.name,
-          payment.email,
-          payment.plan,
-          payment.amount,
-          hoursWaiting,
-        );
-        const claimed = await emailLogDB.tryClaim(
-          payment.store_id,
-          emailType,
-          template.to,
-          template.subject,
-        );
-        if (!claimed) {
-          results.skipped++;
-          continue;
-        }
-        await sendEmail(template);
-        results.stalePayments++;
-      } catch (e) {
-        results.errors.push(`stale-payment: ${payment.email}: ${e.message}`);
-      }
-    }
-  } catch (e) {
-    results.errors.push(`getStalePending: ${e.message}`);
   }
 
   console.log("Scheduled emails result:", JSON.stringify(results));

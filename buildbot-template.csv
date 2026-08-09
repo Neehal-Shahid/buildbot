@@ -1,8 +1,10 @@
 name,category,price,description
-Intel Core i5-13400F,CPU,45000,Great mid range processor
-ASUS Prime B660M-K,Motherboard,18000,LGA1700 compatible motherboard
-Corsair Vengeance 16GB DDR4,RAM,8500,Reliable 16GB RAM kit
+Intel Core i5-13400F,CPU,45000,Great mid range processor LGA1700 socket
+ASUS Prime B660M-K,Motherboard,18000,LGA1700 socket DDR4 mATX motherboard
+Corsair Vengeance 16GB DDR4,RAM,8500,Reliable 16GB DDR4 RAM kit
 WD Blue 1TB SSD,Storage,14000,Fast and reliable SSD
-MSI GeForce RTX 3060,GPU,65000,Great for gaming and editing
-Corsair CV550 550W PSU,PSU,8500,Reliable power supply
-Deepcool Matrexx 50 Case,Case,6500,Good airflow mid tower case
+MSI GeForce RTX 3060,GPU,65000,Great for gaming and editing 170W
+Corsair CV550 550W PSU,PSU,8500,Reliable 550W power supply
+Deepcool Matrexx 50 Case,Case,6500,Good airflow ATX mid tower case
+Arctic Freezer 36 CPU Cooler,CPU Cooler,7000,Quiet CPU cooling for LGA1700 and AM4
+Thermaltake Riing 12 Case Fans,Case Fans,5000,Good airflow 120mm case fans

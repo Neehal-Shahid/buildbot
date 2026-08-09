@@ -235,6 +235,24 @@ router.post("/admin/activate-store", adminAuth, async (req, res) => {
   }
 });
 
+// ─── TOGGLE WIDGET (admin override) ──────────────────────
+router.post("/admin/toggle-widget", adminAuth, async (req, res) => {
+  const storeId = String(req.body.storeId || "").trim();
+  const enabled = req.body.enabled !== false; // default true
+  if (!storeId) return res.status(400).json({ error: "storeId required" });
+  try {
+    const store = await storeDB.findById(storeId);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+    await client.execute({
+      sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
+      args: [enabled ? 1 : 0, storeId],
+    });
+    res.json({ success: true, widgetEnabled: enabled });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/admin/forgot-password", adminAuthLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email required" });

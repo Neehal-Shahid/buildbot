@@ -4284,7 +4284,7 @@
                                                         margin-left: 6px;
                                                     ">Max 200 chars</span>
                                         </label>
-                                        <textarea id="welcome-msg-input" maxlength="200" rows="5"
+                                        <textarea id="welcome-msg-input" maxlength="200" rows="3"
                                             placeholder="Tell customers what the widget does..."></textarea>
                                         <div style="
                                                     font-size: 11px;
@@ -4294,6 +4294,17 @@
                                             Shown on the first screen. Keep
                                             it short and friendly.
                                         </div>
+                                    </div>
+                                    
+                                    <div class="form-group" style="margin-top: 16px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div style="font-weight: 600; font-size: 14px;">Widget Status</div>
+                                            <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Enable or disable the widget on your website.</div>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="widget-enable-toggle" checked onchange="toggleWidgetStatus(this.checked)">
+                                            <span class="slider"></span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -6785,15 +6796,47 @@
                         s.welcome_msg || "";
                     document.getElementById("button-text-input").value =
                         s.button_text || "Get Started";
+                    
+                    const toggleEl = document.getElementById("widget-enable-toggle");
+                    if (toggleEl) {
+                        toggleEl.checked = s.widget_enabled !== 0;
+                    }
+                    
                     updateWidgetPreview();
                 } else {
+                    console.error("Could not load widget settings");
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function toggleWidgetStatus(enabled) {
+            try {
+                const res = await fetch(`${API}/widget-toggle`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ enabled }),
+                });
+                const data = await res.json();
+                if (data.success) {
                     showAlert(
                         "widget-settings-alert",
-                        "Could not load widget settings.",
-                        "error",
+                        data.message,
+                        "success"
                     );
+                } else {
+                    showAlert("widget-settings-alert", data.error, "error");
+                    // Revert toggle state if it failed
+                    document.getElementById("widget-enable-toggle").checked = !enabled;
                 }
-            } catch (e) { }
+            } catch (err) {
+                showAlert("widget-settings-alert", "Connection error", "error");
+                document.getElementById("widget-enable-toggle").checked = !enabled;
+            }
         }
 
         // ─── WOOCOMMERCE PLUGIN ───────────────────────────────────

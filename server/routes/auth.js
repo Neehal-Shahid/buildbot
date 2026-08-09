@@ -738,6 +738,30 @@ router.get("/me", authMiddleware, async (req, res) => {
   });
 });
 
+// ─── TOGGLE WIDGET ────────────────────────────────────────
+router.post("/widget-toggle", authMiddleware, async (req, res) => {
+  const { enabled } = req.body;
+  try {
+    const { createClient } = require("@libsql/client");
+    const client = createClient({
+      url: process.env.TURSO_URL,
+      authToken: process.env.TURSO_TOKEN,
+    });
+    
+    await client.execute({
+      sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
+      args: [enabled ? 1 : 0, req.store.storeId],
+    });
+    
+    res.json({
+      success: true,
+      message: enabled ? "Widget has been enabled." : "Widget has been disabled.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Could not toggle widget: " + err.message });
+  }
+});
+
 // ─── SETTINGS ─────────────────────────────────────────────
 router.put("/settings", authMiddleware, async (req, res) => {
   const { brandColor, currency } = req.body;
@@ -838,6 +862,24 @@ router.put("/widget-settings", authMiddleware, async (req, res) => {
       widgetBg || "#1a1d27",
     );
     res.json({ success: true, message: "Widget settings saved!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── TOGGLE WIDGET (for store owners) ─────────────────────
+router.post("/widget-toggle", authMiddleware, async (req, res) => {
+  const { enabled } = req.body;
+  if (enabled === undefined)
+    return res.status(400).json({ error: "enabled field is required" });
+
+  try {
+    const { client } = require("../database");
+    await client.execute({
+      sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
+      args: [enabled ? 1 : 0, req.store.storeId],
+    });
+    res.json({ success: true, widgetEnabled: enabled, message: enabled ? "Widget Enabled" : "Widget Disabled" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

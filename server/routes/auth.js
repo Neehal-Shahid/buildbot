@@ -841,7 +841,18 @@ router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => 
   const code = String(crypto.randomInt(100000, 999999));
   try {
     await storeDB.setWhatsappVerifyCode(req.store.storeId, code);
-    res.json({ success: true, code, whatsappNumber: store.whatsapp_number });
+    const waNumber = store.whatsapp_number.replace(/[^\d]/g, "");
+    const text = encodeURIComponent(
+      `My BuildVolt verification code is: ${code}`,
+    );
+    // The raw code is only ever embedded inside this wa.me link, never
+    // returned as its own field — it stays out of the frontend's reach
+    // except as part of the URL WhatsApp itself renders.
+    res.json({
+      success: true,
+      waLink: `https://wa.me/${waNumber}?text=${text}`,
+      whatsappNumber: store.whatsapp_number,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -886,7 +897,7 @@ router.get("/store-config/:storeId", async (req, res) => {
     widgetSettings = await widgetDB.getSettings(req.params.storeId);
   } catch (e) {
     widgetSettings = {
-      widgetTitle: "BuildBot",
+      widgetTitle: "BuildVolt",
       welcomeMsg:
         "Tell me your budget and what you need — I will find the best parts from this store for you.",
       buttonText: "Get Started",

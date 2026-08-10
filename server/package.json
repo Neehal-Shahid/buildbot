@@ -1,7 +1,7 @@
 {
-  "name": "buildbot-server",
+  "name": "buildvolt-server",
   "version": "1.0.0",
-  "description": "BuildBot AI PC Recommender - Backend",
+  "description": "BuildVolt PC Build Recommender - Backend",
   "main": "index.js",
   "scripts": {
     "build:plugin": "node scripts/build-plugin.js",
@@ -10,11 +10,9 @@
     "dev": "node index.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.0",
     "@libsql/client": "^0.17.4",
     "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.0.0",
@@ -25,7 +23,6 @@
     "libphonenumber-js": "^1.13.10",
     "mammoth": "^1.12.1",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.0",
     "pdf-parse": "^1.1.1",
     "resend": "^6.12.0",
     "xlsx": "^0.18.5"

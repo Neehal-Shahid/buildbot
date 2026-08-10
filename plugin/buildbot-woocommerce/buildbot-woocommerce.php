@@ -1,10 +1,10 @@
 <?php
 /**
- * Plugin Name: BuildBot AI PC Recommender
+ * Plugin Name: BuildVolt PC Build Recommender
  * Plugin URI:  https://buildbot-nine.vercel.app
- * Description: Connects your WooCommerce store to BuildBot — syncs products automatically so customers get AI-powered PC build recommendations.
+ * Description: Connects your WooCommerce store to BuildVolt — syncs products automatically so customers get instant PC build recommendations.
  * Version:     2.0.0
- * Author:      BuildBot
+ * Author:      BuildVolt
  * Author URI:  https://buildbot-nine.vercel.app
  * License:     GPL v2 or later
  * Requires at least: 5.0
@@ -26,10 +26,10 @@ function buildbot_activate() {
     deactivate_plugins(plugin_basename(__FILE__));
     wp_die(
       '<div style="font-family:sans-serif;padding:20px;">
-        <h2>⚡ BuildBot — Activation Failed</h2>
+        <h2>⚡ BuildVolt — Activation Failed</h2>
         <p><strong>WooCommerce is not installed or active.</strong></p>
-        <p>BuildBot requires WooCommerce to work. Please install and activate
-        WooCommerce first, then activate BuildBot.</p>
+        <p>BuildVolt requires WooCommerce to work. Please install and activate
+        WooCommerce first, then activate BuildVolt.</p>
         <a href="' . admin_url('plugins.php') . '">← Back to Plugins</a>
       </div>',
       'WooCommerce Required',
@@ -99,83 +99,125 @@ function buildbot_check_update($transient) {
 }
 
 // ─── CATEGORY MAPPING ─────────────────────────────────────
+// Mirrors server/lib/categories.js exactly — this function only feeds the
+// local "connected store" health check in this admin page (the server
+// re-detects the category itself from the raw WooCommerce category name
+// and product name on every sync), but it must still agree with the
+// server's 9 canonical categories or the health check misreports what
+// will actually show up in recommendations.
+function buildbot_detect_category($text) {
+  $text = strtolower((string) $text);
+  if ($text === '') return null;
+
+  if (
+    strpos($text, 'cpu cooler') !== false ||
+    strpos($text, 'heatsink') !== false ||
+    strpos($text, 'heat sink') !== false ||
+    strpos($text, 'aio cooler') !== false ||
+    strpos($text, 'liquid cooler') !== false ||
+    strpos($text, 'air cooler') !== false ||
+    strpos($text, 'hyper 212') !== false ||
+    strpos($text, 'arctic freezer') !== false ||
+    strpos($text, 'noctua') !== false ||
+    (strpos($text, 'cooler') !== false && strpos($text, 'cooler master') === false)
+  ) return 'CPU Cooler';
+
+  if (
+    strpos($text, 'power supply') !== false ||
+    strpos($text, 'psu') !== false ||
+    strpos($text, 'smps') !== false ||
+    strpos($text, 'power unit') !== false ||
+    strpos($text, 'seasonic') !== false ||
+    strpos($text, 'cooler master mwe') !== false ||
+    strpos($text, 'corsair cv') !== false ||
+    strpos($text, 'corsair rm') !== false
+  ) return 'PSU';
+
+  if (
+    strpos($text, 'graphics') !== false ||
+    strpos($text, 'gpu') !== false ||
+    strpos($text, 'video card') !== false ||
+    strpos($text, 'graphic card') !== false ||
+    strpos($text, 'vga') !== false ||
+    strpos($text, 'rtx') !== false ||
+    strpos($text, 'gtx') !== false ||
+    strpos($text, 'radeon') !== false ||
+    strpos($text, 'geforce') !== false ||
+    strpos($text, 'nvidia') !== false
+  ) return 'GPU';
+
+  if (
+    strpos($text, 'processor') !== false ||
+    strpos($text, 'proccessor') !== false ||
+    strpos($text, 'intel core') !== false ||
+    strpos($text, 'ryzen') !== false ||
+    strpos($text, 'threadripper') !== false ||
+    strpos($text, 'xeon') !== false ||
+    strpos($text, 'celeron') !== false ||
+    strpos($text, 'pentium') !== false ||
+    strpos($text, 'core i3') !== false ||
+    strpos($text, 'core i5') !== false ||
+    strpos($text, 'core i7') !== false ||
+    strpos($text, 'core i9') !== false ||
+    strpos($text, 'cpu') !== false ||
+    preg_match('/\bchip\b/', $text)
+  ) return 'CPU';
+
+  if (
+    strpos($text, 'motherboard') !== false ||
+    strpos($text, 'mainboard') !== false ||
+    strpos($text, 'mobo') !== false
+  ) return 'Motherboard';
+
+  if (
+    strpos($text, 'memory') !== false ||
+    strpos($text, 'ram') !== false ||
+    strpos($text, 'dimm') !== false ||
+    strpos($text, 'vengeance') !== false ||
+    strpos($text, 'ripjaws') !== false
+  ) return 'RAM';
+
+  if (
+    strpos($text, 'storage') !== false ||
+    strpos($text, 'ssd') !== false ||
+    strpos($text, 'hdd') !== false ||
+    strpos($text, 'nvme') !== false ||
+    strpos($text, 'disk') !== false ||
+    strpos($text, 'drive') !== false ||
+    strpos($text, 'solid state') !== false ||
+    strpos($text, 'm.2') !== false ||
+    strpos($text, 'sata') !== false
+  ) return 'Storage';
+
+  if (
+    strpos($text, 'case fan') !== false ||
+    strpos($text, 'cooling fan') !== false ||
+    strpos($text, 'fan') !== false
+  ) return 'Case Fans';
+
+  if (
+    strpos($text, 'case') !== false ||
+    strpos($text, 'chassis') !== false ||
+    strpos($text, 'cabinet') !== false ||
+    strpos($text, 'casing') !== false ||
+    strpos($text, 'tower') !== false
+  ) return 'Case';
+
+  return null;
+}
+
 function buildbot_map_category($woo_categories, $product_name = '') {
-  // Keywords → BuildBot category
-  $keyword_map = [
-    'CPU'         => ['cpu', 'processor', 'intel core', 'ryzen', 'amd ryzen',
-                      'core i3', 'core i5', 'core i7', 'core i9',
-                      'threadripper', 'xeon', 'celeron', 'pentium', 'athlon'],
-    'Motherboard' => ['motherboard', 'mobo', 'mainboard', 'lga', 'am4', 'am5',
-                      'b450', 'b550', 'b660', 'b760', 'x570', 'z690', 'z790',
-                      'h610', 'h410', 'h510', 'asus prime', 'msi pro',
-                      'gigabyte', 'asrock'],
-    'RAM'         => ['ram', 'memory', 'ddr4', 'ddr5', 'dimm', 'sodimm',
-                      'vengeance', 'ripjaws', 'fury', '3200mhz', '3600mhz',
-                      '4800mhz', '6000mhz', '8gb ram', '16gb ram', '32gb ram'],
-    'Storage'     => ['ssd', 'hdd', 'hard drive', 'hard disk', 'nvme', 'solid state',
-                      'm.2', 'sata', '970 evo', 'wd blue', 'seagate', 'barracuda',
-                      'crucial mx', 'kingston', 'tb hdd', 'gb ssd', '1tb', '2tb', '500gb'],
-    'GPU'         => ['gpu', 'graphics', 'video card', 'rtx', 'gtx', 'radeon',
-                      'rx 6', 'rx 7', 'geforce', 'nvidia', 'amd gpu',
-                      '3060', '3070', '3080', '4060', '4070', '4080', '4090',
-                      '6600', '6700', '7600', '7700', '1660', '1650'],
-    'PSU'         => ['psu', 'power supply', 'power unit', 'smps', 'watt',
-                      '550w', '650w', '750w', '850w', '1000w',
-                      'corsair cv', 'seasonic', 'evga', 'cooler master mwe',
-                      '80 plus', 'gold psu', 'bronze psu', 'modular'],
-    'Case'        => ['case', 'cabinet', 'casing', 'chassis', 'tower',
-                      'mid tower', 'full tower', 'mini itx', 'micro atx',
-                      'matrexx', 'nzxt', 'fractal', 'lian li', 'phanteks',
-                      'corsair 4000', 'ant esports', 'deepcool'],
-    'Monitor'     => ['monitor', 'display', 'screen', 'led monitor', 'ips',
-                      'va panel', 'tn panel', '144hz', '165hz', '240hz',
-                      '1080p', '1440p', '4k monitor', '24 inch', '27 inch',
-                      'dell monitor', 'lg monitor', 'aoc', 'benq'],
-    'Cooling'     => ['cooler', 'cooling', 'heatsink', 'aio', 'liquid cool',
-                      'cpu fan', 'case fan', 'rgb fan', 'arctic', 'noctua',
-                      'be quiet', 'hyper 212', 'thermal paste', 'thermal grease'],
-    'Networking'  => ['wifi', 'wireless', 'network card', 'lan card', 'ethernet',
-                      'router', 'tp-link', 'asus router', 'pcie wifi',
-                      'bluetooth adapter', 'usb wifi'],
-    'UPS'         => ['ups', 'uninterruptible', 'power backup', 'inverter ups',
-                      'apc ups', 'cyber power', 'voltage stabilizer'],
-    'Peripherals' => ['keyboard', 'mouse', 'headset', 'headphone', 'webcam',
-                      'gamepad', 'controller', 'microphone', 'speaker',
-                      'redragon', 'logitech', 'razer', 'corsair k',
-                      'gaming keyboard', 'mechanical keyboard', 'wireless mouse'],
-    'Cable'       => ['cable', 'hdmi', 'displayport', 'usb cable', 'sata cable',
-                      'extension cable', 'adapter', 'hub', 'usb hub'],
-    'Software'    => ['windows', 'microsoft office', 'antivirus', 'os',
-                      'operating system', 'software license', 'windows 11',
-                      'windows 10']
-  ];
-
-  $search_text = strtolower($product_name);
-
-  // First try to match from WooCommerce category names
   if (!empty($woo_categories)) {
     foreach ($woo_categories as $cat) {
-      $cat_lower = strtolower($cat['name']);
-      foreach ($keyword_map as $buildbot_cat => $keywords) {
-        foreach ($keywords as $keyword) {
-          if (strpos($cat_lower, $keyword) !== false) {
-            return $buildbot_cat;
-          }
-        }
-      }
+      $detected = buildbot_detect_category($cat['name']);
+      if ($detected) return $detected;
     }
   }
 
-  // Then try to match from product name
-  foreach ($keyword_map as $buildbot_cat => $keywords) {
-    foreach ($keywords as $keyword) {
-      if (strpos($search_text, $keyword) !== false) {
-        return $buildbot_cat;
-      }
-    }
-  }
+  $detected = buildbot_detect_category($product_name);
+  if ($detected) return $detected;
 
-  return 'Accessory';
+  return 'Unmapped';
 }
 
 // ─── GET ALL WOOCOMMERCE PRODUCTS ─────────────────────────
@@ -214,7 +256,7 @@ function buildbot_get_all_products() {
     $product_name     = $product->get_name();
     $mapped_category  = buildbot_map_category($woo_cats, $product_name);
 
-    if ($mapped_category === 'Accessory' && empty($woo_cats)) {
+    if ($mapped_category === 'Unmapped') {
       $unmapped++;
     }
 
@@ -306,8 +348,8 @@ function buildbot_full_sync() {
 add_action('admin_menu', 'buildbot_admin_menu');
 function buildbot_admin_menu() {
   add_menu_page(
-    '⚡ BuildBot',
-    '⚡ BuildBot',
+    '⚡ BuildVolt',
+    '⚡ BuildVolt',
     'manage_options',
     'buildbot',
     'buildbot_admin_page',
@@ -324,7 +366,7 @@ function buildbot_enqueue_admin_scripts($hook) {
   // Enqueue jQuery (WordPress has it built-in)
   wp_enqueue_script('jquery');
 
-  // Inline script with all BuildBot JS
+  // Inline script with all BuildVolt JS
   $store_id  = get_option('buildbot_store_id', '');
   $secret    = get_option('buildbot_secret_key', '');
   $api       = BUILDBOT_API;
@@ -344,9 +386,9 @@ function buildbot_enqueue_admin_scripts($hook) {
 function buildbot_get_admin_js() {
   return <<<'JSEOF'
   window.buildbotShowNotice = function(msg, type) {
-    console.log('BuildBot [' + type + ']:', msg);
+    console.log('BuildVolt [' + type + ']:', msg);
     var el = document.getElementById('bb-notice');
-    if (!el) { console.warn('BuildBot: no #bb-notice element'); return; }
+    if (!el) { console.warn('BuildVolt: no #bb-notice element'); return; }
     el.textContent   = msg;
     el.className     = 'bb-notice ' + type;
     el.style.display = 'block';
@@ -367,7 +409,7 @@ function buildbot_get_admin_js() {
 
     btn.disabled    = true;
     btn.textContent = 'Testing connection...';
-    window.buildbotShowNotice('Testing connection to BuildBot...', 'info');
+    window.buildbotShowNotice('Testing connection to BuildVolt...', 'info');
 
     try {
       var pingRes = await fetch(BB_API + '/plugin/ping', {
@@ -448,7 +490,7 @@ function buildbot_get_admin_js() {
         return;
       }
 
-      window.buildbotShowNotice('Sending ' + products.length + ' products to BuildBot...', 'info');
+      window.buildbotShowNotice('Sending ' + products.length + ' products to BuildVolt...', 'info');
 
       var syncRes = await fetch(BB_API + '/plugin/sync', {
         method:  'POST',
@@ -488,7 +530,7 @@ function buildbot_get_admin_js() {
   };
 
   window.buildbotDisconnect = async function() {
-    if (!confirm('Disconnect BuildBot? Auto-sync will stop.')) return;
+    if (!confirm('Disconnect BuildVolt? Auto-sync will stop.')) return;
     await fetch(ajaxurl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -534,7 +576,7 @@ function buildbot_get_admin_js() {
     }
   };
 
-  console.log('BuildBot admin scripts loaded successfully');
+  console.log('BuildVolt admin scripts loaded successfully');
 JSEOF;
 }
 
@@ -638,8 +680,8 @@ function buildbot_admin_page() {
     <div class="bb-header">
       <div class="bb-header-icon">⚡</div>
       <div>
-        <h1>BuildBot</h1>
-        <p>AI-powered PC Build Recommender for your store</p>
+        <h1>BuildVolt</h1>
+        <p>Instant PC Build Recommender for your store</p>
       </div>
       <?php if ($is_connected): ?>
       <div style="margin-left:auto;background:rgba(255,255,255,.15);
@@ -656,7 +698,7 @@ function buildbot_admin_page() {
     <?php if (!$is_pc_store): ?>
     <div class="bb-warning-box">
       ⚠️ <strong>No PC parts detected</strong> in your product catalog.
-      BuildBot works best with PC components (CPU, GPU, RAM, etc.).
+      BuildVolt works best with PC components (CPU, GPU, RAM, etc.).
       Your products may not generate useful recommendations.
       Make sure your WooCommerce products are properly categorized.
     </div>
@@ -664,7 +706,7 @@ function buildbot_admin_page() {
 
     <div class="bb-card">
       <h2>Connection Status</h2>
-      <div class="bb-status connected">✅ Connected to BuildBot</div>
+      <div class="bb-status connected">✅ Connected to BuildVolt</div>
 
       <div class="bb-stats">
         <div class="bb-stat">
@@ -687,9 +729,10 @@ function buildbot_admin_page() {
 
       <?php if ($unmapped > 0): ?>
       <div class="bb-notice info" style="display:block;margin-bottom:14px;">
-        ℹ️ <?php echo $unmapped; ?> products were saved as "Accessory"
-        because their category could not be detected.
-        Consider adding proper categories in WooCommerce for better recommendations.
+        ℹ️ <?php echo $unmapped; ?> product<?php echo $unmapped === 1 ? '' : 's'; ?>
+        skipped — not a PC-build category BuildVolt recognizes (CPU, Motherboard,
+        RAM, Storage, GPU, PSU, Case, CPU Cooler, Case Fans).
+        Give them a matching category in WooCommerce to include them in recommendations.
       </div>
       <?php endif; ?>
 
@@ -708,7 +751,7 @@ function buildbot_admin_page() {
     <!-- Widget Enable/Disable -->
     <div class="bb-card">
       <h2>Widget Visibility</h2>
-      <p>Control whether the BuildBot widget appears on your store frontend.</p>
+      <p>Control whether the BuildVolt widget appears on your store frontend.</p>
 
       <div style="display:flex;align-items:center;justify-content:space-between;
         background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
@@ -719,7 +762,7 @@ function buildbot_admin_page() {
           </div>
           <div style="font-size:12px;color:#64748b;">
             <?php echo $widget_enabled
-              ? 'Customers can see and use the BuildBot widget on your store.'
+              ? 'Customers can see and use the BuildVolt widget on your store.'
               : 'Widget is hidden. Customers cannot see it on your store.'; ?>
           </div>
         </div>
@@ -744,7 +787,7 @@ function buildbot_admin_page() {
     <?php if (!empty($cat_stats)): ?>
     <div class="bb-card">
       <h2>Category Breakdown</h2>
-      <p>How your products were categorized for AI recommendations.</p>
+      <p>How your products were categorized for build recommendations.</p>
       <div class="bb-cat-grid">
         <?php foreach ($cat_stats as $cat => $count): ?>
         <div class="bb-cat-item">
@@ -760,8 +803,8 @@ function buildbot_admin_page() {
 
     <!-- ── SETUP STATE ── -->
     <div class="bb-card">
-      <h2>Connect to BuildBot</h2>
-      <p>Enter your Store ID and Secret Key from your BuildBot dashboard.</p>
+      <h2>Connect to BuildVolt</h2>
+      <p>Enter your Store ID and Secret Key from your BuildVolt dashboard.</p>
 
       <div class="bb-status disconnected">● Not Connected</div>
 
@@ -771,7 +814,7 @@ function buildbot_admin_page() {
           value="<?php echo esc_attr($store_id); ?>"
           placeholder="e.g. techzone-lahore"/>
         <div class="bb-hint">
-          BuildBot Dashboard → Settings → WooCommerce section → Your Store ID
+          BuildVolt Dashboard → Settings → WooCommerce section → Your Store ID
         </div>
       </div>
 
@@ -781,7 +824,7 @@ function buildbot_admin_page() {
           value="<?php echo esc_attr($secret_key); ?>"
           placeholder="bb_live_..."/>
         <div class="bb-hint">
-          BuildBot Dashboard → Settings → WooCommerce section → Generate Key → Copy
+          BuildVolt Dashboard → Settings → WooCommerce section → Generate Key → Copy
         </div>
       </div>
 
@@ -823,7 +866,7 @@ function buildbot_admin_page() {
           <span style="font-size:20px;flex-shrink:0;">🤖</span>
           <div>
             <strong style="font-size:13px;color:#1a1d27;display:block;margin-bottom:2px;">
-              AI recommends only your products
+              Recommends only your products
             </strong>
             <span style="font-size:12px;color:#64748b;">
               Customers get personalized PC builds using parts you actually sell.
@@ -847,7 +890,7 @@ function buildbot_admin_page() {
     <?php endif; ?>
 
     <div class="bb-footer">
-      BuildBot v<?php echo BUILDBOT_VERSION; ?> •
+      BuildVolt v<?php echo BUILDBOT_VERSION; ?> •
       <a href="https://buildbot-nine.vercel.app" target="_blank">Dashboard</a> •
       Auto-syncs every 6 hours
     </div>
@@ -1002,7 +1045,7 @@ function buildbot_toggle_widget_ajax() {
   $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
   update_option('buildbot_widget_enabled', $enabled);
 
-  // Also notify BuildBot server
+  // Also notify BuildVolt server
   $store_id = get_option('buildbot_store_id');
   $secret   = get_option('buildbot_secret_key');
 
@@ -1024,9 +1067,9 @@ function buildbot_toggle_widget_ajax() {
 // ─── WIDGET "ORDER THIS BUILD" → ADD ALL PARTS TO CART ────
 // The widget's "Order This Build" button navigates the customer's browser
 // straight to this URL on the store's own domain (never a cross-origin
-// fetch from BuildBot's server) — that's what lets WooCommerce's cart
+// fetch from BuildVolt's server) — that's what lets WooCommerce's cart
 // session cookies apply correctly. Items arrive as items=[{"id":123,
-// "qty":1}, ...] JSON, matched by the WooCommerce product ID BuildBot
+// "qty":1}, ...] JSON, matched by the WooCommerce product ID BuildVolt
 // stored when this product was synced. Runs on template_redirect so
 // WooCommerce's cart/session is guaranteed to be initialized.
 add_action('template_redirect', 'buildbot_handle_add_to_cart');
@@ -1074,7 +1117,7 @@ function buildbot_inject_widget() {
   if (is_admin()) return;
 
   $widget_url = 'https://buildbot-production-3f70.up.railway.app/widget.js';
-  echo '<!-- BuildBot AI PC Recommender -->' . "
+  echo '<!-- BuildVolt PC Build Recommender -->' . "
 ";
   echo '<script src="' . esc_url($widget_url) . '" data-store-id="' . esc_attr($store_id) . '"></script>' . "
 ";

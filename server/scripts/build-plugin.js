@@ -64,7 +64,7 @@ async function main() {
   syncPhpVersion(version);
   await buildZip();
 
-  console.log(`Built BuildBot plugin v${version} -> ${zipPath}`);
+  console.log(`Built BuildVolt plugin v${version} -> ${zipPath}`);
 }
 
 main().catch((err) => {

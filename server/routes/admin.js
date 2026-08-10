@@ -11,7 +11,6 @@ const {
   adminDB,
   tokenDB,
   configDB,
-  apiUsageDB,
   emailLogDB,
   supportTicketDB,
 } = require("../database");
@@ -581,53 +580,6 @@ router.post(
   },
 );
 
-// ─── API & MODEL USAGE ────────────────────────────────────────
-
-router.get("/admin/api-usage", adminAuth, async (req, res) => {
-  try {
-    const period = req.query.period === "today" ? "today" : "month";
-    const aiSettings = await configDB.getAiSettings();
-    const summary = await apiUsageDB.getSummary(period);
-    const stores = await apiUsageDB.getStoreBreakdown(period);
-    const usdToPkr = aiSettings.usdToPkr;
-
-    res.json({
-      success: true,
-      period,
-      apiKeySet: Boolean((process.env.ANTHROPIC_API_KEY || "").trim()),
-      testMode: process.env.TEST_MODE === "true",
-      settings: {
-        model: aiSettings.model,
-        maxTokens: aiSettings.maxTokens,
-        inputPricePerM: aiSettings.inputPricePerM,
-        outputPricePerM: aiSettings.outputPricePerM,
-        usdToPkr,
-      },
-      summary: {
-        ...summary,
-        estCostPkr: summary.estCostUsd * usdToPkr,
-      },
-      stores: stores.map((s) => ({
-        ...s,
-        estCostPkr: s.estCostUsd * usdToPkr,
-      })),
-      models: [
-        { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 (fast, cheapest)" },
-        {
-          id: "claude-sonnet-4-5",
-          label: "Claude Sonnet 4.5 (smarter, ~10× cost)",
-        },
-        {
-          id: "claude-sonnet-4-6",
-          label: "Claude Sonnet 4.6 (latest balanced)",
-        },
-      ],
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ─── PLATFORM CONFIG ──────────────────────────────────────────
 
 // GET /admin/platform-config — return all config key/value pairs
@@ -647,38 +599,7 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
     return res.status(400).json({ error: "config object required" });
 
   // Whitelist allowed keys — never allow arbitrary keys
-  const allowedKeys = [
-    "maintenance_mode",
-    "anthropic_model",
-    "anthropic_max_tokens",
-    "api_input_price_per_million",
-    "api_output_price_per_million",
-    "usd_to_pkr",
-    "budget_presets",
-  ];
-
-  // Validate values
-  const numericKeys = [
-    "anthropic_max_tokens",
-    "api_input_price_per_million",
-    "api_output_price_per_million",
-    "usd_to_pkr",
-  ];
-  for (const key of numericKeys) {
-    if (config[key] !== undefined) {
-      const val = Number(config[key]);
-      if (!Number.isFinite(val) || val < 0)
-        return res.status(400).json({
-          error: `Invalid value for ${key}: must be a positive number`,
-        });
-    }
-  }
-
-  if (config.anthropic_model !== undefined) {
-    const model = String(config.anthropic_model).trim();
-    if (!model)
-      return res.status(400).json({ error: "anthropic_model cannot be empty" });
-  }
+  const allowedKeys = ["maintenance_mode", "budget_presets"];
 
   try {
     const filtered = {};

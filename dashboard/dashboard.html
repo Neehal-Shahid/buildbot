@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BuildBot – Dashboard</title>
+    <title>BuildVolt – Dashboard</title>
     <link
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
@@ -1662,7 +1662,7 @@
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        <div class="nav-logo">BuildBot</div>
+        <div class="nav-logo">BuildVolt</div>
       </div>
       <div class="nav-right">
         <span class="nav-user-email" id="nav-user-email-top"></span>
@@ -1704,7 +1704,7 @@
               font-weight: 700;
             "
           >
-            Welcome to BuildBot
+            Welcome to BuildVolt
           </h2>
           <p style="font-size: 13px; color: #6b7280; margin-bottom: 28px">
             Let's get your store set up and ready for customers.
@@ -1962,7 +1962,7 @@
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
             </div>
-            <span class="sidebar-logo-name">BuildBot</span>
+            <span class="sidebar-logo-name">BuildVolt</span>
             <button
               type="button"
               class="sidebar-close-btn"
@@ -2184,6 +2184,25 @@
 
         <!-- Main Content -->
         <div class="main">
+          <div
+            id="account-disabled-banner"
+            style="
+              display: none;
+              margin-bottom: 16px;
+              padding: 14px 16px;
+              background: var(--danger-bg);
+              border: 1px solid var(--danger-border);
+              border-radius: var(--r-md);
+              color: var(--text);
+              font-size: 13px;
+              line-height: 1.5;
+            "
+          >
+            <strong>Your account has been disabled.</strong>
+            Your widget is no longer showing recommendations to customers.
+            Contact support if you believe this is a mistake.
+          </div>
+
           <!-- ── HOME TAB ── -->
           <div id="tab-content-home">
             <div class="section-title">Dashboard</div>
@@ -2238,7 +2257,7 @@
                   border-color: var(--accent);
                 "
               >
-                <h2 style="margin-bottom: 8px">Welcome to BuildBot</h2>
+                <h2 style="margin-bottom: 8px">Welcome to BuildVolt</h2>
                 <p>
                   You are one step away from activating your widget. Follow the
                   journey below to go live.
@@ -2435,7 +2454,7 @@
                     Live widget detected
                   </div>
                   <div style="font-size: 12px; color: var(--muted)">
-                    BuildBot is active on your storefront.
+                    BuildVolt is active on your storefront.
                   </div>
                 </div>
                 <div class="badge badge-success">Live</div>
@@ -2492,7 +2511,7 @@
             <div class="card" style="margin-bottom: 16px">
               <h2>Store Profile</h2>
               <p style="margin-bottom: 12px">
-                Your store's identity on BuildBot.
+                Your store's identity on BuildVolt.
               </p>
               <div
                 style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
@@ -2557,7 +2576,7 @@
             <div class="card" style="margin-bottom: 16px">
               <h2>Catalog source</h2>
               <p style="margin-bottom: 12px">
-                Pick where BuildBot reads inventory from. You can switch
+                Pick where BuildVolt reads inventory from. You can switch
                 anytime.
               </p>
               <div style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -2619,7 +2638,7 @@
                 "
               >
                 <strong style="color: var(--text)">Manual / CSV</strong>
-                — catalog lives in BuildBot (Products tab).
+                — catalog lives in BuildVolt (Products tab).
                 <strong style="color: var(--text)">WooCommerce</strong>
                 — sync from WordPress using the plugin below.
               </p>
@@ -2925,7 +2944,7 @@
                       "
                     >
                       To run a manual sync, go to your WordPress Admin panel >
-                      WooCommerce > BuildBot and click Sync.
+                      WooCommerce > BuildVolt and click Sync.
                     </p>
                     <button
                       class="btn btn-sm"
@@ -2976,7 +2995,7 @@
                           margin-bottom: 4px;
                         "
                       >
-                        Download the BuildBot Plugin
+                        Download the BuildVolt Plugin
                       </div>
                       <div
                         style="
@@ -3102,7 +3121,7 @@
                           margin-bottom: 10px;
                         "
                       >
-                        Paste this key in the BuildBot plugin settings on
+                        Paste this key in the BuildVolt plugin settings on
                         WordPress.
                       </div>
                       <div style="display: flex; gap: 8px; align-items: center">
@@ -3208,7 +3227,7 @@
                         style="font-size: 12px; color: #666; line-height: 1.8"
                       >
                         In WordPress go to
-                        <strong style="color: var(--text-2)">BuildBot</strong>
+                        <strong style="color: var(--text-2)">BuildVolt</strong>
                         in the left menu.<br />
                         Enter your Store ID and Secret Key → Click
                         <strong style="color: var(--text-2)"
@@ -3317,7 +3336,7 @@
                       "
                     >
                       Product edits happen in WordPress. Install and connect the
-                      BuildBot plugin under
+                      BuildVolt plugin under
                       <strong style="color: var(--text)"
                         >Store &amp; sync</strong
                       >.
@@ -3887,7 +3906,7 @@
               >
             </div>
             <div class="section-sub">
-              See how customers are using your BuildBot widget.
+              See how customers are using your BuildVolt widget.
             </div>
             <div
               id="help-analytics"
@@ -4124,7 +4143,7 @@
                 <h2>Contact Support</h2>
                 <p style="margin-bottom: 16px">
                   Have a problem, complaint, or question? Send a message to the
-                  BuildBot team.
+                  BuildVolt team.
                 </p>
                 <div class="form-group">
                   <label class="form-label">Subject</label>
@@ -4581,9 +4600,9 @@
                       <span
                         id="preview-title"
                         style="font-weight: 700; color: var(--text)"
-                        >BuildBot</span
+                        >BuildVolt</span
                       ><br />
-                      AI PC Build Recommender
+                      PC Build Recommender
                     </div>
                   </div>
                 </div>
@@ -4626,7 +4645,7 @@
                       <div
                         style="font-size: 11px; color: #555; margin-top: 4px"
                       >
-                        Shown in the widget header. Default: BuildBot
+                        Shown in the widget header. Default: BuildVolt
                       </div>
                     </div>
 
@@ -5045,14 +5064,14 @@
           <div id="tab-content-help" style="display: none">
             <div class="section-title">Contact Support</div>
             <div class="section-sub">
-              Get help from the BuildBot team — report issues, ask questions, or
+              Get help from the BuildVolt team — report issues, ask questions, or
               send feedback.
             </div>
             <div class="card">
               <h2>Contact Support</h2>
               <p style="margin-bottom: 14px">
                 Have a problem, complaint, or question? Send a message directly
-                to the BuildBot team.
+                to the BuildVolt team.
               </p>
               <div class="form-group">
                 <label class="form-label">Subject</label>
@@ -5350,56 +5369,6 @@
       // Dashboard runs with production API by default (see config.js).
       // If you want to use a local backend, open with `?localApi=1` or set `localStorage.bb_use_local_api = '1'`.
 
-      // Password strength checker for signup
-      function checkSignupStrength(val) {
-        const bar = document.getElementById("signup-strength-bar");
-        if (!bar) return;
-        let score = 0;
-        if (val.length >= 8) score++;
-        if (/[A-Z]/.test(val)) score++;
-        if (/[0-9]/.test(val)) score++;
-        if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)) score++;
-        const colors = [
-          "var(--danger)",
-          "#f39c12",
-          "#f39c12",
-          "var(--success)",
-          "var(--success)",
-        ];
-        bar.style.width = (score / 4) * 100 + "%";
-        bar.style.background = colors[score];
-      }
-
-      // Forgot password
-      async function doForgot(btn) {
-        const email = document.getElementById("forgot-email").value.trim();
-        if (!email)
-          return showAlert("forgot-alert", "Please enter your email.", "error");
-
-        const origText = btn.innerText;
-        btn.disabled = true;
-        btn.innerText = "Sending...";
-
-        try {
-          const res = await fetch(`${API}/forgot-password`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            showAlert("forgot-alert", data.message, "success");
-          } else {
-            showAlert("forgot-alert", data.error, "error");
-          }
-        } catch {
-          showAlert("forgot-alert", "Cannot connect to server.", "error");
-        } finally {
-          btn.disabled = false;
-          btn.innerText = origText;
-        }
-      }
-
       async function doAccountForgot(btn) {
         const emailEl = document.getElementById("account-forgot-email");
         const email =
@@ -5526,198 +5495,6 @@
 
         // Dashboard-only file: do not run landing effects here.
       };
-
-      // ─── PAGE ROUTING ─────────────────────────────────────────
-
-      // ─── AUTH ─────────────────────────────────────────────────
-
-      // ─── GOOGLE AUTH ────────────────────────────────────────────
-      async function handleGoogleCredentialResponse(response) {
-        try {
-          const res = await fetch(`${API}/google-auth`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              credential: response.credential,
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            localStorage.setItem("bb_token", data.token);
-            localStorage.setItem("bb_store", JSON.stringify(data.store));
-            token = data.token;
-            currentStore = data.store;
-
-            const isSignup = !!data.isNewAccount;
-            if (isSignup) {
-              showAlert("signup-alert", "Welcome! Redirecting...", "success");
-            } else {
-              showAlert("login-alert", "Login successful!", "success");
-            }
-            setTimeout(() => enterApp(), 1000);
-          } else {
-            showAlert(
-              "login-alert",
-              data.error || "Google Login failed.",
-              "error",
-            );
-            showAlert(
-              "signup-alert",
-              data.error || "Google Login failed.",
-              "error",
-            );
-          }
-        } catch (err) {
-          console.error(err);
-          showAlert("login-alert", "Connection error.", "error");
-          showAlert("signup-alert", "Connection error.", "error");
-        }
-      }
-
-      // ─── TOGGLE PASSWORD ────────────────────────────────────────
-      var _pwdEyeShow =
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-      var _pwdEyeHide =
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-
-      function togglePassword(inputId, icon) {
-        const input = document.getElementById(inputId);
-        if (!input || !icon) return;
-        if (input.type === "password") {
-          input.type = "text";
-          icon.innerHTML = _pwdEyeHide;
-          icon.setAttribute("aria-label", "Hide password");
-          icon.setAttribute("title", "Hide password");
-        } else {
-          input.type = "password";
-          icon.innerHTML = _pwdEyeShow;
-          icon.setAttribute("aria-label", "Show password");
-          icon.setAttribute("title", "Show password");
-        }
-      }
-
-      // Removed landing-only animation/effects functions.
-
-      // ─── CHANGE PASSWORD ────────────────────────────────────────
-      async function changePassword(btn) {
-        const current = document.getElementById("cp-current").value;
-        const newPwd = document.getElementById("cp-new").value;
-        const confirmPwd = document.getElementById("cp-confirm").value;
-
-        if (!current || !newPwd || !confirmPwd)
-          return showAlert("cp-alert", "Please fill all fields.", "error");
-        if (newPwd !== confirmPwd)
-          return showAlert("cp-alert", "New passwords do not match.", "error");
-
-        btn.disabled = true;
-        btn.textContent = "Changing...";
-        try {
-          const res = await fetch(`${API}/change-password`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              currentPassword: current,
-              newPassword: newPwd,
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            showAlert("cp-alert", "Password changed successfully!", "success");
-            document.getElementById("cp-current").value = "";
-            document.getElementById("cp-new").value = "";
-            document.getElementById("cp-confirm").value = "";
-          } else {
-            showAlert("cp-alert", data.error, "error");
-          }
-        } catch (e) {
-          showAlert("cp-alert", "Connection error.", "error");
-        } finally {
-          btn.disabled = false;
-          btn.textContent = "Change Password";
-        }
-      }
-
-      async function doSignup(btn) {
-        const email = document.getElementById("signup-email").value.trim();
-        const password = document.getElementById("signup-password").value;
-        const signupMode =
-          localStorage.getItem("bb_signup_store_mode") || "custom";
-
-        if (!email || !password)
-          return showAlert("signup-alert", "Please fill all fields.", "error");
-
-        const origText = btn.innerText;
-        btn.disabled = true;
-        btn.innerText = "Please wait...";
-
-        try {
-          const res = await fetch(`${API}/signup`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          const data = await res.json();
-          if (data.success && data.requiresVerification) {
-            localStorage.setItem("bb_store_mode", signupMode);
-            window.location.href = "index.html?verify=required";
-          } else if (data.success) {
-            showAlert(
-              "signup-alert",
-              data.message || "Account created.",
-              "success",
-            );
-          } else {
-            showAlert("signup-alert", data.error, "error");
-          }
-        } catch {
-          showAlert("signup-alert", "Cannot connect to server.", "error");
-        } finally {
-          btn.disabled = false;
-          btn.innerText = origText;
-        }
-      }
-
-      async function doLogin(btn) {
-        const email = document.getElementById("login-email").value.trim();
-        const password = document.getElementById("login-password").value;
-
-        if (!email || !password)
-          return showAlert("login-alert", "Please fill all fields.", "error");
-
-        const origText = btn.innerText;
-        btn.disabled = true;
-        btn.innerText = "Logging in...";
-
-        try {
-          const res = await fetch(`${API}/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            token = data.token;
-            currentStore = data.store;
-            localStorage.removeItem("bb_token");
-            localStorage.removeItem("bb_store");
-            localStorage.setItem("bb_token", token);
-            localStorage.setItem("bb_store", JSON.stringify(currentStore));
-            enterApp();
-          } else if (res.status === 403 && data.requiresVerification) {
-            window.location.href = "index.html?verify=required";
-          } else {
-            showAlert("login-alert", data.error, "error");
-          }
-        } catch {
-          showAlert("login-alert", "Cannot connect to server.", "error");
-        } finally {
-          btn.disabled = false;
-          btn.innerText = origText;
-        }
-      }
 
       function doLogout() {
         token = null;
@@ -5952,18 +5729,7 @@
           btn.textContent = "Resend Code";
 
           if (codeData.success) {
-            const text = encodeURIComponent(
-              `My BuildBot verification code is: ${codeData.code}`,
-            );
-            const waNumber = (codeData.whatsappNumber || "").replace(
-              /[^\d]/g,
-              "",
-            );
-            window.open(
-              `https://wa.me/${waNumber}?text=${text}`,
-              "_blank",
-              "noopener",
-            );
+            window.open(codeData.waLink, "_blank", "noopener");
             document.getElementById("setup-whatsapp-code-block").style.display =
               "block";
             alertEl.textContent =
@@ -6092,6 +5858,13 @@
 
           document.getElementById("page-setup").style.display = "none";
           document.getElementById("page-app").style.display = "block";
+
+          const disabledBanner = document.getElementById(
+            "account-disabled-banner",
+          );
+          if (disabledBanner)
+            disabledBanner.style.display =
+              currentStore.planStatus === "disabled" ? "block" : "none";
 
           const emailEl = document.getElementById("nav-user-email");
           const emailElTop = document.getElementById("nav-user-email-top");
@@ -7097,15 +6870,7 @@
           setBtnLoading(btn, false);
 
           if (data.success) {
-            const text = encodeURIComponent(
-              `My BuildBot verification code is: ${data.code}`,
-            );
-            const number = (data.whatsappNumber || "").replace(/[^\d]/g, "");
-            window.open(
-              `https://wa.me/${number}?text=${text}`,
-              "_blank",
-              "noopener",
-            );
+            window.open(data.waLink, "_blank", "noopener");
             document.getElementById("whatsapp-code-entry").style.display =
               "block";
             showAlert(
@@ -7206,7 +6971,7 @@
       }
 
       function resetWidgetDefaults() {
-        document.getElementById("widget-title-input").value = "BuildBot";
+        document.getElementById("widget-title-input").value = "BuildVolt";
         document.getElementById("welcome-msg-input").value =
           "Tell me your budget and what you need - I will find the best parts from this store for you.";
         document.getElementById("button-text-input").value = "Get Started";
@@ -7215,7 +6980,7 @@
 
       function updateWidgetPreview() {
         const title =
-          document.getElementById("widget-title-input")?.value || "BuildBot";
+          document.getElementById("widget-title-input")?.value || "BuildVolt";
         const msg = document.getElementById("welcome-msg-input")?.value || "";
         const btn =
           document.getElementById("button-text-input")?.value || "Get Started";
@@ -7252,7 +7017,7 @@
           if (data.success) {
             const s = data.store;
             document.getElementById("widget-title-input").value =
-              s.widget_title || "BuildBot";
+              s.widget_title || "BuildVolt";
             document.getElementById("welcome-msg-input").value =
               s.welcome_msg || "";
             document.getElementById("button-text-input").value =
@@ -7468,7 +7233,7 @@
       async function disconnectWoo() {
         const ok = await uiConfirm({
           title: "Disconnect WooCommerce?",
-          desc: "Auto-sync will stop. Your already-synced products will remain in BuildBot.",
+          desc: "Auto-sync will stop. Your already-synced products will remain in BuildVolt.",
           okText: "Disconnect",
           cancelText: "Cancel",
           variant: "danger",
@@ -7620,7 +7385,7 @@ Arctic Freezer 36 CPU Cooler,CPU Cooler,7000,Quiet CPU cooling for LGA1700 and A
 Thermaltake Riing 12 Case Fans,Case Fans,5000,Good airflow 120mm case fans`;
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = "buildbot-template.csv";
+        a.download = "buildvolt-template.csv";
         a.click();
       }
 
@@ -7775,7 +7540,7 @@ Thermaltake Riing 12 Case Fans,Case Fans,5000,Good airflow 120mm case fans`;
           if (statusData.success && statusData.wooConnected) {
             const ok = await uiConfirm({
               title: "WooCommerce is still connected",
-              desc: "Switching to Manual mode will disconnect WooCommerce and disable the widget on your WordPress site. Your synced products will remain in BuildBot.",
+              desc: "Switching to Manual mode will disconnect WooCommerce and disable the widget on your WordPress site. Your synced products will remain in BuildVolt.",
               okText: "Disconnect & Switch",
               cancelText: "Cancel",
               variant: "danger",

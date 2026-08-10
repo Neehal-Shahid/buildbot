@@ -10,8 +10,8 @@ const EMAIL_TEST_MODE = process.env.EMAIL_TEST_MODE === 'true';
 // When EMAIL_TEST_MODE=true, emails are sent from onboarding@resend.dev to RESEND_EMAIL_4TEST
 // When EMAIL_TEST_MODE=false, emails are sent from RESEND_FROM_EMAIL to the real customer email
 const FROM = EMAIL_TEST_MODE 
-  ? "BuildBot <onboarding@resend.dev>" 
-  : (process.env.RESEND_FROM_EMAIL || "BuildBot <onboarding@resend.dev>");
+  ? "BuildVolt <onboarding@resend.dev>" 
+  : (process.env.RESEND_FROM_EMAIL || "BuildVolt <onboarding@resend.dev>");
 
 const TO_OVERRIDE = EMAIL_TEST_MODE 
   ? (process.env.RESEND_EMAIL_4TEST || "muhammadneehal1805@gmail.com") 
@@ -25,7 +25,7 @@ function emailBase({ preheader = "", content = "" } = {}) {
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-<title>BuildBot</title>
+<title>BuildVolt</title>
 </head>
 <body style="margin:0;padding:0;background:#f7f8fa;font-family:'Segoe UI',Arial,sans-serif;">
 ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#f7f8fa;">${preheader}</div>` : ""}
@@ -43,7 +43,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1
                   <td style="width:30px;height:30px;background:#4f46e5;border-radius:7px;text-align:center;vertical-align:middle;">
                     <img src="https://buildbot-nine.vercel.app/favicon.ico" width="16" height="16" alt="" style="display:block;margin:7px auto;" onerror="this.style.display='none'"/>
                   </td>
-                  <td style="padding-left:9px;font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.2px;vertical-align:middle;">BuildBot</td>
+                  <td style="padding-left:9px;font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.2px;vertical-align:middle;">BuildVolt</td>
                 </tr></table>
               </td>
             </tr>
@@ -58,8 +58,8 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1
       <tr>
         <td style="padding:20px 36px;border-top:1px solid #e4e7ed;background:#f7f8fa;">
           <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.6;">
-            You received this email because you have a BuildBot account.<br/>
-            BuildBot &mdash; AI PC Build Recommender for Pakistani stores.
+            You received this email because you have a BuildVolt account.<br/>
+            BuildVolt &mdash; PC Build Recommender for Pakistani stores.
           </p>
         </td>
       </tr>
@@ -128,12 +128,12 @@ async function sendEmail({ to, subject, html, meta = null }) {
 function welcomeEmail(storeName, email) {
   return {
     to: email,
-    subject: "Welcome to BuildBot",
+    subject: "Welcome to BuildVolt",
     html: emailBase({
-      preheader: `Your BuildBot account is ready, ${storeName}. Here's how to go live in minutes.`,
+      preheader: `Your BuildVolt account is ready, ${storeName}. Here's how to go live in minutes.`,
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Welcome, ${storeName}.</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Your account is ready to go. Let's get your AI PC recommender live — it takes less than 5 minutes.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Your account is ready to go. Let's get your PC build recommender live — it takes less than 5 minutes.</p>
 
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
       <tr>
@@ -158,7 +158,7 @@ function welcomeEmail(storeName, email) {
         <td style="padding:16px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
           <table cellpadding="0" cellspacing="0"><tr>
             <td style="width:26px;height:26px;background:#eef2ff;border-radius:6px;text-align:center;vertical-align:middle;font-size:12px;font-weight:700;color:#4f46e5;">3</td>
-            <td style="padding-left:12px;font-size:13px;color:#374151;line-height:1.5;"><strong style="color:#111827;">Go live</strong><br/>Your customers can now get instant AI PC recommendations.</td>
+            <td style="padding-left:12px;font-size:13px;color:#374151;line-height:1.5;"><strong style="color:#111827;">Go live</strong><br/>Your customers can now get instant PC build recommendations.</td>
           </tr></table>
         </td>
       </tr>
@@ -191,9 +191,9 @@ function emailVerificationEmail(storeName, email, token, otpCode = null) {
 
   return {
     to: email,
-    subject: "Please verify your BuildBot email address",
+    subject: "Please verify your BuildVolt email address",
     html: emailBase({
-      preheader: "Verify your email to activate your BuildBot account.",
+      preheader: "Verify your email to activate your BuildVolt account.",
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Verify your email</h2>
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, click the button below or enter the verification code to confirm your email. The link expires in 24 hours.</p>
@@ -208,7 +208,7 @@ function emailVerificationEmail(storeName, email, token, otpCode = null) {
 
     <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">If the button doesn't work, copy and paste this link into your browser:<br/>
     <span style="color:#4f46e5;word-break:break-all;">${APP_URL}/verify.html?token=${token}</span></p>
-    <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;">Didn't create a BuildBot account? You can safely ignore this email.</p>
+    <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;">Didn't create a BuildVolt account? You can safely ignore this email.</p>
   `,
     }),
   };
@@ -217,12 +217,12 @@ function emailVerificationEmail(storeName, email, token, otpCode = null) {
 function storeDisabledEmail(storeName, email) {
   return {
     to: email,
-    subject: "Your BuildBot store has been disabled",
+    subject: "Your BuildVolt store has been disabled",
     html: emailBase({
-      preheader: "Your BuildBot widget is no longer active.",
+      preheader: "Your BuildVolt widget is no longer active.",
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your store was disabled</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildBot account has been disabled by our team. Your widget will no longer show recommendations to customers.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildVolt account has been disabled by our team. Your widget will no longer show recommendations to customers.</p>
     <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">If you believe this was a mistake, reply to this email and we'll help you restore access.</p>
   `,
     }),
@@ -232,13 +232,13 @@ function storeDisabledEmail(storeName, email) {
 function storeDeletedEmail(storeName, email) {
   return {
     to: email,
-    subject: "Your BuildBot store has been removed",
+    subject: "Your BuildVolt store has been removed",
     html: emailBase({
-      preheader: "Your BuildBot account and data have been deleted.",
+      preheader: "Your BuildVolt account and data have been deleted.",
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your store was deleted</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildBot store account and associated data have been permanently removed from our platform.</p>
-    <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">If you'd like to use BuildBot again in the future, you can sign up for a new account at any time.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, your BuildVolt store account and associated data have been permanently removed from our platform.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.6;">If you'd like to use BuildVolt again in the future, you can sign up for a new account at any time.</p>
   `,
     }),
   };
@@ -247,12 +247,12 @@ function storeDeletedEmail(storeName, email) {
 function passwordResetEmail(storeName, email, token) {
   return {
     to: email,
-    subject: "Reset your BuildBot password",
+    subject: "Reset your BuildVolt password",
     html: emailBase({
       preheader: "You requested a password reset. This link expires in 1 hour.",
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Reset your password</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, we received a request to reset your BuildBot password. Click below to choose a new one. This link expires in <strong style="color:#111827;">1 hour</strong>.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, we received a request to reset your BuildVolt password. Click below to choose a new one. This link expires in <strong style="color:#111827;">1 hour</strong>.</p>
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
@@ -271,7 +271,7 @@ function passwordResetEmail(storeName, email, token) {
 function adminPasswordResetEmail(name, email, token) {
   return {
     to: email,
-    subject: "Reset your BuildBot Admin password",
+    subject: "Reset your BuildVolt Admin password",
     html: emailBase({
       preheader: "Admin password reset requested. This link expires in 1 hour.",
       content: `
@@ -282,7 +282,7 @@ function adminPasswordResetEmail(name, email, token) {
     </tr></table>
 
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Reset your admin password</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${name}, a password reset was requested for your BuildBot admin account. This link expires in <strong style="color:#111827;">1 hour</strong>.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${name}, a password reset was requested for your BuildVolt admin account. This link expires in <strong style="color:#111827;">1 hour</strong>.</p>
 
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="background:#4f46e5;border-radius:8px;">
@@ -304,7 +304,7 @@ function adminNewStoreEmail(storeName, storeEmail, storeId) {
     to: ADMIN_EMAIL,
     subject: `New store registered — ${storeName}`,
     html: emailBase({
-      preheader: `${storeName} just signed up for BuildBot.`,
+      preheader: `${storeName} just signed up for BuildVolt.`,
       content: `
     <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
       <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
@@ -335,10 +335,10 @@ function onboardingDay4Email(storeName, email) {
     to: email,
     subject: `${storeName}, your widget isn't live yet`,
     html: emailBase({
-      preheader: "Your BuildBot widget hasn't been installed yet.",
+      preheader: "Your BuildVolt widget hasn't been installed yet.",
       content: `
     <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your widget isn't live yet.</h2>
-    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, you signed up 4 days ago but your BuildBot widget hasn't been installed yet. You're missing out on customers getting AI PC recommendations right now.</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, you signed up 4 days ago but your BuildVolt widget hasn't been installed yet. You're missing out on customers getting instant PC build recommendations right now.</p>
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
       <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
         <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#111827;">Two things to do right now:</p>
@@ -364,10 +364,10 @@ function adminManualEmail(storeName, storeEmail, subject, message) {
     html: emailBase({
       preheader: message.substring(0, 100),
       content: `
-    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Message from BuildBot</h2>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Message from BuildVolt</h2>
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName},</p>
     <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${message}</div>
-    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;">This message was sent by the BuildBot team. Reply to this email to respond.</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;">This message was sent by the BuildVolt team. Reply to this email to respond.</p>
   `,
     }),
   };

@@ -75,7 +75,7 @@ app.get("/plugin-update.json", (req, res) => {
 
 // Health check
 app.get("/", (req, res) => {
-  res.json({ status: "BuildBot server is running!", version: "2.0" });
+  res.json({ status: "BuildVolt server is running!", version: "2.0" });
 });
 
 // ─── GLOBAL ERROR HANDLER ─────────────────────────────────
@@ -114,16 +114,7 @@ initDB().then(async () => {
   }
 
   app.listen(PORT, () => {
-    console.log(`BuildBot server running on http://localhost:${PORT}`);
-    if (process.env.TEST_MODE === "true") {
-      console.log(
-        "TEST_MODE is on — /api/recommend returns fake builds (no Anthropic API calls)",
-      );
-    } else if (!(process.env.ANTHROPIC_API_KEY || "").trim()) {
-      console.warn(
-        "WARNING: ANTHROPIC_API_KEY is not set. Real AI recommendations will fail until you add it in Railway Variables.",
-      );
-    }
+    console.log(`BuildVolt server running on http://localhost:${PORT}`);
   });
 
   // ─── SCHEDULED EMAIL JOB ────────────────────────────────────

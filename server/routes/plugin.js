@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { storeDB, productDB, client } = require("../database");
 const jwt = require("jsonwebtoken");
 const { normalizeWooUrl } = require("../lib/woo");
+const { normalizeCategory } = require("../lib/categories");
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
@@ -57,7 +58,7 @@ async function validateWooSiteBinding(store, storeUrl, res) {
     res.status(403).json({
       success: false,
       error:
-        "These credentials are already linked to a different website. Disconnect from the original site first, or contact BuildBot support.",
+        "These credentials are already linked to a different website. Disconnect from the original site first, or contact BuildVolt support.",
       abuseFlagged: true,
     });
     return false;
@@ -66,293 +67,12 @@ async function validateWooSiteBinding(store, storeUrl, res) {
   return true;
 }
 
-// ─── MAP CATEGORY FROM WOOCOMMERCE CATEGORY NAME ──────────
-function mapCategory(wooCategories) {
-  if (!wooCategories || !wooCategories.length) return null;
-
-  const name = wooCategories[0].name.toLowerCase();
-
-  const categoryMap = {
-    CPU: [
-      "cpu",
-      "processor",
-      "intel core",
-      "ryzen",
-      "amd ryzen",
-      "core i3",
-      "core i5",
-      "core i7",
-      "core i9",
-      "threadripper",
-      "xeon",
-      "celeron",
-      "pentium",
-    ],
-    Motherboard: [
-      "motherboard",
-      "mobo",
-      "mainboard",
-      "lga",
-      "am4",
-      "am5",
-      "b450",
-      "b550",
-      "b660",
-      "b760",
-      "x570",
-      "z690",
-      "z790",
-    ],
-    RAM: [
-      "ram",
-      "memory",
-      "ddr4",
-      "ddr5",
-      "dimm",
-      "vengeance",
-      "ripjaws",
-      "fury",
-    ],
-    Storage: [
-      "ssd",
-      "hdd",
-      "hard drive",
-      "hard disk",
-      "nvme",
-      "solid state",
-      "m.2",
-      "sata",
-      "storage",
-    ],
-    GPU: [
-      "gpu",
-      "graphics",
-      "video card",
-      "rtx",
-      "gtx",
-      "radeon",
-      "geforce",
-      "nvidia",
-      "rx 6",
-      "rx 7",
-    ],
-    PSU: [
-      "psu",
-      "power supply",
-      "power unit",
-      "smps",
-      "550w",
-      "650w",
-      "750w",
-      "850w",
-      "1000w",
-    ],
-    Case: [
-      "case",
-      "cabinet",
-      "casing",
-      "chassis",
-      "tower",
-      "mid tower",
-      "full tower",
-      "mini itx",
-    ],
-    Monitor: [
-      "monitor",
-      "display",
-      "screen",
-      "led monitor",
-      "144hz",
-      "165hz",
-      "1080p",
-      "1440p",
-      "4k",
-    ],
-    Cooling: [
-      "cooler",
-      "cooling",
-      "heatsink",
-      "aio",
-      "cpu fan",
-      "case fan",
-      "thermal paste",
-    ],
-    Networking: [
-      "wifi",
-      "wireless",
-      "network card",
-      "lan card",
-      "ethernet",
-      "router",
-      "bluetooth",
-    ],
-    UPS: ["ups", "uninterruptible", "power backup", "inverter"],
-    Peripherals: [
-      "keyboard",
-      "mouse",
-      "headset",
-      "headphone",
-      "webcam",
-      "gamepad",
-      "speaker",
-      "microphone",
-    ],
-    Cable: [
-      "cable",
-      "hdmi",
-      "displayport",
-      "usb cable",
-      "sata cable",
-      "adapter",
-    ],
-    Software: ["windows", "office", "antivirus", "operating system"],
-  };
-
-  for (const [category, keywords] of Object.entries(categoryMap)) {
-    for (const keyword of keywords) {
-      if (name.includes(keyword)) return category;
-    }
-  }
-
-  return null;
-}
-
-// ─── MAP CATEGORY FROM PRODUCT NAME ───────────────────────
-function mapCategoryFromName(productName) {
-  const name = productName.toLowerCase();
-
-  const nameMap = {
-    CPU: [
-      "intel core",
-      "ryzen",
-      "core i3",
-      "core i5",
-      "core i7",
-      "core i9",
-      "athlon",
-      "celeron",
-      "pentium",
-      "xeon",
-    ],
-    Motherboard: [
-      "motherboard",
-      "b450",
-      "b550",
-      "b660",
-      "b760",
-      "x570",
-      "z690",
-      "z790",
-      "h610",
-      "h410",
-      "lga1700",
-      "lga1200",
-    ],
-    RAM: [
-      "ddr4",
-      "ddr5",
-      "8gb ram",
-      "16gb ram",
-      "32gb ram",
-      "vengeance",
-      "ripjaws",
-      "fury beast",
-      "corsair ddr",
-    ],
-    Storage: [
-      "ssd",
-      "hdd",
-      "nvme",
-      "m.2",
-      "970 evo",
-      "wd blue",
-      "barracuda",
-      "1tb",
-      "2tb",
-      "500gb",
-      "240gb",
-      "480gb",
-    ],
-    GPU: [
-      "rtx 3",
-      "rtx 4",
-      "gtx 16",
-      "rx 6",
-      "rx 7",
-      "geforce",
-      "radeon",
-      "3060",
-      "3070",
-      "3080",
-      "4060",
-      "4070",
-      "4080",
-      "6600",
-      "6700",
-      "7600",
-    ],
-    PSU: [
-      "550w",
-      "650w",
-      "750w",
-      "850w",
-      "1000w",
-      "power supply",
-      "corsair cv",
-      "seasonic",
-      "cooler master mwe",
-    ],
-    Case: [
-      "matrexx",
-      "nzxt",
-      "lian li",
-      "phanteks",
-      "fractal",
-      "corsair 4000",
-      "ant esports ice",
-      "mid tower",
-    ],
-    Monitor: [
-      "monitor",
-      "144hz",
-      "165hz",
-      "240hz",
-      "ips panel",
-      "24 inch",
-      "27 inch",
-      "32 inch",
-      "full hd",
-    ],
-    Cooling: [
-      "hyper 212",
-      "arctic freezer",
-      "noctua",
-      "be quiet",
-      "liquid cooler",
-      "aio cooler",
-      "thermal paste",
-    ],
-    Peripherals: [
-      "mechanical keyboard",
-      "gaming mouse",
-      "redragon",
-      "logitech g",
-      "corsair k",
-      "razer",
-      "steelseries",
-    ],
-  };
-
-  for (const [category, keywords] of Object.entries(nameMap)) {
-    for (const keyword of keywords) {
-      if (name.includes(keyword)) return category;
-    }
-  }
-
-  return "Accessory";
-}
-
-// ─── MAP WOOCOMMERCE PRODUCT TO BUILDBOT FORMAT ───────────
+// ─── MAP WOOCOMMERCE PRODUCT TO BUILDVOLT FORMAT ──────────
+// Uses the same canonical category detection as CSV/file upload
+// (server/lib/categories.js) so a WooCommerce-synced catalog and an
+// uploaded catalog land in identical categories — category is null when
+// nothing matches, and the sync/update routes skip those products rather
+// than storing a category the recommendation engine doesn't recognize.
 function mapProduct(wooProduct) {
   const price = parseFloat(
     wooProduct.sale_price || wooProduct.regular_price || wooProduct.price || 0,
@@ -367,10 +87,8 @@ function mapProduct(wooProduct) {
     .trim()
     .slice(0, 200);
 
-  // Try category name first, then fall back to product name detection
-  const categoryFromWoo = mapCategory(wooProduct.categories);
-  const categoryFromName = mapCategoryFromName(wooProduct.name || "");
-  const category = categoryFromWoo || categoryFromName;
+  const wooCategoryName = wooProduct.categories?.[0]?.name || "";
+  const category = normalizeCategory(wooCategoryName, wooProduct.name || "");
 
   return {
     name: wooProduct.name || "Unknown Product",
@@ -462,7 +180,7 @@ router.post("/plugin/remote-disconnect", async (req, res) => {
 
   try {
     await storeDB.disconnectWoo(store.store_id);
-    res.json({ success: true, message: "WooCommerce disconnected on BuildBot." });
+    res.json({ success: true, message: "WooCommerce disconnected on BuildVolt." });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -527,6 +245,7 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
 
     let synced = 0;
     let skipped = 0;
+    let skippedCategory = 0;
 
     for (const wooProduct of products) {
       const p = mapProduct(wooProduct);
@@ -537,6 +256,13 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
       }
       if (!p.name || p.name === "Unknown Product") {
         skipped++;
+        continue;
+      }
+      if (!p.category) {
+        // Doesn't match any PC-build category BuildVolt understands
+        // (e.g. monitors, peripherals, cables) — skip rather than store
+        // a category the recommendation engine can never use.
+        skippedCategory++;
         continue;
       }
 
@@ -568,6 +294,7 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
       message: `${synced} products synced successfully!`,
       synced,
       skipped,
+      skippedCategory,
     });
   } catch (err) {
     console.error("Plugin sync error:", err);
@@ -586,6 +313,11 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
     const p = mapProduct(product);
     if (p.price <= 0)
       return res.json({ success: true, message: "Skipped (no price)" });
+    if (!p.category)
+      return res.json({
+        success: true,
+        message: "Skipped (not a PC-build category BuildVolt recognizes)",
+      });
 
     let existing;
     if (p.woo_id) {

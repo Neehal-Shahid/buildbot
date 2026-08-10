@@ -106,7 +106,7 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN woo_last_sync TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN woo_product_count INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN email_verified INTEGER DEFAULT 0`,
-    `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildBot'`,
+    `ALTER TABLE stores ADD COLUMN widget_title TEXT DEFAULT 'BuildVolt'`,
     `ALTER TABLE stores ADD COLUMN welcome_msg  TEXT DEFAULT 'Tell me your budget and what you need — I will find the best parts from this store for you.'`,
     `ALTER TABLE stores ADD COLUMN button_text  TEXT DEFAULT 'Get Started'`,
     `ALTER TABLE stores ADD COLUMN widget_bg    TEXT DEFAULT '#1a1d27'`,
@@ -821,7 +821,7 @@ const widgetDB = {
     });
     const row = res.rows[0];
     return {
-      widgetTitle: row?.widget_title || "BuildBot",
+      widgetTitle: row?.widget_title || "BuildVolt",
       welcomeMsg:
         row?.welcome_msg ||
         "Tell me your budget and what you need — I will find the best parts from this store for you.",
@@ -870,101 +870,6 @@ const configDB = {
     return res.rows[0]?.value ?? defaultValue;
   },
 
-  getAiSettings: async () => {
-    const cfg = await configDB.getAll();
-    return {
-      model: (
-        cfg.anthropic_model ||
-        process.env.ANTHROPIC_MODEL ||
-        "claude-haiku-4-5"
-      ).trim(),
-      maxTokens:
-        Number(cfg.anthropic_max_tokens || process.env.ANTHROPIC_MAX_TOKENS) ||
-        8192,
-      inputPricePerM: Number(cfg.api_input_price_per_million || 1) || 1,
-      outputPricePerM: Number(cfg.api_output_price_per_million || 5) || 5,
-      usdToPkr: Number(cfg.usd_to_pkr || 280) || 280,
-    };
-  },
-};
-
-// ─── API USAGE ANALYTICS ──────────────────────────────────
-const apiUsageDB = {
-  estimateCostUsd(inputTokens, outputTokens, inputPricePerM, outputPricePerM) {
-    return (
-      (inputTokens / 1e6) * inputPricePerM +
-      (outputTokens / 1e6) * outputPricePerM
-    );
-  },
-
-  async getSummary(period = "month") {
-    const dateFilter =
-      period === "today"
-        ? "AND date(created_at) = date('now')"
-        : "AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')";
-
-    const res = await client.execute({
-      sql: `SELECT
-              COUNT(*) AS total_recs,
-              SUM(CASE WHEN source = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
-              SUM(CASE WHEN source = 'cached' THEN 1 ELSE 0 END) AS cached_calls,
-              SUM(CASE WHEN source = 'test' THEN 1 ELSE 0 END) AS test_calls,
-              COALESCE(SUM(input_tokens), 0) AS input_tokens,
-              COALESCE(SUM(output_tokens), 0) AS output_tokens,
-              COALESCE(SUM(est_cost_usd), 0) AS est_cost_usd
-            FROM recommendations
-            WHERE 1=1 ${dateFilter}`,
-    });
-    const row = res.rows[0] || {};
-    const totalRecs = Number(row.total_recs) || 0;
-    const aiCalls = Number(row.ai_calls) || 0;
-    const cachedCalls = Number(row.cached_calls) || 0;
-    return {
-      totalRecs,
-      aiCalls,
-      cachedCalls,
-      testCalls: Number(row.test_calls) || 0,
-      inputTokens: Number(row.input_tokens) || 0,
-      outputTokens: Number(row.output_tokens) || 0,
-      estCostUsd: Number(row.est_cost_usd) || 0,
-      cacheHitRate:
-        totalRecs > 0 ? Math.round((cachedCalls / totalRecs) * 100) : 0,
-    };
-  },
-
-  async getStoreBreakdown(period = "month") {
-    const dateFilter =
-      period === "today"
-        ? "AND date(r.created_at) = date('now')"
-        : "AND strftime('%Y-%m', r.created_at) = strftime('%Y-%m', 'now')";
-
-    const res = await client.execute({
-      sql: `SELECT
-              r.store_id,
-              s.name,
-              COUNT(*) AS total_recs,
-              SUM(CASE WHEN r.source = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
-              SUM(CASE WHEN r.source = 'cached' THEN 1 ELSE 0 END) AS cached_calls,
-              COALESCE(SUM(r.input_tokens), 0) AS input_tokens,
-              COALESCE(SUM(r.output_tokens), 0) AS output_tokens,
-              COALESCE(SUM(r.est_cost_usd), 0) AS est_cost_usd
-            FROM recommendations r
-            LEFT JOIN stores s ON s.store_id = r.store_id
-            WHERE 1=1 ${dateFilter}
-            GROUP BY r.store_id
-            ORDER BY est_cost_usd DESC, ai_calls DESC`,
-    });
-    return res.rows.map((row) => ({
-      storeId: row.store_id,
-      name: row.name || row.store_id,
-      totalRecs: Number(row.total_recs) || 0,
-      aiCalls: Number(row.ai_calls) || 0,
-      cachedCalls: Number(row.cached_calls) || 0,
-      inputTokens: Number(row.input_tokens) || 0,
-      outputTokens: Number(row.output_tokens) || 0,
-      estCostUsd: Number(row.est_cost_usd) || 0,
-    }));
-  },
 };
 
 // ─── EMAIL SEND LOG (dedup + audit) ───────────────────────
@@ -1162,7 +1067,6 @@ module.exports = {
   widgetDB,
   adminDB,
   configDB,
-  apiUsageDB,
   emailLogDB,
   supportTicketDB,
   orderRequestDB,

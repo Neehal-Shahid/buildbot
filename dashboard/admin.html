@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BuildBot – Admin Panel</title>
+    <title>BuildVolt – Admin Panel</title>
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet" />
@@ -1262,7 +1262,7 @@
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
                     </div>
-                    <span class="login-logo-text">BuildBot</span>
+                    <span class="login-logo-text">BuildVolt</span>
                     <span class="login-logo-badge">Admin</span>
                 </div>
                 <h2>Admin Sign In</h2>
@@ -1312,7 +1312,7 @@
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
                     </div>
-                    <span class="login-logo-text">BuildBot</span>
+                    <span class="login-logo-text">BuildVolt</span>
                     <span class="login-logo-badge">Admin</span>
                 </div>
                 <h2>Reset Password</h2>
@@ -1343,7 +1343,7 @@
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
                     </div>
-                    <span class="login-logo-text">BuildBot</span>
+                    <span class="login-logo-text">BuildVolt</span>
                     <span class="login-logo-badge">Admin</span>
                 </div>
                 <h2>Set New Password</h2>
@@ -1394,7 +1394,7 @@
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
                     </div>
-                    BuildBot Admin
+                    BuildVolt Admin
                 </div>
             </div>
             <div class="nav-right">
@@ -1446,15 +1446,6 @@
                     </svg>
                     Settings
                 </div>
-                <div class="sb-item" onclick="showTab('apimodel')" id="atab-apimodel">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="4" y="4" width="16" height="16" rx="2" />
-                        <path d="M9 9h6v6H9z" />
-                        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-                    </svg>
-                    API &amp; Model
-                </div>
                 <div class="sb-item" onclick="showTab('dbhealth')" id="atab-dbhealth">
                     <svg viewBox="0 0 24 24">
                         <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -1489,7 +1480,7 @@
                 <div id="tab-overview">
                     <div class="section-title">Platform Overview</div>
                     <div class="section-sub">
-                        Everything happening across BuildBot right now.
+                        Everything happening across BuildVolt right now.
                     </div>
 
                     <div class="stats">
@@ -1547,7 +1538,7 @@
                 <div id="tab-stores" style="display: none">
                     <div class="section-title">All Stores</div>
                     <div class="section-sub">
-                        Every store registered on BuildBot.
+                        Every store registered on BuildVolt.
                     </div>
                     <div class="card">
                         <div class="card-head">
@@ -1583,7 +1574,7 @@
                 <div id="tab-analytics" style="display: none">
                     <div class="section-title">Platform Analytics</div>
                     <div class="section-sub">
-                        Overall performance across all BuildBot stores.
+                        Overall performance across all BuildVolt stores.
                     </div>
                     <div class="stats">
                         <div class="stat">
@@ -1734,10 +1725,6 @@
                                 Save
                             </button>
                         </div>
-                        <div style="font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.5;">
-                            Recommendation limits and AI model settings are in <strong style="color:var(--text);">API
-                                &amp; Model</strong> tab.
-                        </div>
                         <div style="
                                     display: flex;
                                     align-items: center;
@@ -1818,112 +1805,6 @@
                             }
                         </style>
                         <div class="alert" id="cfg-alert" style="margin-top: 14px"></div>
-                    </div>
-                </div>
-
-                <!-- API & MODEL -->
-                <div id="tab-apimodel" style="display: none">
-                    <div class="section-title">API &amp; Model</div>
-                    <div class="section-sub">
-                        Monitor Anthropic usage and cost, and control the AI model settings.
-                    </div>
-
-                    <div id="api-status-badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-
-                    <div class="stats">
-                        <div class="stat">
-                            <div class="stat-val" id="api-ai-calls">—</div>
-                            <div class="stat-lbl">AI Calls (month)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-cached-calls">—</div>
-                            <div class="stat-lbl">Cache Hits (month)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-cache-rate">—</div>
-                            <div class="stat-lbl">Cache Hit Rate</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-cost-usd">—</div>
-                            <div class="stat-lbl">Est. API Cost (USD)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-cost-pkr">—</div>
-                            <div class="stat-lbl">Est. API Cost (PKR)</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-val" id="api-tokens">—</div>
-                            <div class="stat-lbl">Tokens Out (month)</div>
-                        </div>
-                    </div>
-
-                    <div class="two-col" style="margin-top:20px">
-                        <div class="card">
-                            <div class="card-head">
-                                <div>
-                                    <h2>Model &amp; Limits</h2>
-                                    <div class="card-sub">Changes apply immediately — no redeploy needed</div>
-                                </div>
-                                <button class="btn btn-primary btn-sm" onclick="saveApiModelConfig()">Save</button>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">AI Model</label>
-                                <select id="api-cfg-model"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Max Output Tokens</label>
-                                <input type="number" id="api-cfg-max-tokens" min="1024" max="64000" step="256" />
-                                <div style="font-size:11px;color:var(--muted);margin-top:4px;">8192–12000 recommended
-                                    for 3 builds. Too low = truncated JSON errors.</div>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div class="form-group">
-                                    <label class="form-label">USD → PKR rate</label>
-                                    <input type="number" id="api-cfg-usd-pkr" min="1" max="1000" />
-                                </div>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div class="form-group">
-                                    <label class="form-label">Input price ($/1M tokens)</label>
-                                    <input type="number" id="api-cfg-input-price" min="0" step="0.01" />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Output price ($/1M tokens)</label>
-                                    <input type="number" id="api-cfg-output-price" min="0" step="0.01" />
-                                </div>
-                            </div>
-                            <div class="alert" id="api-cfg-alert"></div>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-top:20px">
-                        <div class="card-head">
-                            <div>
-                                <h2>Usage by Store</h2>
-                                <div class="card-sub">This month — AI calls, cache hits, and estimated cost per store
-                                </div>
-                            </div>
-                            <button class="btn btn-sm" onclick="loadApiModelTab()">Refresh</button>
-                        </div>
-                        <div class="table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Store</th>
-                                        <th>Total Recs</th>
-                                        <th>AI Calls</th>
-                                        <th>Cached</th>
-                                        <th>Tokens Out</th>
-                                        <th>Est. Cost</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="api-store-tbody">
-                                    <tr>
-                                        <td colspan="7" class="table-empty">Loading…</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
 
@@ -2782,7 +2663,6 @@
                 "stores",
                 "analytics",
                 "settings",
-                "apimodel",
                 "dbhealth",
                 "comms",
                 "activity",
@@ -2802,7 +2682,6 @@
                 loadAdminSettings();
                 loadPlatformConfig();
             }
-            if (name === "apimodel") loadApiModelTab();
             if (name === "activity") renderActivityLog();
             if (name === "comms") {
                 if (allStoresData.length === 0) loadStores();
@@ -3071,7 +2950,8 @@
         <td><strong>${safeText(s.name)}</strong>${Number(s.connection_abuse_flag) ? ' <span class="badge badge-danger" title="' + safeText(s.connection_abuse_note || 'Credential abuse flagged') + '">Abuse</span>' : ''}</td>
         <td>${safeText(s.email)}</td>
         <td>${statusBadge(s)}</td>
-        <td>${s.product_count || 0}</td>
+        <td><a href="javascript:void(0)" style="color:var(--accent);text-decoration:underline;"
+          onclick="openProductsModal('${safeText(s.store_id)}','${encodeURIComponent(s.name)}')">${s.product_count || 0}</a></td>
         <td>${s.rec_count || 0}</td>
         <td>${new Date(s.created_at).toLocaleDateString()}</td>
         <td style="min-width:160px;white-space:nowrap;">
@@ -3384,8 +3264,7 @@
             }
         }
 
-        // ─── BROADCAST MODAL (removed — comms tab handles this now) ──
-        // function openBroadcastModal was deleted per Fix 4
+        // Broadcast modal is handled entirely by the Comms tab now.
 
         // ─── SINGLE STORE EMAIL ───────────────────────────────
         let _selectedStoreId = null;
@@ -3561,30 +3440,6 @@
             }
         }
 
-        // ─── OLD BROADCAST MODAL FUNCTION (kept for reference) ──
-        function openBroadcastModal(storeId, name) {
-            const decodedName = decodeURIComponent(name || "");
-            if (storeId && decodedName) {
-                // Single store broadcast - prefill target
-                document.getElementById("broadcast-details").innerHTML = `
-      <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Send to</div><strong style="color:var(--text);font-size:14px;">${safeText(decodedName)}</strong></div>
-      <div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Store ID</div><strong style="color:var(--text);font-size:14px;">${safeText(storeId)}</strong></div>
-    `;
-                pendingAction = { storeId, singleStore: true };
-            } else {
-                // Broadcast to all stores
-                document.getElementById("broadcast-details").innerHTML =
-                    '<div style="margin-bottom:8px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;">Send to</div><strong style="color:var(--text);font-size:14px;">All stores</strong></div>';
-                pendingAction = { singleStore: false };
-            }
-            document.getElementById("broadcast-subject").value = "";
-            document.getElementById("broadcast-message").value = "";
-            document.getElementById("broadcast-target-plan").value = "";
-            document
-                .getElementById("broadcast-modal")
-                .classList.add("open");
-        }
-
         async function confirmBroadcast() {
             const btn = document.getElementById("broadcast-send-btn");
             const subject = document
@@ -3644,57 +3499,6 @@
             } catch (e) {
                 setBtnLoading(btn, false);
                 showToast("Error", "Could not send broadcast.", "error");
-            }
-        }
-
-        // ─── RUN DRIP EMAILS ─────────────────────────────────
-        function runDripEmails(storeId, name) {
-            const decodedName = decodeURIComponent(name || "");
-            if (storeId && decodedName) {
-                // Single store drip
-                pendingAction = { storeId, singleStore: true };
-                showToast(
-                    "Run Drip",
-                    `Triggering drip emails for ${decodedName}...`,
-                    "warning",
-                );
-            } else {
-                // Global drip
-                pendingAction = { singleStore: false };
-                showToast(
-                    "Run Drip",
-                    "Triggering drip emails for all stores...",
-                    "warning",
-                );
-            }
-            // Execute drip
-            executeRunDrip();
-        }
-
-        async function executeRunDrip() {
-            try {
-                const res = await fetch(`${API}/admin/run-drip`, {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${adminToken}` },
-                });
-                const data = await res.json();
-                if (!data.success && handleAdminAuthError(data)) return;
-                if (!data.success)
-                    throw new Error(data.error || "Failed to run drip");
-
-                const results = data.results;
-                const summary = `
-      Onboarding: ${results.onboarding}
-      Skipped (already sent): ${results.skipped || 0}
-      Errors: ${results.errors.length}
-    `;
-                showToast(
-                    "Drip completed",
-                    summary,
-                    results.errors.length > 0 ? "error" : "success",
-                );
-            } catch (e) {
-                showToast("Error", "Failed to run drip emails.", "error");
             }
         }
 
@@ -4046,104 +3850,6 @@
             } catch {
                 setBtnLoading(btn, false);
                 showAlert("cleanup-alert", "Server error", "error");
-            }
-        }
-
-        // ─── API & MODEL TAB ─────────────────────────────────────
-        async function loadApiModelTab() {
-            const tbody = document.getElementById("api-store-tbody");
-            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Loading…</td></tr>';
-
-            try {
-                const res = await fetch(`${API}/admin/api-usage`, {
-                    headers: { Authorization: `Bearer ${adminToken}` },
-                });
-                const data = await res.json();
-                if (!data.success && handleAdminAuthError(data)) return;
-                if (!data.success) {
-                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${safeText(data.error || "Failed to load")}</td></tr>`;
-                    return;
-                }
-
-                const s = data.summary;
-                const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-
-                set("api-ai-calls", s.aiCalls.toLocaleString());
-                set("api-cached-calls", s.cachedCalls.toLocaleString());
-                set("api-cache-rate", s.cacheHitRate + "%");
-                set("api-cost-usd", "$" + s.estCostUsd.toFixed(2));
-                set("api-cost-pkr", "Rs " + Math.round(s.estCostPkr).toLocaleString());
-                set("api-tokens", (s.outputTokens || 0).toLocaleString());
-
-                const badges = document.getElementById("api-status-badges");
-                if (badges) {
-                    badges.innerHTML = [
-                        data.apiKeySet
-                            ? '<span class="badge badge-success">API key set</span>'
-                            : '<span class="badge badge-danger">API key missing</span>',
-                        data.testMode
-                            ? '<span class="badge badge-warning">TEST_MODE on — no real AI</span>'
-                            : '<span class="badge badge-success">Live AI mode</span>',
-                        `<span class="badge">Model: ${safeText(data.settings.model)}</span>`,
-                    ].join("");
-                }
-
-                const modelSel = document.getElementById("api-cfg-model");
-                if (modelSel) {
-                    const current = data.settings.model;
-                    const options = data.models || [];
-                    const hasCurrent = options.some((m) => m.id === current);
-                    modelSel.innerHTML = (hasCurrent ? "" : `<option value="${safeText(current)}">${safeText(current)} (current)</option>`) +
-                        options.map((m) => `<option value="${safeText(m.id)}" ${m.id === current ? "selected" : ""}>${safeText(m.label)}</option>`).join("");
-                }
-
-                const cfg = data.settings;
-                const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-                setVal("api-cfg-max-tokens", cfg.maxTokens);
-                setVal("api-cfg-usd-pkr", cfg.usdToPkr);
-                setVal("api-cfg-input-price", cfg.inputPricePerM);
-                setVal("api-cfg-output-price", cfg.outputPricePerM);
-
-                if (tbody) {
-                    tbody.innerHTML = !data.stores.length
-                        ? '<tr><td colspan="6" class="table-empty">No usage this month yet.</td></tr>'
-                        : data.stores.map((st) => `<tr>
-                            <td><strong>${safeText(st.name)}</strong><br><span style="font-size:11px;color:var(--muted);">${safeText(st.storeId)}</span></td>
-                            <td>${st.totalRecs}</td>
-                            <td>${st.aiCalls}</td>
-                            <td>${st.cachedCalls}</td>
-                            <td>${(st.outputTokens || 0).toLocaleString()}</td>
-                            <td>Rs ${Math.round(st.estCostPkr || 0).toLocaleString()}</td>
-                        </tr>`).join("");
-                }
-            } catch {
-                if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Server error</td></tr>';
-            }
-        }
-
-        async function saveApiModelConfig() {
-            const config = {
-                anthropic_model: document.getElementById("api-cfg-model")?.value,
-                anthropic_max_tokens: document.getElementById("api-cfg-max-tokens")?.value,
-                usd_to_pkr: document.getElementById("api-cfg-usd-pkr")?.value,
-                api_input_price_per_million: document.getElementById("api-cfg-input-price")?.value,
-                api_output_price_per_million: document.getElementById("api-cfg-output-price")?.value,
-            };
-            try {
-                const res = await fetch(`${API}/admin/platform-config`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${adminToken}`,
-                    },
-                    body: JSON.stringify({ config }),
-                });
-                const data = await res.json();
-                if (!data.success && handleAdminAuthError(data)) return;
-                showAlert("api-cfg-alert", data.success ? "Saved — model and limits updated." : (data.error || "Save failed"), data.success ? "success" : "error");
-                if (data.success) loadApiModelTab();
-            } catch {
-                showAlert("api-cfg-alert", "Server error", "error");
             }
         }
 

@@ -70,6 +70,13 @@ async function enrichStoresWithCounts(stores) {
   return stores;
 }
 
+// Emails are matched case-insensitively (see the matching helper in
+// auth.js for the store-owner side) — normalize before any DB lookup so
+// "Admin@x.com" and "admin@x.com" are always treated as the same address.
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 function adminAuth(req, res, next) {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token" });
@@ -83,11 +90,12 @@ function adminAuth(req, res, next) {
 }
 
 router.post("/admin/login", adminAuthLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "Email and password required" });
 
-  const admin = await adminDB.findByEmail(email);
+  const admin = await adminDB.findByLoginEmail(email);
   if (!admin)
     return res.status(401).json({ error: "Invalid admin credentials" });
 
@@ -192,10 +200,13 @@ router.post("/admin/toggle-widget", adminAuth, async (req, res) => {
 });
 
 router.post("/admin/forgot-password", adminAuthLimiter, async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ error: "Email required" });
 
-  const admin = await adminDB.findByEmail(email);
+  // Matches either the primary or recovery email, so a lost primary inbox
+  // doesn't lock the admin out — the reset link goes to whichever address
+  // was actually entered here, not always the primary one.
+  const admin = await adminDB.findByLoginEmail(email);
   if (!admin)
     return res.json({
       success: true,
@@ -252,15 +263,56 @@ router.post("/admin/reset-password", adminAuthLimiter, async (req, res) => {
 });
 
 router.put("/admin/profile", adminAuth, async (req, res) => {
-  const { name, email } = req.body;
+  const name = req.body.name;
+  const email = normalizeEmail(req.body.email);
   const token = req.headers["authorization"]?.split(" ")[1];
   const decoded = jwt.verify(token, JWT_SECRET);
   if (!name || !email)
     return res.status(400).json({ error: "Name and email required" });
 
+  const admin = await adminDB.findById(decoded.id);
+  if (
+    admin &&
+    admin.recovery_email &&
+    email === admin.recovery_email.toLowerCase()
+  )
+    return res.status(400).json({
+      error: "This email is set as your recovery email — remove it as recovery email first",
+    });
+
   try {
     await adminDB.updateProfile(decoded.id, name, email);
     res.json({ success: true, message: "Profile updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── RECOVERY EMAIL (backup login for admin panel) ────────
+router.put("/admin/recovery-email", adminAuth, async (req, res) => {
+  const recoveryEmail = normalizeEmail(req.body.recoveryEmail);
+  const token = req.headers["authorization"]?.split(" ")[1];
+  const decoded = jwt.verify(token, JWT_SECRET);
+
+  if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail))
+    return res.status(400).json({ error: "Please enter a valid email address" });
+
+  const admin = await adminDB.findById(decoded.id);
+  if (!admin) return res.status(404).json({ error: "Admin not found" });
+
+  if (recoveryEmail && recoveryEmail === admin.email.toLowerCase())
+    return res.status(400).json({
+      error: "Recovery email must be different from your primary login email",
+    });
+
+  try {
+    await adminDB.updateRecoveryEmail(decoded.id, recoveryEmail);
+    res.json({
+      success: true,
+      message: recoveryEmail
+        ? "Recovery email saved. You can now sign in with either email."
+        : "Recovery email removed.",
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -296,7 +348,14 @@ router.get("/admin/me", adminAuth, async (req, res) => {
   const decoded = jwt.verify(token, JWT_SECRET);
   const admin = await adminDB.findById(decoded.id);
   if (!admin) return res.status(404).json({ error: "Admin not found" });
-  res.json({ success: true, admin: { name: admin.name, email: admin.email } });
+  res.json({
+    success: true,
+    admin: {
+      name: admin.name,
+      email: admin.email,
+      recoveryEmail: admin.recovery_email || "",
+    },
+  });
 });
 
 // ─── DB INTEGRITY AUDIT (admin only) ──────────────────────

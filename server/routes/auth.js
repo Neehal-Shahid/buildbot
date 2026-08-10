@@ -44,6 +44,16 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// Emails are matched case-insensitively everywhere in practice (Gmail,
+// Outlook, etc. all ignore case), so every entry point normalizes to
+// lowercase before touching the DB. Without this, "John@x.com" (signup)
+// and "john@x.com" (Google, which can return either casing) would be
+// treated as two different accounts — defeating the one-account-per-email
+// rule across signup methods.
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
 async function sendVerificationEmail(name, email) {
   const verifyToken = crypto.randomBytes(32).toString("hex");
   await tokenDB.save(email, verifyToken, "verify");
@@ -137,7 +147,8 @@ async function authMiddleware(req, res, next) {
 
 // ─── SIGNUP ───────────────────────────────────────────────
 router.post("/signup", authLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { password } = req.body;
   const name = "setup-pending";
 
   if (!email || !password)
@@ -226,7 +237,8 @@ router.post("/signup", authLimiter, async (req, res) => {
 
 // ─── RESEND VERIFICATION ──────────────────────────────────
 router.post("/resend-verification", authLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "Email and password are required" });
 
@@ -311,7 +323,8 @@ router.get("/verify-email", authLimiter, async (req, res) => {
 
 // ─── VERIFY EMAIL (OTP) ───────────────────────────────────
 router.post("/verify-email-otp", authLimiter, async (req, res) => {
-  const { email, otp } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const otp = req.body.otp;
   const code = otp || req.body.code; // support both
   if (!email || !code)
     return res
@@ -365,7 +378,8 @@ router.post("/verify-email-otp", authLimiter, async (req, res) => {
 
 // ─── LOGIN ────────────────────────────────────────────────
 router.post("/login", authLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const email = normalizeEmail(req.body.email);
+  const { password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "Email and password required" });
 
@@ -428,7 +442,7 @@ router.post("/google-auth", authLimiter, async (req, res) => {
       audience: GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
-    const email = payload.email;
+    const email = normalizeEmail(payload.email);
     const name = payload.name;
     const googleId = payload.sub;
 
@@ -490,7 +504,7 @@ router.post("/google-auth", authLimiter, async (req, res) => {
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────
 router.post("/forgot-password", authLimiter, async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ error: "Email required" });
 
   const store = await storeDB.findByEmail(email);

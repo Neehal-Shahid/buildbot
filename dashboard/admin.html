@@ -1641,10 +1641,28 @@
                                 <label class="form-label">Email</label>
                                 <input type="email" id="prof-email" placeholder="admin@buildbot.pk" />
                             </div>
-                            <button class="btn btn-primary" onclick="saveAdminProfile()">
+                            <button class="btn btn-primary" id="prof-save-btn" onclick="saveAdminProfile()">
                                 Save Profile
                             </button>
                             <div class="alert" id="prof-alert"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-head">
+                                <div>
+                                    <h2>Recovery Email</h2>
+                                    <div class="card-sub">
+                                        Backup access if you ever lose your primary email. You can sign in or reset your password using either address.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Recovery Email (optional)</label>
+                                <input type="email" id="prof-recovery-email" placeholder="backup@example.com" />
+                            </div>
+                            <button class="btn btn-primary" id="recovery-save-btn" onclick="saveRecoveryEmail()">
+                                Save Recovery Email
+                            </button>
+                            <div class="alert" id="recovery-alert"></div>
                         </div>
                         <div class="card">
                             <div class="card-head">
@@ -1685,7 +1703,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <button class="btn btn-primary" onclick="saveAdminPassword()">
+                            <button class="btn btn-primary" id="cp-save-btn" onclick="saveAdminPassword()">
                                 Change Password
                             </button>
                             <div class="alert" id="cp-alert"></div>
@@ -2857,6 +2875,8 @@
                         data.admin.name || "";
                     document.getElementById("prof-email").value =
                         data.admin.email || "";
+                    document.getElementById("prof-recovery-email").value =
+                        data.admin.recoveryEmail || "";
                 }
             } catch (e) { }
         }
@@ -2866,9 +2886,7 @@
             const email = document
                 .getElementById("prof-email")
                 .value.trim();
-            const btn = document.querySelector(
-                "#tab-settings .card:first-child .btn-primary",
-            );
+            const btn = document.getElementById("prof-save-btn");
             setBtnLoading(btn, true);
 
             try {
@@ -2895,13 +2913,38 @@
             }
         }
 
+        async function saveRecoveryEmail() {
+            const recoveryEmail = document
+                .getElementById("prof-recovery-email")
+                .value.trim();
+            const btn = document.getElementById("recovery-save-btn");
+            setBtnLoading(btn, true);
+
+            try {
+                const res = await fetch(`${API}/admin/recovery-email`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${adminToken}`,
+                    },
+                    body: JSON.stringify({ recoveryEmail }),
+                });
+                const data = await res.json();
+                setBtnLoading(btn, false);
+                if (data.success)
+                    showAlert("recovery-alert", data.message, "success");
+                else showAlert("recovery-alert", data.error, "error");
+            } catch {
+                setBtnLoading(btn, false);
+                showAlert("recovery-alert", "Server error", "error");
+            }
+        }
+
         async function saveAdminPassword() {
             const currentPassword =
                 document.getElementById("cp-current").value;
             const newPassword = document.getElementById("cp-new").value;
-            const btn = document.querySelector(
-                "#tab-settings .card:last-child .btn-primary",
-            );
+            const btn = document.getElementById("cp-save-btn");
             setBtnLoading(btn, true);
 
             try {

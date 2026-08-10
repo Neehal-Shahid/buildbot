@@ -155,6 +155,7 @@ async function initDB() {
     `ALTER TABLE recommendations ADD COLUMN est_cost_usd REAL DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_flag INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_note TEXT DEFAULT ''`,
+    `ALTER TABLE admins ADD COLUMN recovery_email TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS pending_signups (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
@@ -436,6 +437,17 @@ const adminDB = {
     return res.rows[0] || null;
   },
 
+  // Matches either the primary login email or the backup recovery email —
+  // used for login and forgot-password so a lost primary inbox doesn't lock
+  // the admin out, as long as they set up a recovery email in advance.
+  findByLoginEmail: async (email) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM admins WHERE email = ? OR (recovery_email != '' AND recovery_email = ?)",
+      args: [email, email],
+    });
+    return res.rows[0] || null;
+  },
+
   findById: async (id) => {
     const res = await client.execute({
       sql: "SELECT * FROM admins WHERE id = ?",
@@ -446,8 +458,8 @@ const adminDB = {
 
   updatePassword: async (email, hashedPassword) => {
     return await client.execute({
-      sql: "UPDATE admins SET password = ? WHERE email = ?",
-      args: [hashedPassword, email],
+      sql: "UPDATE admins SET password = ? WHERE email = ? OR (recovery_email != '' AND recovery_email = ?)",
+      args: [hashedPassword, email, email],
     });
   },
 
@@ -455,6 +467,13 @@ const adminDB = {
     return await client.execute({
       sql: "UPDATE admins SET name = ?, email = ? WHERE id = ?",
       args: [name, email, id],
+    });
+  },
+
+  updateRecoveryEmail: async (id, recoveryEmail) => {
+    return await client.execute({
+      sql: "UPDATE admins SET recovery_email = ? WHERE id = ?",
+      args: [recoveryEmail, id],
     });
   },
 };

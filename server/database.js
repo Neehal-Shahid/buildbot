@@ -156,6 +156,9 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN connection_abuse_flag INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN connection_abuse_note TEXT DEFAULT ''`,
     `ALTER TABLE admins ADD COLUMN recovery_email TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN whatsapp_number TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN whatsapp_verified INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN whatsapp_verify_code TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS pending_signups (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
@@ -236,6 +239,31 @@ const storeDB = {
     return await client.execute({
       sql: "UPDATE stores SET brand_color = ?, currency = ? WHERE store_id = ?",
       args: [brandColor, currency, storeId],
+    });
+  },
+
+  // Changing the number always resets verification — a freshly-typed
+  // number hasn't been proven to actually reach the store owner yet.
+  updateWhatsappNumber: async (storeId, whatsappNumber) => {
+    return await client.execute({
+      sql: `UPDATE stores SET whatsapp_number = ?, whatsapp_verified = 0,
+            whatsapp_verify_code = '' WHERE store_id = ?`,
+      args: [whatsappNumber, storeId],
+    });
+  },
+
+  setWhatsappVerifyCode: async (storeId, code) => {
+    return await client.execute({
+      sql: "UPDATE stores SET whatsapp_verify_code = ? WHERE store_id = ?",
+      args: [code, storeId],
+    });
+  },
+
+  markWhatsappVerified: async (storeId) => {
+    return await client.execute({
+      sql: `UPDATE stores SET whatsapp_verified = 1, whatsapp_verify_code = ''
+            WHERE store_id = ?`,
+      args: [storeId],
     });
   },
 

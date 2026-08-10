@@ -405,6 +405,10 @@ function partEntry(category, item, quantity) {
     quantity: qty,
     totalPrice: price * qty,
     reason: partReason(category),
+    // Present only for products synced via the WooCommerce plugin — lets
+    // the widget add this exact part to the store's real cart. Manually
+    // uploaded (CSV/Excel/PDF) products won't have one.
+    wooId: item.woo_id || null,
   };
 }
 

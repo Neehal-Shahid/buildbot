@@ -725,20 +725,35 @@ router.get("/me", authMiddleware, async (req, res) => {
 // ─── TOGGLE WIDGET ────────────────────────────────────────
 router.post("/widget-toggle", authMiddleware, async (req, res) => {
   const { enabled } = req.body;
+  if (enabled === undefined)
+    return res.status(400).json({ error: "enabled field is required" });
+
   try {
-    const { createClient } = require("@libsql/client");
-    const client = createClient({
-      url: process.env.TURSO_URL,
-      authToken: process.env.TURSO_TOKEN,
-    });
-    
+    if (enabled) {
+      // Every live widget must have a real way for the customer to
+      // actually place the order — WooCommerce cart, or a verified
+      // WhatsApp number (an unverified one could be a typo/fake).
+      const store = await storeDB.findById(req.store.storeId);
+      if (!store) return res.status(404).json({ error: "Store not found" });
+      const hasOrderMethod =
+        !!store.woo_connected ||
+        (!!store.whatsapp_number && !!store.whatsapp_verified);
+      if (!hasOrderMethod)
+        return res.status(400).json({
+          error:
+            "Connect WooCommerce or add and verify a WhatsApp number in Settings before turning the widget on — customers need a way to actually place their order.",
+        });
+    }
+
+    const { client } = require("../database");
     await client.execute({
       sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
       args: [enabled ? 1 : 0, req.store.storeId],
     });
-    
+
     res.json({
       success: true,
+      widgetEnabled: enabled,
       message: enabled ? "Widget has been enabled." : "Widget has been disabled.",
     });
   } catch (err) {
@@ -754,6 +769,73 @@ router.put("/settings", authMiddleware, async (req, res) => {
   try {
     await storeDB.updateBranding(req.store.storeId, brandColor, currency);
     res.json({ success: true, message: "Settings saved!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── WHATSAPP ORDERING NUMBER ─────────────────────────────
+// Used by the widget's "Order via WhatsApp" fallback for stores that
+// aren't WooCommerce-connected — customers land in a chat with the full
+// build pre-filled instead of an automated cart.
+router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
+  const raw = String(req.body.whatsappNumber || "").trim();
+  const digits = raw.replace(/[\s()-]/g, "");
+
+  if (raw && !/^\+?\d{7,15}$/.test(digits))
+    return res.status(400).json({
+      error:
+        "Enter a valid WhatsApp number with country code, e.g. +923001234567",
+    });
+
+  try {
+    await storeDB.updateWhatsappNumber(req.store.storeId, digits);
+    res.json({
+      success: true,
+      message: digits
+        ? "WhatsApp number saved — now verify it before it can be used for orders."
+        : "WhatsApp ordering number removed.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// No paid WhatsApp Business API is wired up, so verification is a free
+// click-to-confirm flow instead of a real delivered OTP: the dashboard
+// opens a wa.me chat to the saved number with this code pre-filled, the
+// store owner sends it from their own WhatsApp, then types the code back
+// in. This can't prove delivery, but it does catch typos and fake/unused
+// numbers, since WhatsApp itself refuses to open a chat with an invalid
+// or unregistered number.
+router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => {
+  const store = await storeDB.findById(req.store.storeId);
+  if (!store) return res.status(404).json({ error: "Store not found" });
+  if (!store.whatsapp_number)
+    return res.status(400).json({ error: "Save a WhatsApp number first" });
+
+  const code = String(crypto.randomInt(100000, 999999));
+  try {
+    await storeDB.setWhatsappVerifyCode(req.store.storeId, code);
+    res.json({ success: true, code, whatsappNumber: store.whatsapp_number });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/settings/whatsapp/verify", authMiddleware, async (req, res) => {
+  const code = String(req.body.code || "").trim();
+  if (!code) return res.status(400).json({ error: "Code is required" });
+
+  const store = await storeDB.findById(req.store.storeId);
+  if (!store) return res.status(404).json({ error: "Store not found" });
+
+  if (!store.whatsapp_verify_code || store.whatsapp_verify_code !== code)
+    return res.status(400).json({ error: "Incorrect code. Please try again." });
+
+  try {
+    await storeDB.markWhatsappVerified(req.store.storeId);
+    res.json({ success: true, message: "WhatsApp number verified!" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -810,6 +892,13 @@ router.get("/store-config/:storeId", async (req, res) => {
     widgetBg: widgetSettings.widgetBg,
     widgetEnabled: store.widget_enabled !== 0,
     budgetPresets,
+    // Ordering: WooCommerce-connected stores get one-click cart checkout;
+    // everyone else falls back to a WhatsApp order handoff — only once
+    // that number has actually been verified (see /settings/whatsapp),
+    // so customers never message a typo'd or fake number.
+    wooConnected: !!store.woo_connected,
+    wooUrl: store.woo_connected ? store.woo_url || "" : "",
+    whatsappNumber: store.whatsapp_verified ? store.whatsapp_number || "" : "",
   });
 });
 
@@ -842,24 +931,6 @@ router.put("/widget-settings", authMiddleware, async (req, res) => {
       widgetBg || "#1a1d27",
     );
     res.json({ success: true, message: "Widget settings saved!" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── TOGGLE WIDGET (for store owners) ─────────────────────
-router.post("/widget-toggle", authMiddleware, async (req, res) => {
-  const { enabled } = req.body;
-  if (enabled === undefined)
-    return res.status(400).json({ error: "enabled field is required" });
-
-  try {
-    const { client } = require("../database");
-    await client.execute({
-      sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
-      args: [enabled ? 1 : 0, req.store.storeId],
-    });
-    res.json({ success: true, widgetEnabled: enabled, message: enabled ? "Widget Enabled" : "Widget Disabled" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -4257,6 +4257,61 @@
                 </div>
 
                 <div class="card">
+                  <h2>Order via WhatsApp</h2>
+                  <p style="margin-bottom: 20px">
+                    Lets customers send a build straight to your WhatsApp when
+                    they don't check out through WooCommerce. Not used for
+                    stores connected to WooCommerce — those checkout directly
+                    through your store's cart.
+                    <strong>Must be verified before the widget can go live with it.</strong>
+                  </p>
+                  <div class="form-group">
+                    <label class="form-label">WhatsApp Number</label>
+                    <input
+                      type="text"
+                      id="whatsapp-number"
+                      placeholder="+923001234567"
+                    />
+                  </div>
+                  <button class="btn btn-primary" onclick="saveWhatsappNumber()">
+                    Save WhatsApp Number
+                  </button>
+                  <div class="alert" id="whatsapp-alert"></div>
+
+                  <div id="whatsapp-verify-section" style="margin-top: 16px; display: none">
+                    <div
+                      id="whatsapp-verify-status"
+                      style="margin-bottom: 12px; font-size: 13px; font-weight: 500"
+                    ></div>
+                    <button
+                      class="btn btn-outline"
+                      id="whatsapp-send-code-btn"
+                      onclick="sendWhatsappCode()"
+                    >
+                      Send Test Message to Verify
+                    </button>
+                    <div id="whatsapp-code-entry" style="display: none; margin-top: 14px">
+                      <div class="form-group">
+                        <label class="form-label"
+                          >We opened WhatsApp with a code pre-filled — send that
+                          message, then type the code here</label
+                        >
+                        <input
+                          type="text"
+                          id="whatsapp-code-input"
+                          placeholder="123456"
+                          maxlength="6"
+                        />
+                      </div>
+                      <button class="btn btn-primary" onclick="confirmWhatsappCode()">
+                        Verify
+                      </button>
+                    </div>
+                    <div class="alert" id="whatsapp-verify-alert"></div>
+                  </div>
+                </div>
+
+                <div class="card">
                   <h2>Widget Preview</h2>
                   <p style="margin-bottom: 16px">
                     Live preview of your widget button.
@@ -5669,6 +5724,8 @@
             brandColor: data.store.brand_color,
             currency: data.store.currency,
             marketingEmailsEnabled: data.store.marketing_emails_enabled !== 0,
+            whatsappNumber: data.store.whatsapp_number || "",
+            whatsappVerified: !!data.store.whatsapp_verified,
           };
           localStorage.setItem("bb_store", JSON.stringify(currentStore));
 
@@ -5717,6 +5774,10 @@
           if (currentStore.currency)
             document.getElementById("currency-select").value =
               currentStore.currency;
+          if (document.getElementById("whatsapp-number"))
+            document.getElementById("whatsapp-number").value =
+              currentStore.whatsappNumber || "";
+          updateWhatsappVerifyUI();
 
           loadAnalytics();
           showTab("home");
@@ -6561,6 +6622,134 @@
           }
         } catch {
           showAlert("settings-alert", "Cannot connect to server.", "error");
+        }
+      }
+
+      async function saveWhatsappNumber() {
+        const whatsappNumber = document
+          .getElementById("whatsapp-number")
+          .value.trim();
+
+        try {
+          const res = await fetch(`${API}/settings/whatsapp`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ whatsappNumber }),
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            currentStore.whatsappNumber = whatsappNumber;
+            // Saving (or changing) the number always resets verification
+            // server-side — mirror that locally so the UI doesn't lie.
+            currentStore.whatsappVerified = false;
+            localStorage.setItem("bb_store", JSON.stringify(currentStore));
+            showAlert("whatsapp-alert", data.message, "success");
+            updateWhatsappVerifyUI();
+          } else {
+            showAlert("whatsapp-alert", data.error, "error");
+          }
+        } catch {
+          showAlert("whatsapp-alert", "Cannot connect to server.", "error");
+        }
+      }
+
+      function updateWhatsappVerifyUI() {
+        const section = document.getElementById("whatsapp-verify-section");
+        const status = document.getElementById("whatsapp-verify-status");
+        const sendBtn = document.getElementById("whatsapp-send-code-btn");
+        const codeEntry = document.getElementById("whatsapp-code-entry");
+        if (!section) return;
+
+        if (!currentStore.whatsappNumber) {
+          section.style.display = "none";
+          return;
+        }
+        section.style.display = "block";
+        codeEntry.style.display = "none";
+
+        if (currentStore.whatsappVerified) {
+          status.innerHTML = "✅ Verified — this number can be used for orders.";
+          status.style.color = "var(--success, #16a34a)";
+          sendBtn.style.display = "none";
+        } else {
+          status.innerHTML =
+            "⚠️ Not verified yet — the widget won't offer WhatsApp ordering until this is confirmed.";
+          status.style.color = "var(--warning, #d97706)";
+          sendBtn.style.display = "inline-flex";
+          sendBtn.textContent = "Send Test Message to Verify";
+        }
+      }
+
+      async function sendWhatsappCode() {
+        const btn = document.getElementById("whatsapp-send-code-btn");
+        setBtnLoading(btn, true);
+        try {
+          const res = await fetch(`${API}/settings/whatsapp/send-code`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          setBtnLoading(btn, false);
+
+          if (data.success) {
+            const text = encodeURIComponent(
+              `My BuildBot verification code is: ${data.code}`,
+            );
+            const number = (data.whatsappNumber || "").replace(/[^\d]/g, "");
+            window.open(
+              `https://wa.me/${number}?text=${text}`,
+              "_blank",
+              "noopener",
+            );
+            document.getElementById("whatsapp-code-entry").style.display =
+              "block";
+            showAlert(
+              "whatsapp-verify-alert",
+              "WhatsApp opened with the code — send it, then type the code below.",
+              "success",
+            );
+          } else {
+            showAlert("whatsapp-verify-alert", data.error, "error");
+          }
+        } catch {
+          setBtnLoading(btn, false);
+          showAlert("whatsapp-verify-alert", "Cannot connect to server.", "error");
+        }
+      }
+
+      async function confirmWhatsappCode() {
+        const code = document
+          .getElementById("whatsapp-code-input")
+          .value.trim();
+        if (!code)
+          return showAlert("whatsapp-verify-alert", "Enter the code.", "error");
+
+        try {
+          const res = await fetch(`${API}/settings/whatsapp/verify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ code }),
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            currentStore.whatsappVerified = true;
+            localStorage.setItem("bb_store", JSON.stringify(currentStore));
+            document.getElementById("whatsapp-code-input").value = "";
+            showAlert("whatsapp-verify-alert", data.message, "success");
+            updateWhatsappVerifyUI();
+          } else {
+            showAlert("whatsapp-verify-alert", data.error, "error");
+          }
+        } catch {
+          showAlert("whatsapp-verify-alert", "Cannot connect to server.", "error");
         }
       }
 

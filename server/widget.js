@@ -32,6 +32,13 @@
   let _currentBuild = null;
   let _budgetPresets = [50000, 80000, 120000, 200000];
 
+  // Ordering: WooCommerce-connected stores get one-click cart checkout;
+  // everyone else falls back to a WhatsApp order handoff if the store set
+  // one up. See store-config's wooConnected/wooUrl/whatsappNumber.
+  let ORDER_METHOD = "none"; // "woo" | "whatsapp" | "none"
+  let WOO_URL = "";
+  let WHATSAPP_NUMBER = "";
+
   if (!STORE_ID) {
     console.error("BuildBot: No data-store-id found.");
     return;
@@ -80,6 +87,14 @@
       if (storeConfig.widgetTitle) WIDGET_TITLE = storeConfig.widgetTitle;
       if (storeConfig.welcomeMsg) WELCOME_MSG = storeConfig.welcomeMsg;
       if (storeConfig.buttonText) BUTTON_TEXT = storeConfig.buttonText;
+
+      if (storeConfig.wooConnected && storeConfig.wooUrl) {
+        ORDER_METHOD = "woo";
+        WOO_URL = String(storeConfig.wooUrl).replace(/\/$/, "");
+      } else if (storeConfig.whatsappNumber) {
+        ORDER_METHOD = "whatsapp";
+        WHATSAPP_NUMBER = storeConfig.whatsappNumber;
+      }
 
       // Store budget presets for later use
       if (
@@ -690,6 +705,7 @@
           ? `<div class="bb-modal-remaining">↳ ${currency} ${Number(build.budgetRemaining).toLocaleString()} remains from your budget</div>`
           : ""
       }
+      ${renderOrderSectionHtml(build)}
       ${
         build.tips
           ? `<div class="bb-modal-section-label">Tips & Notes</div><div class="bb-modal-tips">💡 ${build.tips}</div>`
@@ -701,7 +717,66 @@
           : ""
       }`;
 
+    const orderBtn = document.getElementById("bb-order-btn");
+    if (orderBtn) orderBtn.onclick = () => placeOrderForBuild(build);
+
     overlay.classList.add("open");
+  }
+
+  // ─── ORDER THIS BUILD ──────────────────────────────────────
+  // WooCommerce stores: navigates to the store's own domain so the
+  // add-to-cart request carries that site's real cart/session cookies —
+  // never a cross-origin fetch from here. Everyone else: hands the full
+  // build off to the store's WhatsApp as a pre-filled order message.
+  function renderOrderSectionHtml(build) {
+    if (ORDER_METHOD === "woo") {
+      const parts = build.parts || [];
+      const withWoo = parts.filter((p) => p.wooId);
+      if (!withWoo.length) return "";
+      const note =
+        withWoo.length < parts.length
+          ? `<div class="bb-order-note">${withWoo.length} of ${parts.length} parts will be added to cart — ask the store about the rest.</div>`
+          : "";
+      return `<button class="bb-order-btn" id="bb-order-btn">🛒 Order This Build</button>${note}`;
+    }
+    if (ORDER_METHOD === "whatsapp") {
+      return `<button class="bb-order-btn" id="bb-order-btn">💬 Order via WhatsApp</button>`;
+    }
+    return "";
+  }
+
+  function placeOrderForBuild(build) {
+    if (ORDER_METHOD === "woo") {
+      const items = (build.parts || [])
+        .filter((p) => p.wooId)
+        .map((p) => ({ id: p.wooId, qty: p.quantity || 1 }));
+      if (!items.length) return;
+      const url = `${WOO_URL}/?buildbot_add_to_cart=1&items=${encodeURIComponent(JSON.stringify(items))}`;
+      window.location.href = url;
+      return;
+    }
+
+    if (ORDER_METHOD === "whatsapp") {
+      const lines = [
+        `Hi! I'd like to order this PC build from ${WIDGET_TITLE}:`,
+        "",
+      ];
+      (build.parts || []).forEach((p) => {
+        const qty = p.quantity || 1;
+        const total = p.totalPrice || p.price * qty;
+        lines.push(
+          `• ${p.category}: ${p.name}${qty > 1 ? ` × ${qty}` : ""} — ${_lastCurrency} ${Number(total).toLocaleString()}`,
+        );
+      });
+      lines.push(
+        "",
+        `Total: ${_lastCurrency} ${Number(build.totalPrice).toLocaleString()}`,
+        `(${build.buildName || build.tier})`,
+      );
+      const waNumber = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
+      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
+      window.open(waUrl, "_blank", "noopener");
+    }
   }
 
   // ─── PDF GENERATION ───────────────────────────────────────

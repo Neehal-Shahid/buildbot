@@ -899,6 +899,28 @@
   color: var(--bb-success);
   margin-bottom: 8px;
 }
+.bb-order-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--bb-brand);
+  color: var(--bb-btn-text);
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 14px;
+}
+.bb-order-btn:hover { filter: brightness(1.1); }
+.bb-order-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.bb-order-note {
+  font-size: 11px;
+  color: var(--bb-muted);
+  text-align: center;
+  margin: -8px 0 14px;
+}
 .bb-modal-tips, .bb-modal-missing {
   font-size: 12px;
   color: var(--bb-muted);

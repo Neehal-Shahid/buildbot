@@ -3,7 +3,7 @@
  * Plugin Name: BuildBot AI PC Recommender
  * Plugin URI:  https://buildbot-nine.vercel.app
  * Description: Connects your WooCommerce store to BuildBot — syncs products automatically so customers get AI-powered PC build recommendations.
- * Version:     1.8.0
+ * Version:     2.0.0
  * Author:      BuildBot
  * Author URI:  https://buildbot-nine.vercel.app
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDBOT_API',     'https://buildbot-production-3f70.up.railway.app/api');
-define('BUILDBOT_VERSION', '1.9.0');
+define('BUILDBOT_VERSION', '2.0.0');
 define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
@@ -1019,6 +1019,45 @@ function buildbot_toggle_widget_ajax() {
   }
 
   wp_send_json_success(['enabled' => $enabled]);
+}
+
+// ─── WIDGET "ORDER THIS BUILD" → ADD ALL PARTS TO CART ────
+// The widget's "Order This Build" button navigates the customer's browser
+// straight to this URL on the store's own domain (never a cross-origin
+// fetch from BuildBot's server) — that's what lets WooCommerce's cart
+// session cookies apply correctly. Items arrive as items=[{"id":123,
+// "qty":1}, ...] JSON, matched by the WooCommerce product ID BuildBot
+// stored when this product was synced. Runs on template_redirect so
+// WooCommerce's cart/session is guaranteed to be initialized.
+add_action('template_redirect', 'buildbot_handle_add_to_cart');
+function buildbot_handle_add_to_cart() {
+  if (empty($_GET['buildbot_add_to_cart']) || empty($_GET['items'])) return;
+  if (!class_exists('WooCommerce') || !function_exists('WC') || !WC()->cart) return;
+
+  $items = json_decode(stripslashes($_GET['items']), true);
+  if (!is_array($items)) {
+    wp_safe_redirect(wc_get_cart_url());
+    exit;
+  }
+
+  WC()->cart->empty_cart();
+
+  $added = 0;
+  foreach ($items as $item) {
+    $product_id = isset($item['id']) ? intval($item['id']) : 0;
+    $qty        = isset($item['qty']) ? max(1, intval($item['qty'])) : 1;
+    if ($product_id <= 0) continue;
+
+    $product = wc_get_product($product_id);
+    if (!$product || !$product->is_purchasable()) continue;
+
+    if (WC()->cart->add_to_cart($product_id, $qty)) {
+      $added++;
+    }
+  }
+
+  wp_safe_redirect($added > 0 ? wc_get_checkout_url() : wc_get_cart_url());
+  exit;
 }
 
 // ─── AUTO INJECT WIDGET SCRIPT ────────────────────────────

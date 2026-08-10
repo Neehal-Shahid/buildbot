@@ -6370,13 +6370,15 @@
       }
 
       const toast = {
-        success: (msg, title = "Success") =>
-          showToast("success", title, msg, "OK"),
-        error: (msg, title = "Error") => showToast("error", title, msg, "ER"),
-        info: (msg, title = "Info") => showToast("info", title, msg, "IN"),
+        success: (msg, title = "Success", duration) =>
+          showToast("success", title, msg, "OK", duration),
+        error: (msg, title = "Error", duration) =>
+          showToast("error", title, msg, "ER", duration),
+        info: (msg, title = "Info", duration) =>
+          showToast("info", title, msg, "IN", duration),
       };
 
-      function showToast(type, title, msg, icon) {
+      function showToast(type, title, msg, icon, duration) {
         const wrap = document.getElementById("toast-wrap");
         if (!wrap) return;
 
@@ -6399,7 +6401,7 @@
         el.querySelector(".toast-x")?.addEventListener("click", close);
         wrap.appendChild(el);
 
-        const timeout = type === "error" ? 6000 : 3500;
+        const timeout = duration ?? (type === "error" ? 6000 : 3500);
         setTimeout(close, timeout);
       }
 
@@ -6501,7 +6503,17 @@
           const data = await res.json();
 
           if (data.success) {
-            toast.success(data.message || "Catalog uploaded.");
+            if (data.skippedCount > 0) {
+              // Skip warnings list unrecognized categories — give the
+              // owner enough time to actually read and act on it.
+              toast.success(
+                data.message || "Catalog uploaded.",
+                "Uploaded with warnings",
+                15000,
+              );
+            } else {
+              toast.success(data.message || "Catalog uploaded.");
+            }
             await loadProducts();
             await loadAnalytics();
             // Reset file input UI after upload

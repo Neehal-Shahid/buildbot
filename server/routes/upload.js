@@ -9,6 +9,7 @@ const { Readable } = require("stream");
 const { productDB, storeDB, client } = require("../database");
 const { authMiddleware } = require("./auth");
 const rateLimit = require("express-rate-limit");
+const { CANONICAL_CATEGORIES, normalizeCategory } = require("../lib/categories");
 
 const router = express.Router();
 const upload = multer({
@@ -225,12 +226,37 @@ router.post(
         req.file.buffer,
         req.file.originalname || "catalog.csv",
       );
-      const validProducts = products.filter(
-        (p) => p.name && p.category && Number(p.price) >= 0,
+
+      // Rows with no name/price aren't usable at all — separate from rows
+      // that ARE usable but whose category text doesn't match any of the
+      // 9 supported categories, so the store owner gets told exactly which
+      // rows were skipped and why, instead of the file silently importing
+      // as unrecognized junk (or worse, silently vanishing from builds).
+      const basicallyUsable = products.filter(
+        (p) => p.name && Number(p.price) >= 0,
       );
+      const skippedCategory = [];
+      const validProducts = [];
+      basicallyUsable.forEach((p) => {
+        const category = normalizeCategory(p.category, p.name);
+        if (!category) {
+          skippedCategory.push({ name: p.name, rawCategory: p.category || "" });
+          return;
+        }
+        validProducts.push({ ...p, category });
+      });
 
       if (!validProducts.length) {
         const freeform = ext === ".pdf" || ext === ".docx";
+        if (skippedCategory.length) {
+          const sample = skippedCategory
+            .slice(0, 5)
+            .map((s) => `"${s.name}" (category: "${s.rawCategory || "blank"}")`)
+            .join(", ");
+          return res.status(400).json({
+            error: `Found ${skippedCategory.length} product row(s), but none matched a supported category. Supported categories: ${CANONICAL_CATEGORIES.join(", ")}. Example unmatched: ${sample}.`,
+          });
+        }
         return res.status(400).json({
           error: freeform
             ? "Couldn't find usable product rows in this file. For PDF/Word uploads, list each product on its own line or table row as: Name, Category, Price, Description (matching the CSV template columns)."
@@ -240,9 +266,21 @@ router.post(
 
       const count = await productDB.bulkInsert(storeId, validProducts);
       await storeDB.touchCatalog(storeId);
+
+      let message = `${count} products uploaded successfully!`;
+      if (skippedCategory.length) {
+        const sample = skippedCategory
+          .slice(0, 10)
+          .map((s) => `"${s.name}" (category: "${s.rawCategory || "blank"}")`)
+          .join(", ");
+        message += ` ${skippedCategory.length} row(s) were skipped because their category didn't match a supported type: ${sample}${skippedCategory.length > 10 ? ", ..." : ""}. Supported categories: ${CANONICAL_CATEGORIES.join(", ")}.`;
+      }
+
       res.json({
         success: true,
-        message: `${count} products uploaded successfully!`,
+        message,
+        skippedCount: skippedCategory.length,
+        skippedItems: skippedCategory.slice(0, 20),
         preview: validProducts.slice(0, 3),
       });
     } catch (err) {
@@ -293,6 +331,12 @@ router.post("/product", authMiddleware, async (req, res) => {
       .status(400)
       .json({ error: "Name, category and price are required" });
   }
+  const normalizedCategory = normalizeCategory(category, name);
+  if (!normalizedCategory) {
+    return res.status(400).json({
+      error: `"${category}" is not a supported category. Supported categories: ${CANONICAL_CATEGORIES.join(", ")}.`,
+    });
+  }
   try {
     await client.execute({
       sql: `INSERT INTO products (store_id, name, category, price, description)
@@ -300,7 +344,7 @@ router.post("/product", authMiddleware, async (req, res) => {
       args: [
         req.store.storeId,
         name,
-        category,
+        normalizedCategory,
         parseFloat(price),
         description || "",
       ],
@@ -320,13 +364,19 @@ router.put("/product/:id", authMiddleware, async (req, res) => {
       .status(400)
       .json({ error: "Name, category and price are required" });
   }
+  const normalizedCategory = normalizeCategory(category, name);
+  if (!normalizedCategory) {
+    return res.status(400).json({
+      error: `"${category}" is not a supported category. Supported categories: ${CANONICAL_CATEGORIES.join(", ")}.`,
+    });
+  }
   try {
     const result = await client.execute({
       sql: `UPDATE products SET name=?, category=?, price=?, description=?
              WHERE id=? AND store_id=?`,
       args: [
         name,
-        category,
+        normalizedCategory,
         parseFloat(price),
         description || "",
         req.params.id,

@@ -1,5 +1,6 @@
 const express = require("express");
 const { productDB, storeDB, analyticsDB, configDB } = require("../database");
+const { normalizeCategory } = require("../lib/categories");
 
 const router = express.Router();
 
@@ -36,30 +37,6 @@ const BASELINE_WEIGHTS = {
 // Realistic per-category quantity ceilings — a real PC has 2-4 RAM slots
 // and room for a handful of case fans, never dozens.
 const MAX_QUANTITY = { RAM: 4, "Case Fans": 6 };
-
-function normalizeCategory(category) {
-  const text = String(category || "")
-    .trim()
-    .toLowerCase();
-  if (!text) return "";
-  if (text.includes("cpu cooler") || text.includes("cooler"))
-    return "CPU Cooler";
-  if (text.includes("power supply") || text.includes("psu")) return "PSU";
-  if (
-    text.includes("graphics") ||
-    text.includes("gpu") ||
-    text.includes("video card")
-  )
-    return "GPU";
-  if (text.includes("motherboard") || text.includes("mainboard"))
-    return "Motherboard";
-  if (text.includes("memory") || text.includes("ram")) return "RAM";
-  if (text.includes("storage") || text.includes("ssd") || text.includes("hdd"))
-    return "Storage";
-  if (text.includes("case fan") || text.includes("fan")) return "Case Fans";
-  if (text.includes("case") || text.includes("chassis")) return "Case";
-  return category.trim();
-}
 
 function getPurposeProfile(purpose) {
   const text = String(purpose || "").toLowerCase();
@@ -302,7 +279,7 @@ function caseIncludesFans(caseItem) {
 function buildCatalogByCategory(products) {
   const map = new Map();
   (products || []).forEach((p) => {
-    const category = normalizeCategory(p.category);
+    const category = normalizeCategory(p.category, p.name);
     const price = Number(p.price);
     if (!category || !Number.isFinite(price) || price <= 0) return;
     if (!map.has(category)) map.set(category, []);

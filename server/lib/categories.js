@@ -69,6 +69,7 @@ function detectCategory(rawText) {
 
   if (
     text.includes("processor") ||
+    text.includes("proccessor") || // common misspelling
     text.includes("intel core") ||
     text.includes("ryzen") ||
     text.includes("threadripper") ||
@@ -79,7 +80,8 @@ function detectCategory(rawText) {
     text.includes("core i5") ||
     text.includes("core i7") ||
     text.includes("core i9") ||
-    text.includes("cpu")
+    text.includes("cpu") ||
+    /\bchip\b/.test(text) // standalone "chip" — not "chipset" (motherboards)
   )
     return "CPU";
 
@@ -104,8 +106,8 @@ function detectCategory(rawText) {
     text.includes("ssd") ||
     text.includes("hdd") ||
     text.includes("nvme") ||
-    text.includes("hard disk") ||
-    text.includes("hard drive") ||
+    text.includes("disk") ||
+    text.includes("drive") ||
     text.includes("solid state") ||
     text.includes("m.2") ||
     text.includes("sata")
@@ -140,4 +142,9 @@ function normalizeCategory(categoryText, nameText) {
   return detectCategory(categoryText) || detectCategory(nameText) || null;
 }
 
-module.exports = { CANONICAL_CATEGORIES, CANONICAL_SET, normalizeCategory };
+module.exports = {
+  CANONICAL_CATEGORIES,
+  CANONICAL_SET,
+  normalizeCategory,
+  detectCategory,
+};

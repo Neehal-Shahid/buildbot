@@ -9,7 +9,11 @@ const { Readable } = require("stream");
 const { productDB, storeDB, client } = require("../database");
 const { authMiddleware } = require("./auth");
 const rateLimit = require("express-rate-limit");
-const { CANONICAL_CATEGORIES, normalizeCategory } = require("../lib/categories");
+const {
+  CANONICAL_CATEGORIES,
+  normalizeCategory,
+  detectCategory,
+} = require("../lib/categories");
 
 const router = express.Router();
 const upload = multer({
@@ -23,6 +27,116 @@ const uploadLimiter = rateLimit({
   message: { error: "Too many uploads. Please try again later." },
 });
 
+// ─── Content-sniffing fallback ─────────────────────────────────────
+// Some store files have unhelpful headers (col1/col2/col3/...) or don't
+// even keep the same column order from row to row (price first on one
+// line, name first on the next). When header-name matching comes up
+// short, this recovers name/category/price/description by looking at
+// what each cell's VALUE actually looks like instead of its position.
+
+const PRICE_PATTERNS = [
+  /^(rs\.?|pkr)\s?[\d,]+(\.\d+)?\s?\/?-?$/i, // "Rs 8,500", "PKR22000"
+  /^\d[\d,]*(\.\d+)?\s?\/-$/, // "20000/-"
+  /^\d+(\.\d+)?k$/i, // "18k", "3k"
+  /^approx\.?\s?\d[\d,]*(\.\d+)?$/i, // "approx 5000"
+  /^[^\w\s]{1,3}\d[\d,]*(\.\d+)?$/, // mangled currency symbol + digits
+  /^\d[\d,]*(\.\d+)?$/, // bare number — safe since model numbers always mix letters in
+];
+
+// Common openers for marketing-style blurbs, used to tell a description
+// cell apart from a name cell when length alone is ambiguous.
+const DESCRIPTION_OPENERS =
+  /^(known for being|this one offers|a solid pick|good option|users say|trustworthy|high value|basic|affordable|economical|dependable|solid|popular|cheap|low-cost|low cost|starter grade|beginner friendly|compact|colorful|reliable|premium)\b/i;
+
+function looksLikePrice(text) {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  return PRICE_PATTERNS.some((re) => re.test(t));
+}
+
+function parsePriceValue(text) {
+  const t = String(text || "").trim();
+  // Match the first genuine digit run instead of stripping non-digit
+  // characters — a blanket strip would keep the period in "Rs." (it's a
+  // dot, same as a decimal separator) and misread "Rs. 9000" as 0.9.
+  const match = t.match(/\d[\d,]*(\.\d+)?/);
+  if (!match) return null;
+  const n = parseFloat(match[0].replace(/,/g, ""));
+  if (!Number.isFinite(n)) return null;
+  return /k$/i.test(t) ? n * 1000 : n;
+}
+
+// Best-effort reconstruction of {name, category, price, description} from
+// a row's raw cell values, ignoring whatever column position/header they
+// came from. Returns null when there isn't enough to work with.
+function sniffRowFromValues(values) {
+  const cells = (values || [])
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+  if (cells.length < 2) return null;
+
+  const priceIdx = cells.findIndex((c) => looksLikePrice(c));
+  const withoutPrice = cells
+    .map((c, i) => ({ c, i }))
+    .filter(({ i }) => i !== priceIdx);
+
+  // The category cell is almost always short (1-3 words, e.g. "CPU",
+  // "Mobo", "Video Card") and never contains a digit — prefer the
+  // SHORTEST matching candidate, since a product name like "Intel Core
+  // i3-10100F" can also contain a category keyword ("intel core") but is
+  // both longer and has a model number, unlike a real category label.
+  let categoryIdx = -1;
+  let category = null;
+  let bestWordCount = Infinity;
+  withoutPrice.forEach(({ c, i }) => {
+    const wordCount = c.split(/\s+/).length;
+    if (wordCount > 3 || /\d/.test(c)) return;
+    const guess = detectCategory(c);
+    if (guess && wordCount < bestWordCount) {
+      categoryIdx = i;
+      category = guess;
+      bestWordCount = wordCount;
+    }
+  });
+
+  const leftover = withoutPrice
+    .filter(({ i }) => i !== categoryIdx)
+    .map(({ c }) => c);
+  if (!leftover.length) return null;
+
+  // Descriptions almost always open with a marketing filler phrase
+  // ("Known for being...", "Basic...", "Affordable...") — check for that
+  // first, since a terse description ("Basic 450W power supply") can
+  // actually be SHORTER than the product name it describes ("Cooler
+  // Master Elite 450W PSU"), which would fool a pure length comparison.
+  let name, description;
+  if (leftover.length === 1) {
+    name = leftover[0];
+    description = "";
+  } else {
+    const descLike = leftover.filter((c) => DESCRIPTION_OPENERS.test(c));
+    if (descLike.length === 1) {
+      description = descLike[0];
+      const nameCandidates = leftover.filter((c) => c !== description);
+      // A real product name almost always carries a model number; stray
+      // leftover text (e.g. junk category text that didn't get matched)
+      // usually doesn't — prefer whichever candidate has a digit.
+      name = nameCandidates.find((c) => /\d/.test(c)) || nameCandidates[0];
+    } else {
+      const sorted = [...leftover].sort((a, b) => a.length - b.length);
+      name = sorted[0];
+      description = leftover.filter((c) => c !== name).join(" ");
+    }
+  }
+
+  return {
+    name,
+    category: category || "",
+    price: priceIdx !== -1 ? parsePriceValue(cells[priceIdx]) ?? 0 : 0,
+    description,
+  };
+}
+
 function normalizeRow(row) {
   const normalized = {};
   Object.entries(row || {}).forEach(([key, value]) => {
@@ -32,12 +146,29 @@ function normalizeRow(row) {
     if (cleanKey) normalized[cleanKey] = value;
   });
 
+  let name = normalized.name || normalized.product || normalized.title || "";
+  let category =
+    normalized.category || normalized.type || normalized.component || "";
+  let price = normalized.price || normalized.cost || normalized.amount || 0;
+  let description = normalized.description || normalized.details || "";
+
+  // Header names didn't give us a complete row — fall back to sniffing
+  // the raw values by content instead of by column position.
+  if (!name || !category || !(Number(price) > 0)) {
+    const sniffed = sniffRowFromValues(Object.values(row || {}));
+    if (sniffed) {
+      if (!name) name = sniffed.name;
+      if (!category) category = sniffed.category;
+      if (!(Number(price) > 0)) price = sniffed.price;
+      if (!description) description = sniffed.description;
+    }
+  }
+
   return {
-    name: normalized.name || normalized.product || normalized.title || "",
-    category:
-      normalized.category || normalized.type || normalized.component || "",
-    price: normalized.price || normalized.cost || normalized.amount || 0,
-    description: normalized.description || normalized.details || "",
+    name,
+    category,
+    price,
+    description,
     in_stock: normalized.in_stock ?? normalized.instock ?? 1,
   };
 }
@@ -233,7 +364,10 @@ router.post(
       // rows were skipped and why, instead of the file silently importing
       // as unrecognized junk (or worse, silently vanishing from builds).
       const basicallyUsable = products.filter(
-        (p) => p.name && Number(p.price) >= 0,
+        // A real product name always has at least one letter (brand/model) —
+        // this filters out numeric noise from severely malformed rows that
+        // would otherwise slip through as a fake product with no real name.
+        (p) => p.name && /[a-zA-Z]/.test(p.name) && Number(p.price) >= 0,
       );
       const skippedCategory = [];
       const validProducts = [];
@@ -434,3 +568,5 @@ module.exports.parseCatalog = parseCatalog;
 module.exports.parseDelimitedText = parseDelimitedText;
 module.exports.parseHtmlTables = parseHtmlTables;
 module.exports.rowsOfCellsToProducts = rowsOfCellsToProducts;
+module.exports.normalizeRow = normalizeRow;
+module.exports.sniffRowFromValues = sniffRowFromValues;

@@ -159,6 +159,18 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN whatsapp_number TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN whatsapp_verified INTEGER DEFAULT 0`,
     `ALTER TABLE stores ADD COLUMN whatsapp_verify_code TEXT DEFAULT ''`,
+    `CREATE TABLE IF NOT EXISTS order_requests (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id     TEXT NOT NULL,
+  build_name   TEXT DEFAULT '',
+  tier         TEXT DEFAULT '',
+  parts        TEXT NOT NULL,
+  total_price  REAL NOT NULL,
+  currency     TEXT DEFAULT 'PKR',
+  order_method TEXT DEFAULT 'whatsapp',
+  created_at   TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+)`,
     `CREATE TABLE IF NOT EXISTS pending_signups (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
@@ -1043,6 +1055,51 @@ const supportTicketDB = {
   },
 };
 
+// ─── ORDER REQUESTS ───────────────────────────────────────
+// A tamper-evident record of what a customer actually requested when they
+// clicked "Order This Build" — written server-side from the store's own
+// catalog at the moment of ordering, never from client-supplied prices.
+// Lets a store owner cross-check a WhatsApp order message (which the
+// customer could have edited before sending) against the real numbers.
+const orderRequestDB = {
+  create: async (storeId, build, orderMethod) => {
+    const res = await client.execute({
+      sql: `INSERT INTO order_requests
+             (store_id, build_name, tier, parts, total_price, currency, order_method)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        storeId,
+        build.buildName || "",
+        build.tier || "",
+        JSON.stringify(build.parts || []),
+        Number(build.totalPrice) || 0,
+        build.currency || "PKR",
+        orderMethod || "whatsapp",
+      ],
+    });
+    return Number(res.lastInsertRowid);
+  },
+
+  getByStore: async (storeId, limit = 100) => {
+    const res = await client.execute({
+      sql: `SELECT * FROM order_requests WHERE store_id = ?
+             ORDER BY created_at DESC LIMIT ?`,
+      args: [storeId, limit],
+    });
+    return res.rows.map((r) => ({ ...r, parts: JSON.parse(r.parts || "[]") }));
+  },
+
+  getById: async (id, storeId) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM order_requests WHERE id = ? AND store_id = ?",
+      args: [id, storeId],
+    });
+    const row = res.rows[0];
+    if (!row) return null;
+    return { ...row, parts: JSON.parse(row.parts || "[]") };
+  },
+};
+
 // ─── PENDING SIGNUPS ──────────────────────────────────────
 // Holds signup intent before email is verified.
 // The real store record in `stores` is only created after verification.
@@ -1108,5 +1165,6 @@ module.exports = {
   apiUsageDB,
   emailLogDB,
   supportTicketDB,
+  orderRequestDB,
   pendingSignupDB,
 };

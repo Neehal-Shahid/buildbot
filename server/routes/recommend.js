@@ -1,5 +1,11 @@
 const express = require("express");
-const { productDB, storeDB, analyticsDB, configDB } = require("../database");
+const {
+  productDB,
+  storeDB,
+  analyticsDB,
+  configDB,
+  orderRequestDB,
+} = require("../database");
 const { normalizeCategory } = require("../lib/categories");
 
 const router = express.Router();
@@ -969,6 +975,87 @@ router.post("/recommend", async (req, res) => {
     res.json(payload);
   } catch (err) {
     console.error("Recommend handler error:", err.message || err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Service temporarily unavailable. Please try again.",
+        customerMessage: true,
+      });
+    }
+  }
+});
+
+// ─── ORDER REQUEST (public, for widget) ──────────────────────────
+// Called the moment a customer clicks "Order This Build". Deliberately
+// ignores any parts/price the client sends — a customer could edit the
+// WhatsApp message before sending it, so the only trustworthy total is
+// one recomputed here, fresh, from the store's real catalog. This becomes
+// the store owner's ground truth to cross-check an order message against.
+router.post("/order-request", async (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const currentRequests = ipRequests.get(ip) || 0;
+  if (currentRequests >= 15) {
+    return res.status(429).json({
+      error: "Too many requests. Please try again later or contact the store.",
+      customerMessage: true,
+    });
+  }
+  ipRequests.set(ip, currentRequests + 1);
+
+  const { storeId, budget, purpose, tier, orderMethod } = req.body;
+  if (!storeId || !budget || !purpose || !tier) {
+    return res
+      .status(400)
+      .json({ error: "storeId, budget, purpose and tier are required" });
+  }
+
+  const parsedBudget = Number(budget);
+  if (!Number.isFinite(parsedBudget) || parsedBudget <= 0) {
+    return res
+      .status(400)
+      .json({ error: "Invalid budget.", customerMessage: true });
+  }
+
+  try {
+    const store = await storeDB.findById(storeId);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const isActive = await storeDB.isActive(storeId);
+    if (!isActive || store.widget_enabled === 0) {
+      return res
+        .status(403)
+        .json({ error: "Service temporarily unavailable.", customerMessage: true });
+    }
+
+    const products = await productDB.getByStore(storeId);
+    if (!products.length) {
+      return res.status(404).json({
+        error: "This store has not added any products to their catalog yet.",
+        customerMessage: true,
+      });
+    }
+
+    const generated = generateBuildsFromCatalog(products, parsedBudget, purpose);
+    if (!generated.canBuild) {
+      return res.status(400).json({
+        error: "Could not recreate this build — the store's inventory may have changed.",
+        customerMessage: true,
+      });
+    }
+
+    const matched = generated.builds.find((b) => b.tier === tier);
+    if (!matched) {
+      return res
+        .status(400)
+        .json({ error: "Could not find that build tier.", customerMessage: true });
+    }
+
+    const method = orderMethod === "woo" ? "woo" : "whatsapp";
+    const buildWithCurrency = { ...matched, currency: store.currency || "PKR" };
+    const orderId = await orderRequestDB.create(storeId, buildWithCurrency, method);
+
+    res.json({ success: true, orderId, build: buildWithCurrency });
+  } catch (err) {
+    console.error("Order-request handler error:", err.message || err);
     if (!res.headersSent) {
       res.status(500).json({
         error: "Service temporarily unavailable. Please try again.",

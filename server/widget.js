@@ -31,6 +31,11 @@
   let _lastCurrency = "PKR";
   let _currentBuild = null;
   let _budgetPresets = [50000, 80000, 120000, 200000];
+  // Kept so "Order This Build" can ask the server to recompute the exact
+  // same build fresh (see placeOrderForBuild) — never trust prices already
+  // sitting in the page by the time the customer clicks order.
+  let _lastBudget = null;
+  let _lastPurpose = "";
 
   // Ordering: WooCommerce-connected stores get one-click cart checkout;
   // everyone else falls back to a WhatsApp order handoff if the store set
@@ -470,6 +475,8 @@
 
         _lastBuilds = data.builds || [];
         _lastCurrency = data.currency || CURRENCY;
+        _lastBudget = budget;
+        _lastPurpose = selectedPurpose;
         renderResults(
           data.builds || [],
           data.currency || CURRENCY,
@@ -718,7 +725,8 @@
       }`;
 
     const orderBtn = document.getElementById("bb-order-btn");
-    if (orderBtn) orderBtn.onclick = () => placeOrderForBuild(build);
+    if (orderBtn)
+      orderBtn.onclick = () => placeOrderForBuild(build, orderBtn);
 
     overlay.classList.add("open");
   }
@@ -745,9 +753,50 @@
     return "";
   }
 
-  function placeOrderForBuild(build) {
+  // WhatsApp can't send a message the customer isn't allowed to edit —
+  // that's a hard platform limit, no workaround exists. So before opening
+  // WhatsApp (or the WooCommerce cart link), this registers the build
+  // server-side from the store's real catalog (never trusting whatever's
+  // sitting in the page by now) and gets back an order reference number.
+  // If a customer edits prices in the WhatsApp message before sending, the
+  // store owner can still look up that reference in their dashboard and
+  // see the real, untampered order.
+  async function placeOrderForBuild(build, btn) {
+    if (ORDER_METHOD === "woo" && !(build.parts || []).some((p) => p.wooId))
+      return;
+
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Please wait…";
+
+    let orderId = null;
+    let orderedBuild = build;
+    try {
+      const res = await fetch(`${API}/order-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId: STORE_ID,
+          budget: _lastBudget,
+          purpose: _lastPurpose,
+          tier: build.tier,
+          orderMethod: ORDER_METHOD,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        orderId = data.orderId;
+        orderedBuild = data.build;
+      }
+    } catch (err) {
+      /* fall through — still let the order proceed with local data */
+    }
+
+    btn.disabled = false;
+    btn.textContent = origText;
+
     if (ORDER_METHOD === "woo") {
-      const items = (build.parts || [])
+      const items = (orderedBuild.parts || [])
         .filter((p) => p.wooId)
         .map((p) => ({ id: p.wooId, qty: p.quantity || 1 }));
       if (!items.length) return;
@@ -761,7 +810,7 @@
         `Hi! I'd like to order this PC build from ${WIDGET_TITLE}:`,
         "",
       ];
-      (build.parts || []).forEach((p) => {
+      (orderedBuild.parts || []).forEach((p) => {
         const qty = p.quantity || 1;
         const total = p.totalPrice || p.price * qty;
         lines.push(
@@ -770,9 +819,15 @@
       });
       lines.push(
         "",
-        `Total: ${_lastCurrency} ${Number(build.totalPrice).toLocaleString()}`,
-        `(${build.buildName || build.tier})`,
+        `Total: ${_lastCurrency} ${Number(orderedBuild.totalPrice).toLocaleString()}`,
+        `(${orderedBuild.buildName || orderedBuild.tier})`,
       );
+      if (orderId) {
+        lines.push(
+          "",
+          `Order Ref: #${orderId} (saved in the store's BuildBot dashboard — please don't edit this message)`,
+        );
+      }
       const waNumber = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
       const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
       window.open(waUrl, "_blank", "noopener");

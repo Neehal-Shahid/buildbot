@@ -2038,6 +2038,26 @@
 
             <div
               class="sidebar-item"
+              onclick="showTab('orders')"
+              id="tab-orders"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              Orders
+            </div>
+
+            <div
+              class="sidebar-item"
               onclick="showTab('analytics')"
               id="tab-analytics"
             >
@@ -3792,6 +3812,55 @@
             <!-- end products-custom-view -->
           </div>
           <!-- end tab-content-products -->
+
+          <!-- ── ORDERS TAB ── -->
+          <div id="tab-content-orders" style="display: none">
+            <div class="section-title">Order Requests</div>
+            <div class="section-sub" style="margin-bottom: 20px">
+              Every time a customer clicks "Order This Build" in your widget,
+              the real build (parts and total price, computed fresh from
+              your catalog) is saved here — use it to cross-check against
+              any order message a customer sends you, in case they edited
+              it before sending.
+            </div>
+
+            <div class="card">
+              <div style="overflow-x: auto">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px">
+                  <thead>
+                    <tr style="background: var(--surface-2)">
+                      <th style="padding: 12px 16px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap">
+                        Ref #
+                      </th>
+                      <th style="padding: 12px 16px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border)">
+                        Date
+                      </th>
+                      <th style="padding: 12px 16px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border)">
+                        Build
+                      </th>
+                      <th style="padding: 12px 16px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border)">
+                        Parts
+                      </th>
+                      <th style="padding: 12px 16px; text-align: center; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border)">
+                        Method
+                      </th>
+                      <th style="padding: 12px 16px; text-align: right; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border)">
+                        Total (Real)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-table">
+                    <tr>
+                      <td colspan="6" style="padding: 40px; text-align: center; color: #555">
+                        Loading order requests...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- end tab-content-orders -->
 
           <!-- ── ANALYTICS TAB ── -->
           <div id="tab-content-analytics" style="display: none">
@@ -6146,6 +6215,7 @@
           mobileTabs[mobileMap[name]].classList.add("active");
 
         if (name === "analytics") loadAnalytics();
+        if (name === "orders") loadOrderRequests();
         if (name === "embed" && typeof window.syncEmbedCodeCopy === "function")
           window.syncEmbedCodeCopy();
         if (name === "products") {
@@ -6193,6 +6263,54 @@
       }
 
       // ─── ANALYTICS ────────────────────────────────────────────
+      async function loadOrderRequests() {
+        const tbody = document.getElementById("orders-table");
+        if (!tbody) return;
+        try {
+          const res = await fetch(`${API}/order-requests`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          if (!data.success) {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--danger)">Could not load order requests.</td></tr>`;
+            return;
+          }
+          const orders = data.orders || [];
+          if (!orders.length) {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:#555">No order requests yet — they'll show up here as soon as a customer clicks "Order This Build" in your widget.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = orders
+            .map((o) => {
+              const date = o.created_at
+                ? new Date(o.created_at.replace(" ", "T") + "Z").toLocaleString()
+                : "";
+              const partsList = (o.parts || [])
+                .map(
+                  (p) =>
+                    `${escHtml(p.category)}: ${escHtml(p.name)}${p.quantity > 1 ? ` ×${p.quantity}` : ""}`,
+                )
+                .join("<br/>");
+              const methodBadge =
+                o.order_method === "woo"
+                  ? `<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--success-bg,#dcfce7);color:var(--success,#16a34a)">WooCommerce</span>`
+                  : `<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface-2);color:var(--muted)">WhatsApp</span>`;
+              return `
+                <tr>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap">#${o.id}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap">${escHtml(date)}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border)">${escHtml(o.build_name || o.tier || "")}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)">${partsList}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border);text-align:center">${methodBadge}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--border);text-align:right;font-weight:700">${escHtml(o.currency || "PKR")} ${Number(o.total_price).toLocaleString()}</td>
+                </tr>`;
+            })
+            .join("");
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--danger)">Connection error.</td></tr>`;
+        }
+      }
+
       async function loadAnalytics() {
         try {
           const purposeEl = document.getElementById("purpose-chart");

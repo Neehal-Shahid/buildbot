@@ -11,6 +11,7 @@ const {
 } = require("../database");
 const { OAuth2Client } = require("google-auth-library");
 const rateLimit = require("express-rate-limit");
+const { isValidPhoneNumber } = require("libphonenumber-js");
 const {
   sendEmail,
   welcomeEmail,
@@ -710,6 +711,21 @@ router.get("/support", authMiddleware, async (req, res) => {
   }
 });
 
+// ─── ORDER REQUESTS ────────────────────────────────────────
+// The ground-truth record of what customers actually clicked "Order" on —
+// written server-side at order time (see /order-request in recommend.js),
+// so a store owner can cross-check it against a WhatsApp message a
+// customer may have edited before sending.
+router.get("/order-requests", authMiddleware, async (req, res) => {
+  try {
+    const { orderRequestDB } = require("../database");
+    const orders = await orderRequestDB.getByStore(req.store.storeId);
+    res.json({ success: true, orders });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── ME ───────────────────────────────────────────────────
 router.get("/me", authMiddleware, async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
@@ -778,14 +794,22 @@ router.put("/settings", authMiddleware, async (req, res) => {
 // Used by the widget's "Order via WhatsApp" fallback for stores that
 // aren't WooCommerce-connected — customers land in a chat with the full
 // build pre-filled instead of an automated cart.
+//
+// No paid WhatsApp Business API is wired up, so we can't confirm delivery
+// — but libphonenumber-js (Google's own number-formatting rules, no
+// network call, no cost) catches most fake/typo'd numbers up front by
+// checking real per-country length and prefix rules, which a plain regex
+// can't do (e.g. it rejects "+11234567890123" even though a naive
+// digit-count regex would happily accept it).
 router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
   const raw = String(req.body.whatsappNumber || "").trim();
-  const digits = raw.replace(/[\s()-]/g, "");
+  let digits = raw.replace(/[\s()-]/g, "");
+  if (digits && !digits.startsWith("+")) digits = `+${digits}`;
 
-  if (raw && !/^\+?\d{7,15}$/.test(digits))
+  if (raw && !isValidPhoneNumber(digits))
     return res.status(400).json({
       error:
-        "Enter a valid WhatsApp number with country code, e.g. +923001234567",
+        "That doesn't look like a real WhatsApp number. Enter it with country code, e.g. +923001234567",
     });
 
   try {

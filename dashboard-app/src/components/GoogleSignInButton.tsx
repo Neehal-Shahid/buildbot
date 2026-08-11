@@ -77,5 +77,5 @@ export function GoogleSignInButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [context]);
 
-  return <div ref={ref} className="flex justify-center" />;
+  return <div ref={ref} className="g_id_signin" />;
 }

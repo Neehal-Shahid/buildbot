@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
-import { ApiError } from "../lib/api";
 import {
   clearStoreSession,
   getStoreSession,
   getStoreToken,
   isStoreTokenExpired,
   setStoreSession,
+  type StoreSession,
 } from "../lib/session";
-import { BrandLogo } from "../components/BrandLogo";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
-import { Button } from "../components/ui/Button";
-import { InlineAlert } from "../components/ui/InlineAlert";
-import { PasswordInput } from "../components/ui/PasswordInput";
+import "./landing.css";
 
 type View = "landing" | "login" | "signup" | "forgot" | "verify-pending";
 
+// This page is a 1:1 port of the original dashboard/index.html — same CSS
+// (imported verbatim as landing.css) and same markup/class structure, so
+// the JS logic below just swaps out the vanilla DOM manipulation for React
+// state while keeping pixel-identical output.
 export default function LandingPage() {
   const navigate = useNavigate();
   const forceDashboard =
@@ -28,11 +29,16 @@ export default function LandingPage() {
   const [pendingPassword, setPendingPassword] = useState("");
   const [loginAlert, setLoginAlert] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Mirrors the original window.onload bootstrap: verify any existing
-  // session against the server, redirect to the dashboard if this page was
-  // entered via the dedicated ?dashboard=1 login entrypoint, and handle the
-  // ?verify=required deep link from links that require a verified session.
+  useEffect(() => {
+    document.body.classList.toggle("landing-mode", view === "landing");
+    document.body.classList.toggle(
+      "auth-locked",
+      view === "signup" || view === "login" || view === "forgot" || view === "verify-pending",
+    );
+  }, [view]);
+
   useEffect(() => {
     async function boot() {
       if (isStoreTokenExpired()) clearStoreSession();
@@ -57,7 +63,6 @@ export default function LandingPage() {
             setView(forceDashboard ? "login" : "landing");
           }
         } catch {
-          // Server unreachable — trust the local session like the original did.
           if (forceDashboard) navigate("/dashboard.html");
         }
       } else {
@@ -75,270 +80,205 @@ export default function LandingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onAuthed(token: string, store: import("../lib/session").StoreSession) {
+  function showPage(name: View) {
+    setMobileNavOpen(false);
+    setView(forceDashboard && name === "landing" ? "login" : name);
+  }
+
+  function scrollToLandingSection(id: string) {
+    if (view !== "landing") showPage("landing");
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function onAuthed(token: string, store: StoreSession) {
     setStoreSession(token, store);
     setLoggedIn(true);
     navigate("/dashboard.html");
   }
 
-  function logout() {
+  function doLogout() {
     clearStoreSession();
     setLoggedIn(false);
-    setView("landing");
+    showPage("landing");
   }
 
   if (!checked) return null;
 
   return (
-    <div className="min-h-screen bg-bg">
-      <Nav
-        view={view}
-        loggedIn={loggedIn}
-        onNav={setView}
-        onLogout={logout}
-        onGoDashboard={() => navigate("/dashboard.html")}
-      />
-
-      {view === "landing" && <Hero onGetStarted={() => setView("signup")} />}
-
-      {view === "login" && (
-        <AuthShell>
-          <LoginView
-            initialAlert={loginAlert}
-            onAuthed={onAuthed}
-            onForgot={() => setView("forgot")}
-            onSignup={() => setView("signup")}
-            onNeedsVerify={(email, password) => {
-              setPendingEmail(email);
-              setPendingPassword(password);
-              setView("verify-pending");
-            }}
-          />
-        </AuthShell>
+    <>
+      <div className="nav-overlay" style={mobileNavOpen ? { display: "block", opacity: 1 } : undefined} onClick={() => setMobileNavOpen(false)} />
+      {view === "landing" && (
+        <nav id="main-nav">
+          <div className="nav-logo" onClick={() => showPage("landing")}>
+            ⚡ BuildVolt
+          </div>
+          <button
+            type="button"
+            className="nav-menu-btn"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-label="Open menu"
+          >
+            <svg viewBox="0 0 24 24">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div className={`nav-links${mobileNavOpen ? " open" : ""}`}>
+            <div className="nav-link" onClick={() => showPage("landing")}>
+              Home
+            </div>
+            <div className="nav-link" onClick={() => scrollToLandingSection("how-it-works")}>
+              Features
+            </div>
+            {loggedIn && (
+              <div className="nav-link" style={{ opacity: 0.7, fontSize: 13 }} onClick={doLogout}>
+                Sign Out
+              </div>
+            )}
+            {loggedIn && (
+              <div className="nav-link btn-primary btn" onClick={() => navigate("/dashboard.html")}>
+                Go to Dashboard
+              </div>
+            )}
+            {!loggedIn && (
+              <div className="nav-link" onClick={() => showPage("login")}>
+                Login
+              </div>
+            )}
+            {!loggedIn && (
+              <div className="nav-link btn-primary btn" onClick={() => showPage("signup")}>
+                Get Started Free
+              </div>
+            )}
+          </div>
+        </nav>
       )}
+
+      {view === "landing" && <LandingSections onShowPage={showPage} onScrollTo={scrollToLandingSection} />}
 
       {view === "signup" && (
-        <AuthShell>
-          <SignupView
-            onAuthed={onAuthed}
-            onLogin={() => setView("login")}
-            onNeedsVerify={(email, password) => {
-              setPendingEmail(email);
-              setPendingPassword(password);
-              setView("verify-pending");
-            }}
-          />
-        </AuthShell>
-      )}
-
-      {view === "forgot" && (
-        <AuthShell>
-          <ForgotView onBack={() => setView("login")} />
-        </AuthShell>
+        <SignupPage
+          onBack={() => showPage("landing")}
+          onLogin={() => showPage("login")}
+          onAuthed={onAuthed}
+          onNeedsVerify={(email, password) => {
+            setPendingEmail(email);
+            setPendingPassword(password);
+            showPage("verify-pending");
+          }}
+        />
       )}
 
       {view === "verify-pending" && (
-        <AuthShell>
-          <VerifyPendingView
-            email={pendingEmail}
-            password={pendingPassword}
-            onVerified={() => setView("login")}
-            onBack={() => setView("login")}
-          />
-        </AuthShell>
-      )}
-    </div>
-  );
-}
-
-function Nav({
-  view,
-  loggedIn,
-  onNav,
-  onLogout,
-  onGoDashboard,
-}: {
-  view: View;
-  loggedIn: boolean;
-  onNav: (v: View) => void;
-  onLogout: () => void;
-  onGoDashboard: () => void;
-}) {
-  if (view !== "landing") return null;
-  return (
-    <header className="flex items-center justify-between border-b border-border px-6 py-4">
-      <BrandLogo />
-      <nav className="flex items-center gap-4">
-        {loggedIn ? (
-          <>
-            <button onClick={onGoDashboard} className="text-sm font-medium text-text-2 hover:text-text">
-              Dashboard
-            </button>
-            <button onClick={onLogout} className="text-sm font-medium text-text-2 hover:text-text">
-              Sign out
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => onNav("login")} className="text-sm font-medium text-text-2 hover:text-text">
-              Sign in
-            </button>
-            <button
-              onClick={() => onNav("signup")}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              Get started
-            </button>
-          </>
-        )}
-      </nav>
-    </header>
-  );
-}
-
-function Hero({ onGetStarted }: { onGetStarted: () => void }) {
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center">
-      <h1 className="text-4xl font-bold tracking-tight text-text sm:text-5xl">
-        Sell the right PC build, every time.
-      </h1>
-      <p className="mt-4 max-w-xl text-lg text-muted">
-        BuildVolt is a PC-build recommender widget for computer stores —
-        drop it on your site and let customers get a build suggestion that
-        fits their budget, instantly.
-      </p>
-      <Button onClick={onGetStarted} className="mt-8 !px-6 !py-3 !text-base">
-        Get started free
-      </Button>
-    </div>
-  );
-}
-
-function AuthShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-[calc(100vh-73px)] items-center justify-center px-5 py-10">
-      <div className="w-full max-w-[420px] rounded-2xl border border-border bg-surface p-9 shadow-sm">
-        <div className="mb-6">
-          <BrandLogo />
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function LoginView({
-  initialAlert,
-  onAuthed,
-  onForgot,
-  onSignup,
-  onNeedsVerify,
-}: {
-  initialAlert: string | null;
-  onAuthed: (token: string, store: import("../lib/session").StoreSession) => void;
-  onForgot: () => void;
-  onSignup: () => void;
-  onNeedsVerify: (email: string, password: string) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<string | null>(initialAlert);
-
-  async function submit() {
-    if (!email || !password) {
-      setAlert("Please fill all fields.");
-      return;
-    }
-    setLoading(true);
-    setAlert(null);
-    try {
-      const data = await authApi.login(email, password);
-      if (data.success && data.token && data.store) {
-        onAuthed(data.token, data.store);
-      } else if (data.requiresVerification) {
-        onNeedsVerify(email, password);
-      } else {
-        setAlert(data.error || "Login failed.");
-      }
-    } catch (err) {
-      setAlert(err instanceof ApiError ? err.message : "Cannot connect to server.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div onKeyDown={(e) => e.key === "Enter" && submit()}>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">Sign in</h2>
-      <p className="mb-5 text-[13px] text-muted">Welcome back.</p>
-
-      <GoogleSignInButton
-        context="signin"
-        onCredential={async (credential) => {
-          setLoading(true);
-          try {
-            const data = await authApi.googleAuth(credential);
-            if (data.success && data.token && data.store) onAuthed(data.token, data.store);
-            else setAlert(data.error || "Google login failed.");
-          } catch {
-            setAlert("Connection error.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      />
-      <div className="my-4 text-center text-xs text-dim">or continue with email</div>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
+        <VerifyPendingPage
+          email={pendingEmail}
+          password={pendingPassword}
+          onBack={() => showPage("landing")}
+          onSignupAgain={() => showPage("signup")}
+          onLogin={() => showPage("login")}
         />
-      </div>
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">Password</label>
-        <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-      </div>
-
-      <Button onClick={submit} loading={loading} className="w-full">
-        Sign in
-      </Button>
-      {alert && (
-        <div className="mt-3.5">
-          <InlineAlert type="error" message={alert} />
-        </div>
       )}
 
-      <div className="mt-4 flex justify-between text-[13px] text-muted">
-        <button onClick={onForgot} className="font-semibold text-accent hover:underline">
-          Forgot password?
-        </button>
-        <button onClick={onSignup} className="font-semibold text-accent hover:underline">
-          Create account
-        </button>
+      {view === "login" && (
+        <LoginPage
+          initialAlert={loginAlert}
+          onBack={() => showPage("landing")}
+          onForgot={() => showPage("forgot")}
+          onSignup={() => showPage("signup")}
+          onAuthed={onAuthed}
+          onNeedsVerify={(email, password) => {
+            setPendingEmail(email);
+            setPendingPassword(password);
+            showPage("verify-pending");
+          }}
+        />
+      )}
+
+      {view === "forgot" && <ForgotPage onBack={() => showPage("login")} />}
+    </>
+  );
+}
+
+// ─── LOGO (shared across auth boxes) ───────────────────────
+function AuthLogo() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 22 }}>
+      <div
+        style={{
+          width: 30,
+          height: 30,
+          background: "#4f46e5",
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
       </div>
+      <span style={{ fontSize: 15, fontWeight: 700, color: "#111827", letterSpacing: "-0.3px" }}>BuildVolt</span>
     </div>
   );
 }
 
-function SignupView({
-  onAuthed,
+function AuthBack({ onClick, label = "Back to home" }: { onClick: () => void; label?: string }) {
+  return (
+    <div className="auth-back" onClick={onClick}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      {label}
+    </div>
+  );
+}
+
+function PwdToggle({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <span className="pwd-toggle" onClick={onToggle}>
+      {shown ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
+  if (!msg) return <div className="alert" />;
+  return <div className={`alert alert-${type} show`}>{msg}</div>;
+}
+
+// ─── SIGNUP ─────────────────────────────────────────────────
+function SignupPage({
+  onBack,
   onLogin,
+  onAuthed,
   onNeedsVerify,
 }: {
-  onAuthed: (token: string, store: import("../lib/session").StoreSession) => void;
+  onBack: () => void;
   onLogin: () => void;
+  onAuthed: (token: string, store: StoreSession) => void;
   onNeedsVerify: (email: string, password: string) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<string | null>(null);
+  const [showPwd, setShowPwd] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   const score = (() => {
     let s = 0;
@@ -351,249 +291,692 @@ function SignupView({
   const strengthColors = ["#e74c3c", "#f39c12", "#f39c12", "#2ecc71", "#2ecc71"];
 
   async function submit() {
-    if (!email || !password) {
-      setAlert("Please fill all fields.");
-      return;
-    }
-    setLoading(true);
-    setAlert(null);
+    if (!email || !password) return setAlert({ msg: "Please fill all fields.", type: "error" });
+    setBusy(true);
     try {
       const data = await authApi.signup(email, password);
       if (data.success && data.requiresVerification) {
         onNeedsVerify(data.email || email, password);
       } else if (data.success) {
-        setAlert(data.message || "Account created.");
+        setAlert({ msg: data.message || "Account created.", type: "success" });
       } else {
-        setAlert(data.error || "Signup failed.");
+        setAlert({ msg: data.error || "Signup failed.", type: "error" });
       }
     } catch {
-      setAlert("Cannot connect to server.");
+      setAlert({ msg: "Cannot connect to server.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  return (
-    <div onKeyDown={(e) => e.key === "Enter" && submit()}>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">Create your account</h2>
-      <p className="mb-5 text-[13px] text-muted">Free to use. No credit card needed.</p>
-
-      <GoogleSignInButton
-        context="signup"
-        onCredential={async (credential) => {
-          setLoading(true);
-          try {
-            const data = await authApi.googleAuth(credential);
-            if (data.success && data.token && data.store) onAuthed(data.token, data.store);
-            else setAlert(data.error || "Google signup failed.");
-          } catch {
-            setAlert("Connection error.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      />
-      <div className="my-4 text-center text-xs text-dim">or continue with email</div>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">Email Address</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@yourstore.com"
-          autoComplete="email"
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-        />
-      </div>
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">Password</label>
-        <PasswordInput
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Min 8 characters"
-          autoComplete="new-password"
-        />
-        <div className="mt-2 mb-1 h-[3px] overflow-hidden rounded-full bg-border">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${(score / 4) * 100}%`, background: strengthColors[score] }}
-          />
-        </div>
-        <div className="text-[11px] leading-relaxed text-dim">
-          Use uppercase, lowercase, number and special character.
-        </div>
-      </div>
-
-      <Button onClick={submit} loading={loading} className="w-full">
-        Create account
-      </Button>
-      {alert && (
-        <div className="mt-3.5">
-          <InlineAlert type="error" message={alert} />
-        </div>
-      )}
-
-      <div className="mt-4 text-center text-[13px] text-muted">
-        Already have an account?{" "}
-        <button onClick={onLogin} className="font-semibold text-accent hover:underline">
-          Sign in
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ForgotView({ onBack }: { onBack: () => void }) {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ type: "success" | "error"; msg: string } | null>(null);
-
-  async function submit() {
-    if (!email) {
-      setResult({ type: "error", msg: "Please enter your email." });
-      return;
-    }
-    setLoading(true);
-    setResult(null);
+  async function onGoogle(credential: string) {
+    setBusy(true);
     try {
-      const data = await authApi.forgotPassword(email);
-      if (data.success) setResult({ type: "success", msg: data.message || "Check your email." });
-      else setResult({ type: "error", msg: data.error || "Something went wrong." });
+      const data = await authApi.googleAuth(credential);
+      if (data.success && data.token && data.store) {
+        setAlert({ msg: "✅ Welcome! Redirecting...", type: "success" });
+        setTimeout(() => onAuthed(data.token!, data.store!), 800);
+      } else {
+        setAlert({ msg: data.error || "Google Login failed.", type: "error" });
+      }
     } catch {
-      setResult({ type: "error", msg: "Cannot connect to server." });
+      setAlert({ msg: "Connection error.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div onKeyDown={(e) => e.key === "Enter" && submit()}>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">Reset password</h2>
-      <p className="mb-5 text-[13px] text-muted">We'll email you a reset link.</p>
+    <div className="page active" id="page-signup" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      <AuthBack onClick={onBack} />
+      <div className="auth-wrap">
+        <div className="auth-box">
+          <AuthLogo />
+          <h2>Create your account</h2>
+          <p id="auth-trial-note">Free to use. No credit card needed.</p>
 
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-        />
-      </div>
+          <GoogleSignInButton context="signup" onCredential={onGoogle} />
+          <div className="divider">or continue with email</div>
 
-      <Button onClick={submit} loading={loading} className="w-full">
-        Send reset link
-      </Button>
-      {result && (
-        <div className="mt-3.5">
-          <InlineAlert type={result.type} message={result.msg} />
+          <div className="form-group">
+            <label className="form-label">Email Address</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <div className="pwd-wrap">
+              <input
+                type={showPwd ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min 8 characters"
+                autoComplete="new-password"
+              />
+              <PwdToggle shown={showPwd} onToggle={() => setShowPwd((s) => !s)} />
+            </div>
+            <div style={{ height: 3, borderRadius: 2, background: "#e5e7eb", margin: "8px 0 5px", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 2, transition: "all 0.3s", width: `${(score / 4) * 100}%`, background: strengthColors[score] }} />
+            </div>
+            <div style={{ fontSize: 11, color: "#9ca3af", lineHeight: 1.5 }}>
+              Use uppercase, lowercase, number and special character.
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
+            Create account
+          </button>
+
+          <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+
+          <div className="auth-switch">
+            Already have an account? <a onClick={onLogin}>Sign in</a>
+          </div>
         </div>
-      )}
-
-      <div className="mt-4 text-center text-[13px] text-muted">
-        <button onClick={onBack} className="font-semibold text-accent hover:underline">
-          Back to sign in
-        </button>
       </div>
     </div>
   );
 }
 
-function VerifyPendingView({
+// ─── VERIFY PENDING ─────────────────────────────────────────
+function VerifyPendingPage({
   email,
   password,
-  onVerified,
   onBack,
+  onSignupAgain,
+  onLogin,
 }: {
   email: string;
   password: string;
-  onVerified: () => void;
   onBack: () => void;
+  onSignupAgain: () => void;
+  onLogin: () => void;
 }) {
   const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function verify() {
-    if (!code || code.length !== 6) {
-      setAlert({ type: "error", msg: "Please enter the 6-digit code from your email." });
-      return;
-    }
-    setLoading(true);
-    setAlert(null);
+    if (!code || code.length !== 6)
+      return setAlert({ msg: "Please enter the 6-digit code from your email.", type: "error" });
+    setBusy(true);
     try {
       const data = await authApi.verifyEmailOtp(email, code);
       if (data.success) {
-        setAlert({ type: "success", msg: "Email verified! Redirecting to sign in…" });
-        setTimeout(onVerified, 1200);
+        setAlert({ msg: "✅ Email verified! Redirecting to sign in…", type: "success" });
+        setTimeout(onLogin, 1200);
       } else {
-        setAlert({ type: "error", msg: data.error || "Verification failed." });
+        setAlert({ msg: data.error || "Verification failed.", type: "error" });
       }
     } catch {
-      setAlert({ type: "error", msg: "Cannot connect to server." });
+      setAlert({ msg: "Cannot connect to server.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   async function resend() {
-    if (!email || !password) {
-      onBack();
-      return;
-    }
+    if (!email || !password) return onLogin();
     setResending(true);
-    setAlert(null);
     try {
       const data = await authApi.resendVerification(email, password);
-      setAlert({
-        type: data.success ? "success" : "error",
-        msg: data.message || data.error || "Could not resend email.",
-      });
+      setAlert({ msg: data.message || data.error || "Could not resend email.", type: data.success ? "success" : "error" });
     } catch {
-      setAlert({ type: "error", msg: "Cannot connect to server." });
+      setAlert({ msg: "Cannot connect to server.", type: "error" });
     } finally {
       setResending(false);
     }
   }
 
   return (
-    <div onKeyDown={(e) => e.key === "Enter" && verify()}>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">Verify your email</h2>
-      <p className="mb-5 text-[13px] text-muted">
-        We sent a 6-digit code to <strong className="text-text">{email}</strong>.
-      </p>
+    <div className="page active" id="page-verify-pending" onKeyDown={(e) => e.key === "Enter" && verify()}>
+      <AuthBack onClick={onBack} />
+      <div className="auth-wrap">
+        <div className="auth-box">
+          <AuthLogo />
+          <div className="auth-status-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+          </div>
+          <h2>Check your email</h2>
+          <p>
+            We sent a verification link and a 6-digit code to{" "}
+            <span className="verify-email-highlight">{email}</span>. Use either method to activate your account.
+          </p>
 
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Verification code
-        </label>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="123456"
-          inputMode="numeric"
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-center text-lg tracking-[0.3em] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-        />
-      </div>
+          <div className="form-group" style={{ marginTop: 8 }}>
+            <label className="form-label">Verification code</label>
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="Enter 6-digit code"
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              style={{ letterSpacing: "0.2em", textAlign: "center", fontSize: 18, fontWeight: 600 }}
+            />
+          </div>
 
-      <Button onClick={verify} loading={loading} className="w-full">
-        Verify email
-      </Button>
-      {alert && (
-        <div className="mt-3.5">
-          <InlineAlert type={alert.type} message={alert.msg} />
+          <button className="btn btn-primary btn-full" style={{ marginBottom: 10 }} onClick={verify} disabled={busy}>
+            Verify with code
+          </button>
+
+          <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+
+          <button
+            className="btn btn-primary btn-full"
+            style={{ background: "#fff", color: "#4f46e5", border: "1.5px solid #e5e7eb", boxShadow: "none" }}
+            onClick={resend}
+            disabled={resending}
+          >
+            Resend verification email
+          </button>
+
+          <div className="auth-switch">
+            Wrong email? <a onClick={onSignupAgain}>Sign up again</a> · <a onClick={onLogin}>Sign in</a>
+          </div>
+          <div className="auth-switch" style={{ marginTop: 10, fontSize: 12 }}>
+            Need help? <a href="mailto:workwithneehal@gmail.com">Contact support</a>
+          </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
 
-      <div className="mt-4 flex justify-between text-[13px] text-muted">
-        <button onClick={onBack} className="font-semibold text-accent hover:underline">
-          Back to sign in
-        </button>
-        <button onClick={resend} disabled={resending} className="font-semibold text-accent hover:underline disabled:opacity-50">
-          {resending ? "Sending…" : "Resend code"}
-        </button>
+// ─── LOGIN ──────────────────────────────────────────────────
+function LoginPage({
+  initialAlert,
+  onBack,
+  onForgot,
+  onSignup,
+  onAuthed,
+  onNeedsVerify,
+}: {
+  initialAlert: string | null;
+  onBack: () => void;
+  onForgot: () => void;
+  onSignup: () => void;
+  onAuthed: (token: string, store: StoreSession) => void;
+  onNeedsVerify: (email: string, password: string) => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(
+    initialAlert ? { msg: initialAlert, type: "error" } : null,
+  );
+
+  async function submit() {
+    if (!email || !password) return setAlert({ msg: "Please fill all fields.", type: "error" });
+    setBusy(true);
+    try {
+      const data = await authApi.login(email, password);
+      if (data.success && data.token && data.store) {
+        onAuthed(data.token, data.store);
+      } else if (data.requiresVerification) {
+        onNeedsVerify(email, password);
+      } else {
+        setAlert({ msg: data.error || "Login failed.", type: "error" });
+      }
+    } catch {
+      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onGoogle(credential: string) {
+    setBusy(true);
+    try {
+      const data = await authApi.googleAuth(credential);
+      if (data.success && data.token && data.store) {
+        setAlert({ msg: "✅ Login successful!", type: "success" });
+        setTimeout(() => onAuthed(data.token!, data.store!), 800);
+      } else {
+        setAlert({ msg: data.error || "Google Login failed.", type: "error" });
+      }
+    } catch {
+      setAlert({ msg: "Connection error.", type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="page active" id="page-login" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      <AuthBack onClick={onBack} />
+      <div className="auth-wrap">
+        <div className="auth-box">
+          <AuthLogo />
+          <h2>Welcome back</h2>
+          <p>Sign in to your store dashboard.</p>
+
+          <GoogleSignInButton context="signin" onCredential={onGoogle} />
+          <div className="divider">or continue with email</div>
+
+          <div className="form-group">
+            <label className="form-label">Email Address</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+          </div>
+          <div className="form-group">
+            <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              Password
+              <span onClick={onForgot} style={{ fontSize: 12, color: "#4f46e5", cursor: "pointer", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+                Forgot password?
+              </span>
+            </label>
+            <div className="pwd-wrap">
+              <input
+                type={showPwd ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+                autoComplete="current-password"
+              />
+              <PwdToggle shown={showPwd} onToggle={() => setShowPwd((s) => !s)} />
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
+            Sign in to Dashboard
+          </button>
+
+          <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+
+          <div className="auth-switch">
+            Don't have an account? <a onClick={onSignup}>Get started free</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── FORGOT PASSWORD ────────────────────────────────────────
+function ForgotPage({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  async function submit() {
+    if (!email) return setAlert({ msg: "Please enter your email.", type: "error" });
+    setBusy(true);
+    try {
+      const data = await authApi.forgotPassword(email);
+      if (data.success) setAlert({ msg: data.message || "Check your email.", type: "success" });
+      else setAlert({ msg: data.error || "Something went wrong.", type: "error" });
+    } catch {
+      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="page active" id="page-forgot" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      <AuthBack onClick={onBack} label="Back to sign in" />
+      <div className="auth-wrap">
+        <div className="auth-box">
+          <h2>Reset your password</h2>
+          <p>Enter your registered email and we'll send a reset link.</p>
+
+          <div className="form-group">
+            <label className="form-label">Email Address</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+          </div>
+
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
+            Send reset link
+          </button>
+
+          <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+
+          <div className="auth-switch">
+            <a onClick={onBack} style={{ color: "#4f46e5", cursor: "pointer" }}>
+              ← Back to sign in
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LANDING STATIC CONTENT ─────────────────────────────────
+// Ported verbatim from the original #page-landing markup. `data-reveal`
+// (scroll-triggered fade-in) and the Three.js hero background / cursor
+// glow are intentionally omitted — those are pure visual polish driven by
+// IntersectionObserver/Three.js JS that isn't wired up yet, and since
+// [data-reveal] elements start at opacity:0 in the original CSS, leaving
+// the attribute in without the JS that reveals it would make the whole
+// page invisible. Everything else (colors, layout, copy, structure) is
+// unchanged.
+function LandingSections({
+  onShowPage,
+  onScrollTo,
+}: {
+  onShowPage: (name: View) => void;
+  onScrollTo: (id: string) => void;
+}) {
+  return (
+    <div className="page active" id="page-landing">
+      <div className="landing-progress" aria-hidden="true">
+        <div className="landing-progress-fill" />
+      </div>
+      <div className="landing-wrap">
+        <section className="hero-section">
+          <div className="hero-three-bg" />
+          <div className="hero-cursor-glow" />
+          <div className="hero-eyebrow">⚡ Now with WooCommerce Auto-Sync</div>
+          <h1 className="hero-h1">
+            Your PC Store. Open 24/7.
+            <br />
+            Instant Recommendations While You Sleep.
+          </h1>
+          <p className="hero-sub">
+            BuildVolt reads your product catalog and recommends complete, compatible PC builds to your customers —
+            instantly, for any budget, in PKR. One line of code. No developer needed.
+          </p>
+          <div className="hero-ctas">
+            <button className="landing-btn primary" onClick={() => onShowPage("signup")}>
+              Get Started — Free
+            </button>
+            <button className="landing-btn secondary" onClick={() => onScrollTo("how-it-works")}>
+              See How It Works →
+            </button>
+          </div>
+          <div className="hero-trust">No credit card required · Free to use · Set up in minutes</div>
+          <div className="hero-mockup">
+            <div className="chat-shell">
+              <div className="chat-head">
+                <span>⚡ BuildVolt</span>
+                <span>X</span>
+              </div>
+              <div className="chat-body">
+                <div className="msg user">Gaming build, budget Rs 80,000</div>
+                <div className="msg ai">
+                  Got it. Here is a compatible build from your catalog.
+                  <div className="mini-build">
+                    <h4>Balanced 1080p Gaming</h4>
+                    <div className="row">
+                      <span>CPU</span>
+                      <span>Ryzen 5 7600</span>
+                    </div>
+                    <div className="row">
+                      <span>GPU</span>
+                      <span>Radeon RX 7600</span>
+                    </div>
+                    <div className="row">
+                      <span>RAM</span>
+                      <span>16GB DDR5</span>
+                    </div>
+                    <div className="row">
+                      <span>Storage</span>
+                      <span>1TB NVMe SSD</span>
+                    </div>
+                    <div className="row">
+                      <span>Motherboard</span>
+                      <span>B650M</span>
+                    </div>
+                    <div className="row">
+                      <span>Total</span>
+                      <span>Rs 79,800</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="social-proof">
+          <div className="social-inner">
+            <span className="social-line" />
+            <p className="social-text">Trusted by PC stores in Lahore · Karachi · Islamabad · Rawalpindi</p>
+            <span className="social-line" />
+          </div>
+        </section>
+
+        <section id="how-it-works">
+          <div className="section-label">HOW IT WORKS</div>
+          <h2 className="section-title">From Setup to Sales in 60 Seconds</h2>
+          <p className="section-subtitle">Three steps. No developer. No complexity.</p>
+          <div className="how-steps">
+            <article className="step">
+              <div className="step-num">01</div>
+              <h3>Upload Your Catalog</h3>
+              <p>
+                Export your products as a CSV, or connect your WooCommerce store. BuildVolt learns exactly what you
+                sell and at what price.
+              </p>
+            </article>
+            <article className="step">
+              <div className="step-num">02</div>
+              <h3>Paste One Line of Code</h3>
+              <p>
+                Copy your unique embed snippet and paste it before &lt;/body&gt; on your website. The widget appears
+                instantly.
+              </p>
+            </article>
+            <article className="step">
+              <div className="step-num">03</div>
+              <h3>Watch Builds Get Recommended</h3>
+              <p>
+                Customers enter their budget and purpose. BuildVolt recommends compatible builds using only your
+                products, in PKR, 24/7.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="features-section grid-overlay">
+          <div className="section-label">WHAT YOU GET</div>
+          <h2 className="section-title">Everything a PC Store Needs. Nothing It Doesn't.</h2>
+          <div className="features-grid">
+            {[
+              ["🤖", "Always Knows Your Inventory", "Builds are generated using only products you actually stock. No hallucinated parts, no out-of-stock items."],
+              ["⚡", "One-Line Installation", "Paste a single script tag and you're live. No developer, no plugin conflicts, no configuration."],
+              ["📊", "Real-Time Analytics", "See how many builds were suggested, what budgets your customers have, what they actually want to build."],
+              ["🎨", "Matches Your Brand", "Set your store's color. The widget looks native — not like a third-party tool bolted on."],
+              ["🔌", "WooCommerce Auto-Sync", "Connect once. Your products sync automatically, every 6 hours. Stock changes update in real-time."],
+              ["🇵🇰", "Built for Pakistan", "Recommendations priced in PKR, built by someone who understands the local market."],
+            ].map(([icon, title, desc]) => (
+              <article className="feature-card" key={title}>
+                <div className="feature-icon">{icon}</div>
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="impact-strip">
+          <div className="section-label">STORE IMPACT</div>
+          <h2 className="section-title">Results That Feel Like Extra Staff</h2>
+          <p className="section-subtitle">
+            BuildVolt handles repetitive pre-sales queries so your team can close serious buyers faster.
+          </p>
+          <div className="impact-grid">
+            {[
+              ["24/7", "Always-on recommendations, even outside business hours."],
+              ["<3s", "Average response time from budget input to full build suggestion."],
+              ["100%", "Inventory-aware outputs so customers only see parts you actually sell."],
+              ["PKR", "Native local pricing language customers trust instantly."],
+            ].map(([value, label]) => (
+              <article className="impact-card" key={value}>
+                <div className="impact-value">{value}</div>
+                <div className="impact-label">{label}</div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="section-label">SEE IT IN ACTION</div>
+          <h2 className="section-title">What Your Customers See</h2>
+          <div className="demo-layout">
+            <div className="demo-copy">
+              <h3>An automated sales assistant that works without you.</h3>
+              <p>
+                A floating chat bubble sits on your website. When a customer clicks it, they tell BuildVolt their
+                budget and what they want to build. In seconds, they get a complete, compatible build recommendation
+                using only what you sell — with prices in PKR.
+              </p>
+              <ul className="check-list">
+                <li>Works on any website or WooCommerce store</li>
+                <li>Responds in under 3 seconds</li>
+                <li>Available 24/7, even when you're closed</li>
+                <li>Recommends compatible parts only</li>
+              </ul>
+            </div>
+            <div className="widget-panel">
+              <div className="widget-header">
+                <span>
+                  <strong>⚡ BuildVolt</strong> · TechZone Lahore
+                </span>
+                <span>X</span>
+              </div>
+              <div className="widget-body">
+                <div className="progress">
+                  <span />
+                  <span />
+                  <span className="active" />
+                </div>
+                <div className="build-card">
+                  <h4>Performance Gaming Build</h4>
+                  <table className="build-table">
+                    <tbody>
+                      <tr>
+                        <td>CPU</td>
+                        <td>Ryzen 5 7600</td>
+                      </tr>
+                      <tr>
+                        <td>GPU</td>
+                        <td>RX 7600 8GB</td>
+                      </tr>
+                      <tr>
+                        <td>RAM</td>
+                        <td>16GB DDR5</td>
+                      </tr>
+                      <tr>
+                        <td>Storage</td>
+                        <td>1TB NVMe SSD</td>
+                      </tr>
+                      <tr>
+                        <td>PSU</td>
+                        <td>650W 80+ Bronze</td>
+                      </tr>
+                      <tr>
+                        <td>Case</td>
+                        <td>Mid Tower Airflow</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="build-total">
+                    <span>Total</span>
+                    <span>Rs 124,900</span>
+                  </div>
+                </div>
+                <p className="widget-tips">
+                  Tip: Upgrade to 32GB RAM later for video editing. Current build is perfect for 1080p high settings
+                  gaming.
+                </p>
+                <div className="powered">Powered by BuildVolt</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="use-cases grid-overlay">
+          <div className="section-label">WHERE IT WINS</div>
+          <h2 className="section-title">Built for Real Store Workflows</h2>
+          <p className="section-subtitle">
+            From first click to purchase confidence, BuildVolt removes buying friction at every stage.
+          </p>
+          <div className="use-cases-grid">
+            {[
+              ["For new buyers", "Budget to Build, Instantly", "First-time customers stop guessing. They get a compatible build recommendation in seconds without waiting for WhatsApp replies."],
+              ["For busy teams", "Less Repetition, Better Closings", "Your staff spends less time answering the same budget questions and more time handling high-intent buyers ready to checkout."],
+              ["For growth stores", "Scales Without Hiring Pressure", "As traffic grows, BuildVolt keeps responses consistent and fast so your conversion quality does not drop during peak demand."],
+            ].map(([kicker, title, desc]) => (
+              <article className="use-case-card" key={title}>
+                <div className="use-case-kicker">{kicker}</div>
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </article>
+            ))}
+          </div>
+          <div className="integrations-row">
+            <div className="integration-pill">WooCommerce Sync</div>
+            <div className="integration-pill">CSV Catalog Import</div>
+            <div className="integration-pill">Brand Color Matching</div>
+            <div className="integration-pill">Live Recommendation Analytics</div>
+          </div>
+        </section>
+
+        <section>
+          <div className="section-label">FAQ</div>
+          <h2 className="section-title">Questions Answered</h2>
+          <div className="faq-list">
+            <details className="faq-item">
+              <summary>Do I need a developer to install BuildVolt?</summary>
+              <p>
+                No. You get a single line of code to paste on your website. If you can add a Facebook Pixel or
+                Google Analytics, you can add BuildVolt.
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>What if I don't have a website — only a WooCommerce store?</summary>
+              <p>
+                BuildVolt has a WordPress plugin that connects directly to WooCommerce. Your products sync
+                automatically, and the widget appears on your store with one click.
+              </p>
+            </details>
+            <details className="faq-item">
+              <summary>Does it recommend products from other stores?</summary>
+              <p>
+                Never. BuildVolt only recommends products from your catalog that are marked in-stock. Your customers
+                stay on your store.
+              </p>
+            </details>
+          </div>
+        </section>
+
+        <section className="final-cta">
+          <h2>
+            Your Competitors' Customers
+            <br />
+            Are Already Asking BuildVolt.
+          </h2>
+          <p>Get started today — free to use, no credit card, no commitment. Just a smarter PC store.</p>
+          <button className="landing-btn primary" style={{ padding: "16px 44px", fontSize: 16 }} onClick={() => onShowPage("signup")}>
+            Get Started Free →
+          </button>
+          <div className="tiny">Takes less than 2 minutes to set up.</div>
+        </section>
+
+        <footer className="landing-footer">
+          <div className="footer-top">
+            <div>
+              <div className="footer-brand">⚡ BuildVolt</div>
+              <div className="footer-copy">Instant PC build recommendations for Pakistani stores.</div>
+              <div className="footer-made">Made in Pakistan 🇵🇰</div>
+            </div>
+            <div className="footer-right">
+              <a onClick={() => onScrollTo("how-it-works")}>Features</a>
+              <span style={{ color: "var(--text-dim)" }}>·</span>
+              <a onClick={() => onShowPage("login")}>Login</a>
+              <span style={{ color: "var(--text-dim)" }}>·</span>
+              <a onClick={() => onShowPage("signup")}>Get Started Free</a>
+            </div>
+          </div>
+          <div className="footer-bottom">© 2025 BuildVolt · All rights reserved</div>
+        </footer>
       </div>
     </div>
   );

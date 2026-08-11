@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Modal } from "../../../components/ui/Modal";
-import { Button } from "../../../components/ui/Button";
 import { adminApi, type AdminStore } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
@@ -19,9 +17,7 @@ export function ManageStoreModal({
   const toast = useToast();
   const [status, setStatus] = useState(store?.plan_status || "active");
   const [notes, setNotes] = useState(store?.admin_notes || "");
-  const [dripPaused, setDripPaused] = useState(
-    String(store?.drip_emails_paused) === "1",
-  );
+  const [dripPaused, setDripPaused] = useState(String(store?.drip_emails_paused) === "1");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -44,68 +40,60 @@ export function ManageStoreModal({
   }
 
   return (
-    <Modal open={!!store} onClose={onClose}>
-      {store && (
-        <div className="flex flex-col gap-4">
-          <h3 className="text-base font-semibold text-text">Manage store</h3>
-
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Store</div>
-              <div className="font-semibold text-text">{store.name}</div>
-            </div>
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Email</div>
-              <div className="font-semibold text-text">{store.email}</div>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-              Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            >
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-              Admin notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              maxLength={1000}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm text-text-2">
-            <input
-              type="checkbox"
-              checked={dripPaused}
-              onChange={(e) => setDripPaused(e.target.checked)}
-            />
-            Pause automated drip emails for this store
-          </label>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={save} loading={saving}>
-              Save changes
-            </Button>
-          </div>
+    <div className={`modal-bg${store ? " open" : ""}`}>
+      <div className="modal" style={{ maxWidth: 520 }}>
+        <div className="modal-icon" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M1.54 9.96l4.24 4.24M1.54 14.04l4.24-4.24M18.46 14.04l-4.24-4.24" />
+          </svg>
         </div>
-      )}
-    </Modal>
+        <h3>Manage Store</h3>
+        <p>Change store status, or send a manual email to this store.</p>
+        {store && (
+          <>
+            <div className="modal-detail">
+              <strong>Store:</strong> {store.name}
+              <br />
+              <strong>Email:</strong> {store.email}
+              <br />
+              <strong>Store ID:</strong> {store.store_id}
+            </div>
+            <div className="form-group" style={{ marginTop: 16 }}>
+              <label className="form-label">Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "100%" }}>
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ marginTop: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
+                <input type="checkbox" checked={dripPaused} onChange={(e) => setDripPaused(e.target.checked)} />
+                Pause automated drip emails for this store
+              </label>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Internal Admin Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="Internal notes about this store (not visible to store)"
+                style={{ width: "100%", fontFamily: "system-ui, sans-serif", fontSize: 13, resize: "vertical" }}
+              />
+            </div>
+          </>
+        )}
+        <div className="modal-btns">
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            Save Changes
+          </button>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

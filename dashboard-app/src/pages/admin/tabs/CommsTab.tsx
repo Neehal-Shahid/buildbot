@@ -1,14 +1,27 @@
 import { useEffect, useState } from "react";
-import {
-  adminApi,
-  type AdminStore,
-  type EmailLog,
-  type SupportTicket,
-} from "../../../lib/adminApi";
+import type { CSSProperties } from "react";
+import { adminApi, type AdminStore, type EmailLog, type SupportTicket } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+
+const textareaStyle: CSSProperties = {
+  width: "100%",
+  padding: "9px 12px",
+  background: "var(--surface)",
+  border: "1px solid var(--border-2)",
+  borderRadius: "var(--r-md)",
+  color: "var(--text)",
+  fontSize: 13,
+  resize: "vertical",
+  fontFamily: "inherit",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
+  if (!msg) return null;
+  return <div className={`alert alert-${type} show`} style={{ marginTop: 12 }}>{msg}</div>;
+}
 
 export default function CommsTab() {
   const { token } = useAdminAuth();
@@ -20,164 +33,124 @@ export default function CommsTab() {
   }, [token]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <SendToStoreCard stores={stores} />
-      <BroadcastCard />
-      <DripCard />
+    <div>
+      <div className="section-title">Communications</div>
+      <div className="section-sub">Send emails to stores — broadcast announcements or trigger automated drip emails.</div>
+
+      <div className="two-col">
+        <BroadcastCard />
+        <DripCard />
+      </div>
+
       <EmailLogCard />
       <SupportTicketsCard />
+      <SendToStoreCard stores={stores} />
     </div>
-  );
-}
-
-function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
-  const { token } = useAdminAuth();
-  const toast = useToast();
-  const [storeId, setStoreId] = useState("");
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-
-  async function send() {
-    if (!token || !storeId || !subject || !message) {
-      toast.error("Missing fields", "Pick a store and fill subject/message.");
-      return;
-    }
-    setSending(true);
-    try {
-      const data = await adminApi.sendEmail(token, storeId, subject, message);
-      toast.success("Email sent", data.message);
-      setSubject("");
-      setMessage("");
-    } catch {
-      toast.error("Error", "Could not send email.");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Card title="Send to specific store">
-      <div className="mb-3">
-        <select
-          value={storeId}
-          onChange={(e) => setStoreId(e.target.value)}
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        >
-          <option value="">Select a store…</option>
-          {stores.map((s) => (
-            <option key={s.store_id} value={s.store_id}>
-              {s.name} — {s.email}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="mb-3">
-        <input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          maxLength={150}
-          placeholder="Subject"
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
-      </div>
-      <div className="mb-3">
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          maxLength={2000}
-          rows={4}
-          placeholder="Message"
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
-      </div>
-      <Button onClick={send} loading={sending}>
-        Send email
-      </Button>
-    </Card>
   );
 }
 
 function BroadcastCard() {
   const { token } = useAdminAuth();
-  const toast = useToast();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function send() {
-    if (!token || !subject || !message) {
-      toast.error("Missing fields", "Fill subject and message.");
-      return;
-    }
-    setSending(true);
+    if (!token || !subject || !message) return setAlert({ msg: "Fill subject and message.", type: "error" });
+    setBusy(true);
     try {
       const data = await adminApi.broadcast(token, subject, message);
-      toast.success("Broadcast sent", data.message);
+      setAlert({ msg: data.message, type: "success" });
       setSubject("");
       setMessage("");
     } catch {
-      toast.error("Error", "Broadcast failed.");
+      setAlert({ msg: "Broadcast failed.", type: "error" });
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   }
 
   return (
-    <Card title="Broadcast email" subtitle="Sends to every active (non-disabled) store.">
-      <div className="mb-3">
-        <input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          maxLength={150}
-          placeholder="Subject"
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h2>Broadcast Email</h2>
+          <div className="card-sub">Send a message to all or filtered stores</div>
+        </div>
       </div>
-      <div className="mb-3">
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          maxLength={2000}
-          rows={4}
-          placeholder="Message"
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
+      <div className="form-group">
+        <label className="form-label">Target Audience</label>
+        <select disabled>
+          <option>All active stores</option>
+        </select>
       </div>
-      <Button onClick={send} loading={sending}>
-        Broadcast to all stores
-      </Button>
-    </Card>
+      <div className="form-group">
+        <label className="form-label">Subject</label>
+        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject line" />
+      </div>
+      <div className="form-group">
+        <label className="form-label">Message</label>
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Your message…" style={textareaStyle} />
+      </div>
+      <button className="btn btn-primary" onClick={send} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 2L11 13" />
+          <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+        </svg>
+        Send Broadcast
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+    </div>
   );
 }
 
 function DripCard() {
   const { token } = useAdminAuth();
-  const toast = useToast();
-  const [running, setRunning] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function run() {
     if (!token) return;
-    setRunning(true);
+    setBusy(true);
     try {
       await adminApi.runDrip(token);
-      toast.success("Drip run complete", "Automated onboarding emails processed.");
+      setAlert({ msg: "Automated onboarding emails processed.", type: "success" });
     } catch {
-      toast.error("Error", "Drip run failed.");
+      setAlert({ msg: "Drip run failed.", type: "error" });
     } finally {
-      setRunning(false);
+      setBusy(false);
     }
   }
 
   return (
-    <Card
-      title="Automated drip"
-      subtitle="Manually trigger the scheduled onboarding nudge emails (normally run automatically)."
-    >
-      <Button variant="secondary" onClick={run} loading={running}>
-        Run drip now
-      </Button>
-    </Card>
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h2>Automated Drip</h2>
+          <div className="card-sub">Runs every hour automatically on the server</div>
+        </div>
+      </div>
+      <div style={{ padding: "14px 16px", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>Sends automatically when conditions are met:</div>
+        <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 2.1 }}>
+          <div>— Signed up 4 days ago, not live → setup nudge</div>
+        </div>
+      </div>
+      <div style={{ padding: "12px 14px", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--r-md)", marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: "var(--warning)", lineHeight: 1.6 }}>
+          Run manually only to catch up after downtime or to test the system.
+        </div>
+      </div>
+      <button className="btn btn-warning" onClick={run} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
+        Run Drip Now
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+    </div>
   );
 }
 
@@ -190,55 +163,46 @@ function EmailLogCard() {
     adminApi.emailLog(token, 80).then((data) => setLogs(data.logs));
   }
 
-  useEffect(load, [token]);
-
   return (
-    <Card title="Email send log">
-      <Button variant="ghost" onClick={load} className="mb-3">
-        Refresh
-      </Button>
-      <div className="max-h-72 overflow-y-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-muted">
-              <th className="pb-2">Type</th>
-              <th className="pb-2">Recipient</th>
-              <th className="pb-2">Sent</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!logs && (
-              <tr>
-                <td colSpan={3} className="py-3 text-center text-muted">Loading…</td>
-              </tr>
-            )}
-            {logs?.length === 0 && (
-              <tr>
-                <td colSpan={3} className="py-3 text-center text-muted">No emails logged yet.</td>
-              </tr>
-            )}
-            {logs?.map((l) => (
-              <tr key={l.id} className="border-t border-border">
-                <td className="py-1.5">{l.email_type}</td>
-                <td className="py-1.5">{l.recipient}</td>
-                <td className="py-1.5">
-                  {l.sent_at ? new Date(l.sent_at).toLocaleString() : ""}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card-head">
+        <div>
+          <h2>Email Send Log</h2>
+          <div className="card-sub">Automated drip deduplication audit — each type sends once per store</div>
+        </div>
+        <button className="btn btn-sm" onClick={load}>
+          Refresh
+        </button>
       </div>
-    </Card>
+      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        {!logs && "Click Refresh to load recent sends."}
+        {logs?.length === 0 && "No emails logged yet."}
+        {logs && logs.length > 0 && (
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Recipient</th>
+                <th>Sent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.email_type}</td>
+                  <td>{l.recipient}</td>
+                  <td>{l.sent_at ? new Date(l.sent_at).toLocaleString() : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
   );
 }
 
-const STATUS_OPTIONS: SupportTicket["status"][] = [
-  "open",
-  "in_progress",
-  "resolved",
-  "closed",
-];
+const STATUS_OPTIONS: SupportTicket["status"][] = ["open", "in_progress", "resolved", "closed"];
 
 function SupportTicketsCard() {
   const { token } = useAdminAuth();
@@ -249,8 +213,6 @@ function SupportTicketsCard() {
     if (!token) return;
     adminApi.supportTickets(token).then((data) => setTickets(data.tickets));
   }
-
-  useEffect(load, [token]);
 
   async function updateStatus(id: string | number, status: SupportTicket["status"]) {
     if (!token) return;
@@ -264,24 +226,24 @@ function SupportTicketsCard() {
   }
 
   return (
-    <Card title="Support tickets">
-      <Button variant="ghost" onClick={load} className="mb-3">
-        Refresh
-      </Button>
-      <div className="flex flex-col gap-3">
-        {!tickets && <div className="text-sm text-muted">Loading…</div>}
-        {tickets?.length === 0 && (
-          <div className="text-sm text-muted">No support tickets.</div>
-        )}
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card-head">
+        <div>
+          <h2>Support Tickets</h2>
+          <div className="card-sub">Messages from store owners</div>
+        </div>
+        <button className="btn btn-sm" onClick={load}>
+          Refresh
+        </button>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+        {!tickets && "Click Refresh to load tickets."}
+        {tickets?.length === 0 && "No support tickets."}
         {tickets?.map((t) => (
-          <div key={t.id} className="rounded-md border border-border p-3 text-sm">
-            <div className="flex items-center justify-between gap-2">
-              <div className="font-semibold text-text">{t.subject}</div>
-              <select
-                value={t.status}
-                onChange={(e) => updateStatus(t.id, e.target.value as SupportTicket["status"])}
-                className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-text"
-              >
+          <div key={t.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong style={{ color: "var(--text)" }}>{t.subject}</strong>
+              <select value={t.status} onChange={(e) => updateStatus(t.id, e.target.value as SupportTicket["status"])}>
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -289,10 +251,72 @@ function SupportTicketsCard() {
                 ))}
               </select>
             </div>
-            <p className="mt-1 text-text-2">{t.message}</p>
+            <p style={{ marginTop: 4 }}>{t.message}</p>
           </div>
         ))}
       </div>
-    </Card>
+    </div>
+  );
+}
+
+function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
+  const { token } = useAdminAuth();
+  const [storeId, setStoreId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  async function send() {
+    if (!token || !storeId || !subject || !message) return setAlert({ msg: "Pick a store and fill subject/message.", type: "error" });
+    setBusy(true);
+    try {
+      const data = await adminApi.sendEmail(token, storeId, subject, message);
+      setAlert({ msg: data.message, type: "success" });
+      setSubject("");
+      setMessage("");
+    } catch {
+      setAlert({ msg: "Could not send email.", type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card-head">
+        <div>
+          <h2>Send to Specific Store</h2>
+          <div className="card-sub">Search for a store and send them a custom email</div>
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Select Store</label>
+        <select value={storeId} onChange={(e) => setStoreId(e.target.value)} style={{ width: "100%" }}>
+          <option value="">Search or select a store…</option>
+          {stores.map((s) => (
+            <option key={s.store_id} value={s.store_id}>
+              {s.name} — {s.email}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Subject</label>
+        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject line" />
+      </div>
+      <div className="form-group">
+        <label className="form-label">Message</label>
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Your message to this store…" style={textareaStyle} />
+      </div>
+      <button className="btn btn-primary" onClick={send} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 2L11 13" />
+          <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+        </svg>
+        Send Email
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+    </div>
   );
 }

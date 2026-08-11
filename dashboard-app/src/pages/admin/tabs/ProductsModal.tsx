@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Modal } from "../../../components/ui/Modal";
 import { adminApi } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 
@@ -32,56 +31,62 @@ export function ProductsModal({
   }, [store, token]);
 
   return (
-    <Modal open={!!store} onClose={onClose}>
-      {store && (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-base font-semibold text-text">Product catalog</h3>
-          <div className="text-sm">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Store</div>
-            <div className="font-semibold text-text">{store.name}</div>
-          </div>
-
-          {products === null && !error && (
-            <div className="py-6 text-center text-sm text-dim">Loading products…</div>
-          )}
-          {error && (
-            <div className="py-6 text-center text-sm text-danger">
-              Failed to load products.
-            </div>
-          )}
-          {products && products.length === 0 && (
-            <div className="py-6 text-center text-sm text-dim">
-              No products found for this store.
-            </div>
-          )}
-          {products && products.length > 0 && (
-            <div className="max-h-[300px] overflow-y-auto rounded-lg border border-border">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-surface-2 uppercase tracking-wide text-muted">
-                    <th className="px-2.5 py-2">SKU</th>
-                    <th className="px-2.5 py-2">Name</th>
-                    <th className="px-2.5 py-2">Price</th>
-                    <th className="px-2.5 py-2">Category</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p, i) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="px-2.5 py-2 font-mono">{p.sku || ""}</td>
-                      <td className="px-2.5 py-2">{p.name || ""}</td>
-                      <td className="px-2.5 py-2">
-                        {p.price ? `Rs ${Number(p.price).toLocaleString()}` : ""}
-                      </td>
-                      <td className="px-2.5 py-2">{p.category || ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+    <div className={`modal-bg${store ? " open" : ""}`}>
+      <div className="modal" style={{ maxWidth: 600 }}>
+        <div className="modal-icon" style={{ background: "var(--success-bg)", color: "var(--success)" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
         </div>
-      )}
-    </Modal>
+        <h3>Product Catalog</h3>
+        <p>All products for this store.</p>
+        {store && (
+          <div className="modal-detail">
+            <strong>Store:</strong> {store.name}
+            <br />
+            <strong>Store ID:</strong> {store.storeId}
+
+            {products === null && !error && (
+              <div style={{ textAlign: "center", padding: 24, color: "var(--dim)", fontSize: 13 }}>Loading products…</div>
+            )}
+            {error && <div style={{ textAlign: "center", padding: 24, color: "var(--danger)", fontSize: 13 }}>Failed to load products.</div>}
+            {products && products.length === 0 && (
+              <div style={{ textAlign: "center", padding: 24, color: "var(--dim)", fontSize: 13 }}>No products found for this store.</div>
+            )}
+            {products && products.length > 0 && (
+              <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, marginTop: 8 }}>
+                <table style={{ width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: "8px 10px", background: "var(--surface-2)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>SKU</th>
+                      <th style={{ padding: "8px 10px", background: "var(--surface-2)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>Name</th>
+                      <th style={{ padding: "8px 10px", background: "var(--surface-2)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>Price</th>
+                      <th style={{ padding: "8px 10px", background: "var(--surface-2)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((p, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "8px 10px", fontSize: 12, fontFamily: "monospace" }}>{p.sku || ""}</td>
+                        <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.name || ""}</td>
+                        <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.price ? `Rs ${Number(p.price).toLocaleString()}` : ""}</td>
+                        <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.category || ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="modal-btns">
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

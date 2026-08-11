@@ -2,263 +2,198 @@ import { useState } from "react";
 import { adminApi } from "../../lib/adminApi";
 import { ApiError } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
-import { BrandLogo } from "../../components/BrandLogo";
-import { Button } from "../../components/ui/Button";
-import { InlineAlert } from "../../components/ui/InlineAlert";
-import { PasswordInput } from "../../components/ui/PasswordInput";
 
 type View = "signin" | "forgot" | "reset";
 
+const LOGO = (
+  <div className="login-logo">
+    <div className="login-logo-mark">
+      <svg viewBox="0 0 24 24">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      </svg>
+    </div>
+    <span className="login-logo-text">BuildVolt</span>
+    <span className="login-logo-badge">Admin</span>
+  </div>
+);
+
+const EyeIcon = () => (
+  <svg viewBox="0 0 24 24">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 export default function AdminLogin() {
-  const resetToken = new URLSearchParams(window.location.search).get(
-    "reset_token",
-  );
+  const resetToken = new URLSearchParams(window.location.search).get("reset_token");
   const [view, setView] = useState<View>(resetToken ? "reset" : "signin");
   const { login } = useAdminAuth();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-6">
-      <div className="w-full max-w-[420px] rounded-2xl border border-border bg-surface p-9 shadow-sm">
-        <div className="mb-6">
-          <BrandLogo />
-        </div>
-        {view === "signin" && (
-          <SignInView onForgot={() => setView("forgot")} onLogin={login} />
-        )}
-        {view === "forgot" && <ForgotView onBack={() => setView("signin")} />}
-        {view === "reset" && resetToken && (
-          <ResetView token={resetToken} onDone={() => setView("signin")} />
-        )}
+    <div id="admin-login">
+      <div className="login-wrap">
+        {view === "signin" && <SignInBox onForgot={() => setView("forgot")} onLogin={login} />}
+        {view === "forgot" && <ForgotBox onBack={() => setView("signin")} />}
+        {view === "reset" && resetToken && <ResetBox token={resetToken} onDone={() => setView("signin")} />}
       </div>
     </div>
   );
 }
 
-function SignInView({
-  onForgot,
-  onLogin,
-}: {
-  onForgot: () => void;
-  onLogin: (token: string) => void;
-}) {
+function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
+  if (!msg) return <div className="alert" />;
+  return <div className={`alert alert-${type} show`}>{msg}</div>;
+}
+
+function SignInBox({ onForgot, onLogin }: { onForgot: () => void; onLogin: (token: string) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showPwd, setShowPwd] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function submit() {
-    if (!email || !password) {
-      setError("Email and password required.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
+    if (!email || !password) return setAlert({ msg: "Email and password required.", type: "error" });
+    setBusy(true);
     try {
       const data = await adminApi.login(email, password);
       onLogin(data.token);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Cannot connect to server.");
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div
-      onKeyDown={(e) => {
-        if (e.key === "Enter") submit();
-      }}
-    >
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">
-        Admin sign in
-      </h2>
-      <p className="mb-6 text-[13px] leading-relaxed text-muted">
-        Platform administration panel.
-      </p>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Email
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="username"
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none transition-colors focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-        />
+    <div className="login-box" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      {LOGO}
+      <h2>Admin Sign In</h2>
+      <p>Restricted access. Authorised personnel only.</p>
+      <div className="form-group" style={{ marginTop: 20 }}>
+        <label className="form-label">Email</label>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
       </div>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
+      <div className="form-group">
+        <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Password
+          <span
+            onClick={onForgot}
+            style={{ fontSize: 12, color: "var(--accent)", cursor: "pointer", textTransform: "none", letterSpacing: 0, fontWeight: 500 }}
+          >
+            Forgot password?
+          </span>
         </label>
-        <PasswordInput
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-        />
-      </div>
-
-      <Button onClick={submit} loading={loading} className="w-full">
-        Sign in
-      </Button>
-
-      {error && (
-        <div className="mt-3.5">
-          <InlineAlert type="error" message={error} />
+        <div className="pwd-wrap">
+          <input
+            type={showPwd ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Admin password"
+            autoComplete="current-password"
+            style={{ paddingRight: 38 }}
+          />
+          <span className="pwd-toggle" onClick={() => setShowPwd((s) => !s)}>
+            <EyeIcon />
+          </span>
         </div>
-      )}
-
-      <div className="mt-4 text-center text-[13px] text-muted">
-        <button
-          type="button"
-          onClick={onForgot}
-          className="font-semibold text-accent hover:underline"
-        >
-          Forgot password?
-        </button>
       </div>
+      <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
+        Sign in to Admin Panel
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
   );
 }
 
-function ForgotView({ onBack }: { onBack: () => void }) {
+function ForgotBox({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function submit() {
-    if (!email) {
-      setResult({ type: "error", msg: "Email required." });
-      return;
-    }
-    setLoading(true);
-    setResult(null);
+    if (!email) return setAlert({ msg: "Email required.", type: "error" });
+    setBusy(true);
     try {
       const data = await adminApi.forgotPassword(email);
-      setResult({ type: "success", msg: data.message });
+      setAlert({ msg: data.message, type: "success" });
     } catch (err) {
-      setResult({
-        type: "error",
-        msg: err instanceof ApiError ? err.message : "Cannot connect to server.",
-      });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">
-        Reset admin password
-      </h2>
-      <p className="mb-6 text-[13px] leading-relaxed text-muted">
-        Enter your primary or recovery email — we'll send a reset link.
-      </p>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Email
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none transition-colors focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-        />
+    <div className="login-box" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      {LOGO}
+      <h2>Reset Password</h2>
+      <p>Enter your admin email and we'll send a reset link.</p>
+      <div className="form-group" style={{ marginTop: 20 }}>
+        <label className="form-label">Admin Email</label>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
       </div>
-
-      <Button onClick={submit} loading={loading} className="w-full">
-        Send reset link
-      </Button>
-
-      {result && (
-        <div className="mt-3.5">
-          <InlineAlert type={result.type} message={result.msg} />
-        </div>
-      )}
-
-      <div className="mt-4 text-center text-[13px] text-muted">
-        <button type="button" onClick={onBack} className="font-semibold text-accent hover:underline">
-          Back to sign in
-        </button>
+      <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
+        Send Reset Link
+      </button>
+      <div style={{ textAlign: "center", marginTop: 16 }}>
+        <span onClick={onBack} style={{ fontSize: 13, color: "var(--accent)", cursor: "pointer", fontWeight: 500 }}>
+          ← Back to sign in
+        </span>
       </div>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
   );
 }
 
-function ResetView({ token, onDone }: { token: string; onDone: () => void }) {
+function ResetBox({ token, onDone }: { token: string; onDone: () => void }) {
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [showPwd, setShowPwd] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function submit() {
-    if (!password || !confirm) {
-      setResult({ type: "error", msg: "Please fill in both fields." });
-      return;
-    }
-    if (password !== confirm) {
-      setResult({ type: "error", msg: "Passwords do not match." });
-      return;
-    }
-    setLoading(true);
-    setResult(null);
+    if (!password) return setAlert({ msg: "Please fill in the password.", type: "error" });
+    setBusy(true);
     try {
       const data = await adminApi.resetPassword(token, password);
       if (data.success) {
-        setResult({ type: "success", msg: "Password reset! Redirecting to sign in…" });
-        setTimeout(onDone, 2000);
+        setAlert({ msg: "Password reset! Redirecting to sign in…", type: "success" });
+        setTimeout(onDone, 1500);
       } else {
-        setResult({ type: "error", msg: data.error || "Something went wrong." });
+        setAlert({ msg: data.error || "Something went wrong.", type: "error" });
       }
     } catch (err) {
-      setResult({
-        type: "error",
-        msg: err instanceof ApiError ? err.message : "Cannot connect to server.",
-      });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div>
-      <h2 className="mb-1 text-xl font-bold tracking-tight text-text">
-        Set new admin password
-      </h2>
-      <p className="mb-6 text-[13px] leading-relaxed text-muted">
-        Must be 8+ characters with uppercase, lowercase, number, and special character.
-      </p>
-
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          New Password
-        </label>
-        <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} />
-      </div>
-      <div className="mb-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Confirm Password
-        </label>
-        <PasswordInput
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-      </div>
-
-      <Button onClick={submit} loading={loading} className="w-full">
-        Reset Password
-      </Button>
-
-      {result && (
-        <div className="mt-3.5">
-          <InlineAlert type={result.type} message={result.msg} />
+    <div className="login-box" onKeyDown={(e) => e.key === "Enter" && submit()}>
+      {LOGO}
+      <h2>Set New Password</h2>
+      <p>Enter your new admin password below.</p>
+      <div className="form-group" style={{ marginTop: 20 }}>
+        <label className="form-label">New Password</label>
+        <div className="pwd-wrap">
+          <input
+            type={showPwd ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Min 8 chars, uppercase, number, symbol"
+            style={{ paddingRight: 38 }}
+          />
+          <span className="pwd-toggle" onClick={() => setShowPwd((s) => !s)}>
+            <EyeIcon />
+          </span>
         </div>
-      )}
+      </div>
+      <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
+        Update Password
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
   );
 }

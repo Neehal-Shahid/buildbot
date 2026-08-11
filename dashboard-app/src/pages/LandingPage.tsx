@@ -10,7 +10,8 @@ import {
   type StoreSession,
 } from "../lib/session";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
-import "./landing.css";
+import { useInjectedCss } from "../lib/useInjectedCss";
+import landingCss from "./landing.css?raw";
 
 type View = "landing" | "login" | "signup" | "forgot" | "verify-pending";
 
@@ -30,6 +31,8 @@ export default function LandingPage() {
   const [loginAlert, setLoginAlert] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useInjectedCss(landingCss);
 
   useEffect(() => {
     document.body.classList.toggle("landing-mode", view === "landing");

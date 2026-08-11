@@ -2,8 +2,6 @@ import { useState } from "react";
 import { adminApi } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
 
 type AuditResult = Awaited<ReturnType<typeof adminApi.dbAudit>>;
 
@@ -11,80 +9,103 @@ export default function DbHealthTab() {
   const { token } = useAdminAuth();
   const toast = useToast();
   const [audit, setAudit] = useState<AuditResult | null>(null);
-  const [running, setRunning] = useState(false);
-  const [cleaning, setCleaning] = useState<"tokens" | "orphans" | null>(null);
+  const [cleanupAlert, setCleanupAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function runAudit() {
     if (!token) return;
-    setRunning(true);
     try {
       const data = await adminApi.dbAudit(token);
       setAudit(data);
     } catch {
       toast.error("Error", "Could not run DB audit.");
-    } finally {
-      setRunning(false);
     }
   }
 
   async function cleanup(action: "tokens" | "orphans") {
     if (!token) return;
-    setCleaning(action);
     try {
       const data = await adminApi.dbCleanup(token, action);
-      toast.success("Cleanup complete", data.message);
+      setCleanupAlert({ msg: data.message, type: "success" });
       if (audit) runAudit();
     } catch {
-      toast.error("Error", "Cleanup failed.");
-    } finally {
-      setCleaning(null);
+      setCleanupAlert({ msg: "Cleanup failed.", type: "error" });
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card title="Database integrity audit">
-        <Button onClick={runAudit} loading={running}>
-          Run audit
-        </Button>
+    <div>
+      <div className="section-title">Database Health</div>
+      <div className="section-sub">Integrity audit for Turso tables — orphaned rows, expired tokens, table totals.</div>
 
-        {audit && (
-          <div className="mt-4 flex flex-col gap-3 text-sm">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <h2>Integrity Audit</h2>
+            <div className="card-sub">{audit ? "Report generated" : 'Click "Run audit" to generate report'}</div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={runAudit}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Run Audit
+          </button>
+        </div>
+        <div className="audit-out">
+          {!audit && 'Click "Run Audit" to generate a report.'}
+          {audit && (
+            <div>
               {Object.entries(audit.counts).map(([table, count]) => (
-                <div key={table} className="rounded-md border border-border p-2">
-                  <div className="text-[11px] uppercase tracking-wide text-muted">{table}</div>
-                  <div className="font-semibold text-text">{count}</div>
+                <div key={table}>
+                  {table}: {count}
                 </div>
               ))}
-            </div>
-            <div>
-              Orphan products: <strong>{audit.orphans.products}</strong> · Orphan
-              recommendations: <strong>{audit.orphans.recommendations}</strong>
-            </div>
-            <div>
-              Expired tokens: <strong>{audit.tokens.expired}</strong> · Used tokens:{" "}
-              <strong>{audit.tokens.used}</strong>
-            </div>
-            <ul className="list-disc pl-5 text-xs text-muted">
+              <div>Orphan products: {audit.orphans.products}</div>
+              <div>Orphan recommendations: {audit.orphans.recommendations}</div>
+              <div>Expired tokens: {audit.tokens.expired}</div>
+              <div>Used tokens: {audit.tokens.used}</div>
               {audit.notes.map((n, i) => (
-                <li key={i}>{n}</li>
+                <div key={i}>— {n}</div>
               ))}
-            </ul>
-          </div>
-        )}
-      </Card>
-
-      <Card title="Cleanup">
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => cleanup("tokens")} loading={cleaning === "tokens"}>
-            Clean expired tokens
-          </Button>
-          <Button variant="secondary" onClick={() => cleanup("orphans")} loading={cleaning === "orphans"}>
-            Clean orphaned records
-          </Button>
+            </div>
+          )}
         </div>
-      </Card>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-head">
+          <div>
+            <h2>Cleanup Actions</h2>
+            <div className="card-sub">Safe operations — no customer or store data is removed</div>
+          </div>
+        </div>
+        <div style={{ padding: "12px 14px", background: "var(--accent-light)", border: "1px solid var(--accent-border)", borderRadius: "var(--r-md)", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: "var(--accent-text, var(--accent))", lineHeight: 1.6 }}>
+            These operations are safe. Expired tokens and orphaned records are never needed by the application and
+            can be removed at any time without affecting stores or customers.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button className="btn btn-sm" onClick={() => cleanup("tokens")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M9 6V4h6v2" />
+            </svg>
+            Clean Expired Tokens
+          </button>
+          <button className="btn btn-sm" onClick={() => cleanup("orphans")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Remove Orphaned Records
+          </button>
+        </div>
+        {cleanupAlert && <div className={`alert alert-${cleanupAlert.type} show`} style={{ marginTop: 12 }}>{cleanupAlert.msg}</div>}
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { GlobalLoader } from "./components/ui/GlobalLoader";
 import VerifyPage from "./pages/VerifyPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/AdminPage";
+import LandingPage from "./pages/LandingPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 // Route paths mirror the original dashboard/vercel.json exactly, including
@@ -19,7 +20,8 @@ export default function App() {
         <ConfirmProvider>
           <GlobalLoader />
           <Routes>
-            <Route path="/" element={<PlaceholderPage name="Landing / Login" />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/index.html" element={<LandingPage />} />
             <Route path="/dashboard" element={<PlaceholderPage name="Dashboard" />} />
             <Route path="/dashboard.html" element={<PlaceholderPage name="Dashboard" />} />
             <Route path="/admin" element={<AdminPage />} />

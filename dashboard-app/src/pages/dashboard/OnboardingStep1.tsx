@@ -2,30 +2,21 @@ import { useState } from "react";
 import { dashboardApi } from "../../lib/dashboardApi";
 import { useStoreAuth } from "../../context/StoreAuthContext";
 import { ApiError } from "../../lib/api";
-import { BrandLogo } from "../../components/BrandLogo";
-import { Button } from "../../components/ui/Button";
-import { InlineAlert } from "../../components/ui/InlineAlert";
 
 export default function OnboardingStep1() {
   const { token, store, setSession, refresh } = useStoreAuth();
   const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
-    if (!name.trim()) {
-      setError("Please enter a store name.");
-      return;
-    }
+    if (!name.trim()) return setError("Please enter a store name.");
     if (!token || !store) return;
-    setLoading(true);
+    setBusy(true);
     setError(null);
     try {
       const data = await dashboardApi.storeSetup(token, name.trim());
       if (data.success) {
-        // storeId changes here, so the old token (still carrying the
-        // temp- id) would 404 on the very next request — must switch to
-        // the freshly issued token before moving to step 2.
         setSession(data.token, { ...store, storeId: data.storeId, name: data.name });
         await refresh();
       } else {
@@ -34,43 +25,55 @@ export default function OnboardingStep1() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Connection error.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
-      <div className="w-full max-w-[440px] rounded-2xl border border-border bg-surface p-9 shadow-sm">
-        <div className="mb-6">
-          <BrandLogo />
-        </div>
-        <h2 className="mb-1 text-xl font-bold tracking-tight text-text">
-          Set up your store
-        </h2>
-        <p className="mb-6 text-[13px] leading-relaxed text-muted">
-          What should we call your store? You can change this later.
-        </p>
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 14px",
+    background: "#fff",
+    border: "1px solid #d1d5db",
+    borderRadius: 8,
+    color: "#111827",
+    fontSize: 14,
+    outline: "none",
+  } as const;
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-            Store name
+  return (
+    <div
+      className="page"
+      style={{ display: "flex", minHeight: "calc(100vh - 52px)", alignItems: "center", justifyContent: "center", background: "#f7f8fa", padding: "24px 20px" }}
+    >
+      <div style={{ background: "#ffffff", border: "1px solid #e4e7ed", borderRadius: 18, padding: 40, width: "100%", maxWidth: 420, textAlign: "left", boxShadow: "0 4px 12px rgba(17,24,39,0.05)" }}>
+        <h2 style={{ fontSize: 22, color: "#111827", marginBottom: 6, fontFamily: '"DM Sans", system-ui, sans-serif', fontWeight: 700 }}>
+          Welcome to BuildVolt
+        </h2>
+        <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 28 }}>Let's get your store set up and ready for customers.</p>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+            Store Name <span style={{ color: "#dc2626" }}>*</span>
           </label>
           <input
+            type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="e.g. Rare Carpets Computers"
-            className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
+            placeholder="e.g. TechZone Lahore"
+            style={inputStyle}
           />
         </div>
 
-        <Button onClick={submit} loading={loading} className="w-full">
-          Complete Setup
-        </Button>
+        <button
+          onClick={submit}
+          disabled={busy}
+          style={{ width: "100%", padding: 12, background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+        >
+          {busy ? "Saving…" : "Continue"}
+        </button>
         {error && (
-          <div className="mt-3.5">
-            <InlineAlert type="error" message={error} />
-          </div>
+          <div style={{ marginTop: 16, fontSize: 13, textAlign: "center", color: "#dc2626" }}>{error}</div>
         )}
       </div>
     </div>

@@ -3,8 +3,6 @@ import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { API_ORIGIN } from "../../../lib/config";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
 
 type Mode = "custom" | "woo";
 
@@ -15,7 +13,6 @@ function getStoredMode(): Mode {
 interface PluginStatus {
   hasKey: boolean;
   secret: string | null;
-  maskedSecret: string | null;
   wooConnected: boolean;
   wooUrl: string;
   lastSync: string | null;
@@ -77,81 +74,175 @@ export default function StoreSyncTab() {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <Card title="Store">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Name</div>
-            <div className="font-semibold text-text">{store?.name}</div>
-          </div>
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Store ID</div>
-            <div className="font-mono text-text">{store?.storeId}</div>
-          </div>
-        </div>
-      </Card>
+  const btnBase = { display: "flex", alignItems: "center", gap: 6 } as const;
 
-      <Card title="Catalog source" subtitle="Choose how your product catalog is managed.">
-        <div className="flex gap-2">
-          <Button variant={mode === "custom" ? "primary" : "secondary"} onClick={() => switchMode("custom")}>
-            Manual / CSV
-          </Button>
-          <Button variant={mode === "woo" ? "primary" : "secondary"} onClick={() => switchMode("woo")}>
-            WooCommerce
-          </Button>
+  return (
+    <div>
+      <div className="section-title">Store &amp; sync</div>
+      <div className="section-sub">Manage your store's identity and choose your catalog source.</div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Store Profile</h2>
+        <p style={{ marginBottom: 12 }}>Your store's identity on BuildVolt.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--text-2)" }}>Store Name</label>
+            <input type="text" readOnly value={store?.name || ""} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--surface-2)", color: "var(--text)" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "var(--text-2)" }}>Store ID</label>
+            <input type="text" readOnly value={store?.storeId || ""} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--surface-2)", color: "var(--text)" }} />
+          </div>
         </div>
-      </Card>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Catalog source</h2>
+        <p style={{ marginBottom: 12 }}>Pick where BuildVolt reads inventory from. You can switch anytime.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            className="btn btn-sm"
+            onClick={() => switchMode("custom")}
+            style={{ ...btnBase, background: mode === "custom" ? "var(--accent-bg)" : undefined, border: mode === "custom" ? "1px solid var(--border-2)" : undefined }}
+          >
+            My Products (Manual / CSV)
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => switchMode("woo")}
+            style={{ ...btnBase, background: mode === "woo" ? "var(--accent-bg)" : undefined, border: mode === "woo" ? "1px solid var(--border-2)" : undefined }}
+          >
+            WooCommerce
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 12, lineHeight: 1.55 }}>
+          <strong style={{ color: "var(--text)" }}>Manual / CSV</strong> — catalog lives in BuildVolt (Products tab).{" "}
+          <strong style={{ color: "var(--text)" }}>WooCommerce</strong> — sync from WordPress using the plugin below.
+        </p>
+      </div>
 
       {mode === "custom" && (
-        <Card>
-          <p className="text-sm text-muted">
-            Manage products directly from the Products tab, or bulk-upload a CSV/Excel/Word/PDF file.
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 6 }}>Manual catalog</h2>
+          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+            Add products or upload a CSV from the <strong style={{ color: "var(--text)" }}>Products</strong> tab.
           </p>
-        </Card>
+        </div>
       )}
 
       {mode === "woo" && (
-        <Card title="WooCommerce connection">
+        <div className="card" id="woo-section">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>WooCommerce Auto-Sync</h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                Connect your WooCommerce store — products sync automatically. No CSV needed.
+              </p>
+            </div>
+            <div
+              style={{
+                marginLeft: "auto",
+                padding: "5px 14px",
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                background: status?.wooConnected ? "rgba(5,150,105,0.12)" : "rgba(231,76,60,0.12)",
+                color: status?.wooConnected ? "var(--success)" : "var(--danger)",
+                border: `1px solid ${status?.wooConnected ? "rgba(5,150,105,0.3)" : "rgba(231,76,60,0.3)"}`,
+              }}
+            >
+              {status?.wooConnected ? "● Connected" : "● Not Connected"}
+            </div>
+          </div>
+          <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
+
           {status?.wooConnected ? (
-            <div className="flex flex-col gap-3 text-sm">
-              <div>
-                Connected to <strong className="text-text">{status.wooUrl}</strong>
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+                <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Store URL</div>
+                  <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500, wordBreak: "break-all" }}>{status.wooUrl || "—"}</div>
+                </div>
+                <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Products Synced</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success)" }}>{status.productCount}</div>
+                </div>
+                <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Last Synced</div>
+                  <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>{status.lastSync ? new Date(status.lastSync).toLocaleString() : "Never"}</div>
+                </div>
               </div>
-              <div className="text-text-2">
-                {status.productCount} products synced
-                {status.lastSync ? ` · last synced ${new Date(status.lastSync).toLocaleString()}` : ""}
+              <div style={{ display: "flex", gap: 10 }}>
+                <p style={{ fontSize: 12, color: "var(--muted)", padding: "8px 0" }}>
+                  To run a manual sync, go to your WordPress Admin panel &gt; WooCommerce &gt; BuildVolt and click Sync.
+                </p>
+                <button className="btn btn-sm" onClick={disconnect} disabled={disconnecting} style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}>
+                  Disconnect
+                </button>
               </div>
-              <Button variant="danger" onClick={disconnect} loading={disconnecting} className="w-fit">
-                Disconnect WooCommerce
-              </Button>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 text-sm">
-              <p className="text-muted">
-                Install the BuildVolt WooCommerce plugin, then generate a secret key here and paste
-                it into the plugin settings along with your Store ID.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => window.open(`${API_ORIGIN}/buildvolt-woocommerce.zip`, "_blank")}
-                >
-                  Download plugin
-                </Button>
-                <Button onClick={generateKey} loading={generating}>
-                  {status?.hasKey ? "Generate new key" : "Generate key"}
-                </Button>
-              </div>
-              {status?.secret && (
-                <div className="rounded-md border border-border bg-bg p-3 font-mono text-xs">
-                  {status.secret}
+            <div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                <StepCircle n={1} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>Download the BuildVolt Plugin</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Download and install this plugin on your WordPress website.</div>
+                  <button className="btn btn-primary btn-sm" onClick={() => window.open(`${API_ORIGIN}/buildvolt-woocommerce.zip`, "_blank")}>
+                    Download Plugin (.zip)
+                  </button>
                 </div>
-              )}
+              </div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                <StepCircle n={2} muted />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>Install &amp; Activate</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>WordPress Admin &gt; Plugins &gt; Add New &gt; Upload Plugin.</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                <StepCircle n={3} muted />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>Generate a secret key</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+                    Paste your Store ID and this key into the plugin's settings page.
+                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={generateKey} disabled={generating}>
+                    {status?.hasKey ? "Generate new key" : "Generate key"}
+                  </button>
+                  {status?.secret && (
+                    <div style={{ marginTop: 10, padding: "10px 12px", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontFamily: "monospace", fontSize: 12 }}>
+                      {status.secret}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
-        </Card>
+        </div>
       )}
+    </div>
+  );
+}
+
+function StepCircle({ n, muted }: { n: number; muted?: boolean }) {
+  return (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        background: muted ? "var(--border)" : "var(--accent)",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#fff",
+        flexShrink: 0,
+      }}
+    >
+      {n}
     </div>
   );
 }

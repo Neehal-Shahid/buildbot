@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { dashboardApi, type OrderRequest } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
-import { Card } from "../../../components/ui/Card";
 
 export default function OrdersTab() {
   const { token } = useStoreAuth();
@@ -13,31 +12,52 @@ export default function OrdersTab() {
   }, [token]);
 
   return (
-    <Card
-      title="Order requests"
-      subtitle="Builds customers clicked 'Order' on from the widget — cross-check against WhatsApp messages."
-    >
-      <div className="flex flex-col gap-3">
-        {!orders && <div className="text-sm text-muted">Loading…</div>}
-        {orders?.length === 0 && <div className="text-sm text-muted">No order requests yet.</div>}
-        {orders?.map((o) => (
-          <div key={o.id} className="rounded-md border border-border p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-text">
-                Total: {o.total ? Number(o.total).toLocaleString() : "—"}
-              </div>
-              <div className="text-xs text-muted">
-                {o.created_at ? new Date(o.created_at).toLocaleString() : ""}
-              </div>
-            </div>
-            {o.parts ? (
-              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-text-2">
-                {typeof o.parts === "string" ? o.parts : JSON.stringify(o.parts, null, 2)}
-              </pre>
-            ) : null}
-          </div>
-        ))}
+    <div>
+      <div className="section-title">Order Requests</div>
+      <div className="section-sub" style={{ marginBottom: 20 }}>
+        Every time a customer clicks "Order This Build" in your widget, the real build (parts and total price,
+        computed fresh from your catalog) is saved here — use it to cross-check against any order message a
+        customer sends you, in case they edited it before sending.
       </div>
-    </Card>
+
+      <div className="card">
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Parts</th>
+                <th>Total (Real)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!orders && (
+                <tr>
+                  <td colSpan={3} style={{ padding: 40, textAlign: "center" }}>
+                    Loading order requests...
+                  </td>
+                </tr>
+              )}
+              {orders?.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ padding: 40, textAlign: "center" }}>
+                    No order requests yet.
+                  </td>
+                </tr>
+              )}
+              {orders?.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.created_at ? new Date(o.created_at).toLocaleString() : ""}</td>
+                  <td style={{ fontSize: 12 }}>
+                    {o.parts ? (typeof o.parts === "string" ? o.parts : JSON.stringify(o.parts)) : "—"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>{o.total ? Number(o.total).toLocaleString() : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }

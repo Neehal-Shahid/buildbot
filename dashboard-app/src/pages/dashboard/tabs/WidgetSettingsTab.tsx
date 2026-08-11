@@ -3,73 +3,77 @@ import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { openWhatsAppSmart } from "../../../lib/whatsapp";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { InlineAlert } from "../../../components/ui/InlineAlert";
+
+function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
+  if (!msg) return <div className="alert" />;
+  return <div className={`alert alert-${type} show`}>{msg}</div>;
+}
 
 export default function WidgetSettingsTab() {
   const { store, refresh } = useStoreAuth();
 
   return (
-    <div className="flex flex-col gap-4">
-      <BrandingCard />
-      <WhatsappCard />
+    <div>
+      <div className="section-title">Widget Settings</div>
+      <div className="section-sub">Customize how your widget looks and what it says.</div>
+
+      <div className="two-col">
+        <BrandingCard />
+        <WhatsappCard />
+        <PreviewCard />
+      </div>
+
       <WidgetTextCard />
-      <WidgetToggleCard enabled={store?.wooConnected || store?.whatsappVerified} onChanged={refresh} />
+      <WidgetToggleCard enabled={!!(store?.wooConnected || store?.whatsappVerified)} onChanged={refresh} />
     </div>
   );
 }
 
 function BrandingCard() {
   const { token, store, refresh } = useStoreAuth();
-  const toast = useToast();
   const [color, setColor] = useState(store?.brandColor || "#4f46e5");
   const [currency, setCurrency] = useState(store?.currency || "PKR");
-  const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function save() {
     if (!token) return;
-    setSaving(true);
+    setBusy(true);
     try {
       const data = await dashboardApi.settings.saveBranding(token, color, currency);
-      if (data.success) {
-        toast.success("Saved", data.message);
-        refresh();
-      }
+      setAlert({ msg: data.message, type: "success" });
+      refresh();
     } catch {
-      toast.error("Error", "Could not save settings.");
+      setAlert({ msg: "Could not save settings.", type: "error" });
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
   return (
-    <Card title="Branding">
-      <div className="mb-3 flex items-center gap-3">
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-14" />
-        <input
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
+    <div className="card">
+      <h2>Brand Colors & Currency</h2>
+      <p style={{ marginBottom: 20 }}>Match the widget to your store's look.</p>
+      <div className="form-group">
+        <label className="form-label">Brand Color</label>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 50, height: 40, border: "none", background: "none", cursor: "pointer", padding: 0 }} />
+          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} style={{ flex: 1 }} placeholder="#4f46e5" />
+        </div>
       </div>
-      <div className="mb-3">
-        <select
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        >
-          <option value="PKR">PKR</option>
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-          <option value="GBP">GBP</option>
-          <option value="INR">INR</option>
+      <div className="form-group">
+        <label className="form-label">Currency</label>
+        <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <option value="PKR">PKR – Pakistani Rupee</option>
+          <option value="USD">USD – US Dollar</option>
+          <option value="AED">AED – UAE Dirham</option>
         </select>
       </div>
-      <Button onClick={save} loading={saving}>
-        Save branding
-      </Button>
-    </Card>
+      <button className="btn btn-primary" onClick={save} disabled={busy}>
+        Save Branding
+      </button>
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+    </div>
   );
 }
 
@@ -81,18 +85,17 @@ function WhatsappCard() {
   const [savingNumber, setSavingNumber] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function saveNumber() {
     if (!token) return;
     setSavingNumber(true);
-    setAlert(null);
     try {
       const data = await dashboardApi.whatsapp.save(token, number.trim());
-      setAlert({ type: data.success ? "success" : "error", msg: data.message || data.error || "" });
+      setAlert({ msg: data.message || data.error || "", type: data.success ? "success" : "error" });
       refresh();
     } catch {
-      setAlert({ type: "error", msg: "Connection error." });
+      setAlert({ msg: "Connection error.", type: "error" });
     } finally {
       setSavingNumber(false);
     }
@@ -101,18 +104,17 @@ function WhatsappCard() {
   async function sendCode() {
     if (!token) return;
     setSendingCode(true);
-    setAlert(null);
     try {
       const data = await dashboardApi.whatsapp.sendCode(token);
       if (data.success) {
         openWhatsAppSmart(data.waLink);
         setCodeSent(true);
-        setAlert({ type: "success", msg: "WhatsApp opened with the code — send it, then enter it below." });
+        setAlert({ msg: "We opened WhatsApp with a code pre-filled — send that message, then type the code below.", type: "success" });
       } else {
-        setAlert({ type: "error", msg: data.error || "Could not send code." });
+        setAlert({ msg: data.error || "Could not send code.", type: "error" });
       }
     } catch {
-      setAlert({ type: "error", msg: "Connection error." });
+      setAlert({ msg: "Connection error.", type: "error" });
     } finally {
       setSendingCode(false);
     }
@@ -121,66 +123,96 @@ function WhatsappCard() {
   async function verify() {
     if (!token || !code.trim()) return;
     setVerifying(true);
-    setAlert(null);
     try {
       const data = await dashboardApi.whatsapp.verify(token, code.trim());
       if (data.success) {
-        setAlert({ type: "success", msg: "WhatsApp number verified!" });
+        setAlert({ msg: "WhatsApp number verified!", type: "success" });
         refresh();
       } else {
-        setAlert({ type: "error", msg: data.error || "Incorrect code." });
+        setAlert({ msg: data.error || "Incorrect code.", type: "error" });
       }
     } catch {
-      setAlert({ type: "error", msg: "Connection error." });
+      setAlert({ msg: "Connection error.", type: "error" });
     } finally {
       setVerifying(false);
     }
   }
 
   return (
-    <Card title="WhatsApp ordering number" subtitle="Used for the widget's 'Order via WhatsApp' fallback.">
-      <div className="mb-3 flex items-center gap-2">
-        <input
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
-          placeholder="+923001234567"
-          className="flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
-        <Button onClick={saveNumber} loading={savingNumber}>
-          Save
-        </Button>
-        {store?.whatsappVerified && (
-          <span className="rounded-full bg-success-bg px-2 py-1 text-xs font-medium text-success">Verified</span>
-        )}
+    <div className="card">
+      <h2>Order via WhatsApp</h2>
+      <p style={{ marginBottom: 20 }}>
+        Lets customers send a build straight to your WhatsApp when they don't check out through WooCommerce.{" "}
+        <strong>Must be verified before the widget can go live with it.</strong>
+      </p>
+      <div className="form-group">
+        <label className="form-label">WhatsApp Number</label>
+        <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="+923001234567" />
       </div>
+      <button className="btn btn-primary" onClick={saveNumber} disabled={savingNumber}>
+        Save WhatsApp Number
+      </button>
 
-      {!store?.whatsappVerified && (
-        <div className="flex flex-col gap-2">
-          <Button variant="secondary" onClick={sendCode} loading={sendingCode} className="w-fit">
-            {codeSent ? "Resend code" : "Send verification code"}
-          </Button>
+      {!store?.whatsappVerified && number && (
+        <div style={{ marginTop: 16 }}>
+          <button className="btn btn-outline" onClick={sendCode} disabled={sendingCode}>
+            {codeSent ? "Resend code" : "Send Test Message to Verify"}
+          </button>
           {codeSent && (
-            <div className="flex items-center gap-2">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
-                className="w-32 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-              />
-              <Button onClick={verify} loading={verifying}>
+            <div style={{ marginTop: 14 }}>
+              <div className="form-group">
+                <label className="form-label">
+                  We opened WhatsApp with a code pre-filled — send that message, then type the code here
+                </label>
+                <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} />
+              </div>
+              <button className="btn btn-primary" onClick={verify} disabled={verifying}>
                 Verify
-              </Button>
+              </button>
             </div>
           )}
         </div>
       )}
+      {store?.whatsappVerified && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Verified</div>}
+      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+    </div>
+  );
+}
 
-      {alert && (
-        <div className="mt-3">
-          <InlineAlert type={alert.type} message={alert.msg} />
+function PreviewCard() {
+  const { store } = useStoreAuth();
+  const color = store?.brandColor || "#4f46e5";
+  return (
+    <div className="card">
+      <h2>Widget Preview</h2>
+      <p style={{ marginBottom: 16 }}>Live preview of your widget button.</p>
+      <div style={{ background: "var(--surface)", borderRadius: 10, padding: 40, textAlign: "center", position: "relative", height: 160 }}>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 20,
+            right: 20,
+            width: 52,
+            height: 52,
+            background: color,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 16px rgba(124,106,247,0.5)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
         </div>
-      )}
-    </Card>
+        <div style={{ position: "absolute", bottom: 82, right: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
+          <span style={{ fontWeight: 700, color: "var(--text)" }}>BuildVolt</span>
+          <br />
+          PC Build Recommender
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -190,7 +222,7 @@ function WidgetTextCard() {
   const [title, setTitle] = useState("BuildVolt");
   const [welcome, setWelcome] = useState("");
   const [buttonText, setButtonText] = useState("Get Started");
-  const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -204,11 +236,7 @@ function WidgetTextCard() {
 
   async function save() {
     if (!token) return;
-    if (title.length > 30 || welcome.length > 200 || buttonText.length > 20) {
-      toast.error("Too long", "Check the character limits on each field.");
-      return;
-    }
-    setSaving(true);
+    setBusy(true);
     try {
       const data = await dashboardApi.settings.saveWidgetText(token, title, welcome, buttonText);
       if (data.success) {
@@ -220,64 +248,50 @@ function WidgetTextCard() {
     } catch {
       toast.error("Error", "Could not save widget text.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
   return (
-    <Card title="Widget text">
-      <div className="mb-3">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Title (max 30 chars)
-        </label>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={30}
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
+    <div className="card">
+      <h2>Widget Text &amp; Content</h2>
+      <p style={{ marginBottom: 24 }}>Customize what your customers see inside the widget.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div>
+          <div className="form-group">
+            <label className="form-label">Widget Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={30} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Text</label>
+            <input value={buttonText} onChange={(e) => setButtonText(e.target.value)} maxLength={20} />
+          </div>
+        </div>
+        <div>
+          <div className="form-group">
+            <label className="form-label">Welcome Message</label>
+            <textarea value={welcome} onChange={(e) => setWelcome(e.target.value)} maxLength={200} rows={4} />
+          </div>
+        </div>
       </div>
-      <div className="mb-3">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Welcome message (max 200 chars)
-        </label>
-        <textarea
-          value={welcome}
-          onChange={(e) => setWelcome(e.target.value)}
-          maxLength={200}
-          rows={3}
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
-      </div>
-      <div className="mb-3">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">
-          Button text (max 20 chars)
-        </label>
-        <input
-          value={buttonText}
-          onChange={(e) => setButtonText(e.target.value)}
-          maxLength={20}
-          className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-        />
-      </div>
-      <Button onClick={save} loading={saving}>
-        Save widget text
-      </Button>
-    </Card>
+      <button className="btn btn-primary" onClick={save} disabled={busy}>
+        Save Widget Text
+      </button>
+    </div>
   );
 }
 
-function WidgetToggleCard({ enabled, onChanged }: { enabled?: boolean; onChanged: () => void }) {
+function WidgetToggleCard({ enabled, onChanged }: { enabled: boolean; onChanged: () => void }) {
   const { token } = useStoreAuth();
   const toast = useToast();
-  const [checked, setChecked] = useState(!!enabled);
-  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(enabled);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => setChecked(!!enabled), [enabled]);
+  useEffect(() => setChecked(enabled), [enabled]);
 
   async function toggle(next: boolean) {
     if (!token) return;
-    setLoading(true);
+    setBusy(true);
     try {
       const data = await dashboardApi.settings.toggleWidget(token, next);
       if (data.success) {
@@ -290,21 +304,17 @@ function WidgetToggleCard({ enabled, onChanged }: { enabled?: boolean; onChanged
     } catch {
       toast.error("Error", "Could not update widget status.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <Card title="Widget status">
-      <label className="flex items-center gap-2 text-sm text-text-2">
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={loading}
-          onChange={(e) => toggle(e.target.checked)}
-        />
+    <div className="card" style={{ marginTop: 16 }}>
+      <h2>Widget Status</h2>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", marginTop: 10 }}>
+        <input type="checkbox" checked={checked} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
         Widget enabled
       </label>
-    </Card>
+    </div>
   );
 }

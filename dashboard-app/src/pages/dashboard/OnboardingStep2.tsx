@@ -3,9 +3,17 @@ import { dashboardApi } from "../../lib/dashboardApi";
 import { useStoreAuth } from "../../context/StoreAuthContext";
 import { openWhatsAppSmart } from "../../lib/whatsapp";
 import { ApiError } from "../../lib/api";
-import { BrandLogo } from "../../components/BrandLogo";
-import { Button } from "../../components/ui/Button";
-import { InlineAlert } from "../../components/ui/InlineAlert";
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px 14px",
+  background: "#fff",
+  border: "1px solid #d1d5db",
+  borderRadius: 8,
+  color: "#111827",
+  fontSize: 14,
+  outline: "none",
+} as const;
 
 export default function OnboardingStep2() {
   const { token, store, refresh } = useStoreAuth();
@@ -14,117 +22,103 @@ export default function OnboardingStep2() {
   const [codeSent, setCodeSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [alert, setAlert] = useState<{ msg: string; color: string } | null>(null);
 
   async function sendCode() {
-    if (!number.trim()) {
-      setAlert({ type: "error", msg: "Please enter your WhatsApp number." });
-      return;
-    }
+    if (!number.trim()) return setAlert({ msg: "Please enter your WhatsApp number.", color: "#ef4444" });
     if (!token) return;
     setSending(true);
     setAlert(null);
     try {
-      // Save first (this also resets any prior verification), then
-      // request a code for the number that's now actually on file.
       const saveData = await dashboardApi.whatsapp.save(token, number.trim());
       if (!saveData.success) {
-        setAlert({ type: "error", msg: saveData.error || "Could not save number." });
+        setAlert({ msg: saveData.error || "Could not save number.", color: "#ef4444" });
         return;
       }
       const codeData = await dashboardApi.whatsapp.sendCode(token);
       if (codeData.success) {
         openWhatsAppSmart(codeData.waLink);
         setCodeSent(true);
-        setAlert({
-          type: "success",
-          msg: "WhatsApp opened with the code — send it, then type the code below.",
-        });
+        setAlert({ msg: "We opened WhatsApp with the code — send it, then type the code below.", color: "#16a34a" });
       } else {
-        setAlert({ type: "error", msg: codeData.error || "Could not send code." });
+        setAlert({ msg: codeData.error || "Could not send code.", color: "#ef4444" });
       }
     } catch (err) {
-      setAlert({ type: "error", msg: err instanceof ApiError ? err.message : "Connection error." });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", color: "#ef4444" });
     } finally {
       setSending(false);
     }
   }
 
   async function verify() {
-    if (!code.trim()) {
-      setAlert({ type: "error", msg: "Enter the code." });
-      return;
-    }
+    if (!code.trim()) return setAlert({ msg: "Enter the code.", color: "#ef4444" });
     if (!token) return;
     setVerifying(true);
     setAlert(null);
     try {
       const data = await dashboardApi.whatsapp.verify(token, code.trim());
       if (data.success) {
-        setAlert({ type: "success", msg: "Verified! Taking you to your dashboard…" });
+        setAlert({ msg: "Verified! Taking you to your dashboard…", color: "#16a34a" });
         setTimeout(refresh, 800);
       } else {
-        setAlert({ type: "error", msg: data.error || "Incorrect code." });
+        setAlert({ msg: data.error || "Incorrect code.", color: "#ef4444" });
       }
     } catch {
-      setAlert({ type: "error", msg: "Connection error." });
+      setAlert({ msg: "Connection error.", color: "#ef4444" });
     } finally {
       setVerifying(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
-      <div className="w-full max-w-[440px] rounded-2xl border border-border bg-surface p-9 shadow-sm">
-        <div className="mb-6">
-          <BrandLogo />
-        </div>
-        <h2 className="mb-1 text-xl font-bold tracking-tight text-text">
-          Verify your WhatsApp number
+    <div
+      className="page"
+      style={{ display: "flex", minHeight: "calc(100vh - 52px)", alignItems: "center", justifyContent: "center", background: "#f7f8fa", padding: "24px 20px" }}
+    >
+      <div style={{ background: "#ffffff", border: "1px solid #e4e7ed", borderRadius: 18, padding: 40, width: "100%", maxWidth: 420, textAlign: "left", boxShadow: "0 4px 12px rgba(17,24,39,0.05)" }}>
+        <h2 style={{ fontSize: 22, color: "#111827", marginBottom: 6, fontFamily: '"DM Sans", system-ui, sans-serif', fontWeight: 700 }}>
+          Add your order number
         </h2>
-        <p className="mb-6 text-[13px] leading-relaxed text-muted">
-          Customers will message this number to place their order. It needs
-          to be verified before your widget can go live.
+        <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
+          Customers need a real way to place their order. Verify a WhatsApp number now — you can connect WooCommerce
+          for automatic cart checkout later from Settings.
         </p>
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-            WhatsApp number
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+            WhatsApp Number <span style={{ color: "#dc2626" }}>*</span>
           </label>
-          <input
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            placeholder="+923001234567"
-            className="w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-          />
+          <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="+923001234567" style={inputStyle} />
         </div>
 
-        <Button onClick={sendCode} loading={sending} className="w-full">
+        <button
+          onClick={sendCode}
+          disabled={sending}
+          style={{ width: "100%", padding: 12, background: "#fff", color: "#4f46e5", border: "1.5px solid #4f46e5", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 8 }}
+        >
           {codeSent ? "Resend Code" : "Send Verification Code"}
-        </Button>
+        </button>
 
         {codeSent && (
-          <div className="mt-4">
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-text-2">
-              Verification code
-            </label>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && verify()}
-              placeholder="123456"
-              className="mb-3 w-full rounded-[9px] border border-border bg-bg px-3 py-2.5 text-[13.5px] text-text outline-none focus:border-accent focus:bg-surface focus:shadow-[0_0_0_3px_rgba(79,70,229,0.1)]"
-            />
-            <Button onClick={verify} loading={verifying} className="w-full">
+          <div style={{ marginTop: 16 }}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+                We opened WhatsApp with a code pre-filled — send that message, then type the code here
+              </label>
+              <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} style={inputStyle} />
+            </div>
+            <button
+              onClick={verify}
+              disabled={verifying}
+              style={{ width: "100%", padding: 12, background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
               Verify & Finish Setup
-            </Button>
+            </button>
           </div>
         )}
 
         {alert && (
-          <div className="mt-3.5">
-            <InlineAlert type={alert.type} message={alert.msg} />
-          </div>
+          <div style={{ marginTop: 16, fontSize: 13, textAlign: "center", color: alert.color }}>{alert.msg}</div>
         )}
       </div>
     </div>

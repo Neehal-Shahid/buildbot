@@ -2,35 +2,31 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { dashboardApi, type Product } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { useConfirm } from "../../../components/ui/ConfirmDialog";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Modal } from "../../../components/ui/Modal";
 import { ApiError } from "../../../lib/api";
 
-const CATEGORIES = [
-  "CPU",
-  "Motherboard",
-  "RAM",
-  "Storage",
-  "GPU",
-  "PSU",
-  "Case",
-  "CPU Cooler",
-  "Case Fans",
-];
+const CATEGORIES = ["CPU", "Motherboard", "RAM", "Storage", "GPU", "PSU", "Case", "CPU Cooler", "Case Fans"];
+
+const filterInputStyle = {
+  padding: "10px 14px",
+  background: "var(--surface-2)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  color: "var(--text-2)",
+  fontSize: 13,
+  outline: "none",
+} as const;
 
 export default function ProductsTab() {
   const { token, store } = useStoreAuth();
   const toast = useToast();
-  const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [products, setProducts] = useState<Product[] | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [stockFilter, setStockFilter] = useState<"all" | "in" | "out">("all");
+  const [stockFilter, setStockFilter] = useState("");
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const [deleting, setDeleting] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
 
   function load() {
@@ -46,14 +42,11 @@ export default function ProductsTab() {
     return products.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false;
       if (category && p.category !== category) return false;
-      if (stockFilter === "in" && !p.in_stock) return false;
-      if (stockFilter === "out" && p.in_stock) return false;
+      if (stockFilter === "1" && !p.in_stock) return false;
+      if (stockFilter === "0" && p.in_stock) return false;
       return true;
     });
   }, [products, search, category, stockFilter]);
-
-  const inStockCount = products?.filter((p) => p.in_stock).length ?? 0;
-  const outOfStockCount = (products?.length ?? 0) - inStockCount;
 
   async function toggleStock(p: Product) {
     if (!token) return;
@@ -61,17 +54,12 @@ export default function ProductsTab() {
     load();
   }
 
-  async function remove(p: Product) {
-    const ok = await confirm({
-      title: "Delete product?",
-      desc: `"${p.name}" will be permanently removed from your catalog.`,
-      okText: "Delete",
-      variant: "danger",
-    });
-    if (!ok || !token) return;
+  async function confirmDelete() {
+    if (!deleting || !token) return;
     try {
-      await dashboardApi.products.remove(token, p.id);
+      await dashboardApi.products.remove(token, deleting.id);
       toast.success("Product deleted", "");
+      setDeleting(null);
       load();
     } catch {
       toast.error("Error", "Could not delete product.");
@@ -81,16 +69,6 @@ export default function ProductsTab() {
   async function handleUploadClick() {
     const file = fileRef.current?.files?.[0];
     if (!file || !token) return;
-
-    if (products && products.length > 0) {
-      const ok = await confirm({
-        title: "Replace existing catalog?",
-        desc: `You already have ${products.length} product(s). Uploading will add to your catalog.`,
-        okText: "Continue",
-      });
-      if (!ok) return;
-    }
-
     setUploading(true);
     try {
       const data = await dashboardApi.products.upload(token, file);
@@ -109,124 +87,110 @@ export default function ProductsTab() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted">Total products</div>
-          <div className="mt-1 text-2xl font-bold text-text">{products ? products.length : "—"}</div>
-        </Card>
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted">In stock</div>
-          <div className="mt-1 text-2xl font-bold text-text">{products ? inStockCount : "—"}</div>
-        </Card>
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted">Out of stock</div>
-          <div className="mt-1 text-2xl font-bold text-text">{products ? outOfStockCount : "—"}</div>
-        </Card>
+    <div>
+      <div className="section-title">Product Catalog</div>
+      <div className="section-sub">
+        Edit SKUs, stock, and pricing here when your catalog source is <strong style={{ color: "var(--text)" }}>Manual / CSV</strong>.
+        WooCommerce stores manage inventory in WordPress.
       </div>
 
-      <Card title="Bulk upload" subtitle="CSV, Excel (.xlsx), Word (.docx), or PDF.">
-        <div className="flex flex-wrap items-center gap-2">
-          <input ref={fileRef} type="file" accept=".csv,.xlsx,.docx,.pdf" className="text-sm" />
-          <Button onClick={handleUploadClick} loading={uploading}>
-            Upload
-          </Button>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Bulk upload</h2>
+        <p style={{ marginBottom: 12 }}>CSV, Excel (.xlsx), Word (.docx), or PDF.</p>
+        <div className="upload-area" onClick={() => fileRef.current?.click()}>
+          <div className="ui">📄</div>
+          <p>{fileRef.current?.files?.[0]?.name || "Click to choose a file"}</p>
         </div>
-      </Card>
+        <input ref={fileRef} type="file" accept=".csv,.xlsx,.docx,.pdf" style={{ display: "none" }} onChange={handleUploadClick} />
+        {uploading && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>Uploading…</div>}
+      </div>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap gap-2">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products…"
-            className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-          >
-            <option value="">All categories</option>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1 }}>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products…" style={{ ...filterInputStyle, maxWidth: 260 }} />
+          <select value={category} onChange={(e) => setCategory(e.target.value)} style={filterInputStyle}>
+            <option value="">All Categories</option>
             {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c}>{c}</option>
             ))}
           </select>
-          <select
-            value={stockFilter}
-            onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
-            className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-          >
-            <option value="all">All stock</option>
-            <option value="in">In stock</option>
-            <option value="out">Out of stock</option>
+          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} style={filterInputStyle}>
+            <option value="">All Status</option>
+            <option value="1">In Stock</option>
+            <option value="0">Out of Stock</option>
           </select>
-          <Button onClick={() => setEditing("new")} className="ml-auto">
-            Add product
-          </Button>
         </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-primary btn-sm" onClick={() => setEditing("new")}>
+            + Add Product
+          </button>
+        </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-muted">
-                <th className="pb-2">Name</th>
-                <th className="pb-2">Category</th>
-                <th className="pb-2">Price</th>
-                <th className="pb-2">Stock</th>
-                <th className="pb-2">Actions</th>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!products && (
+              <tr>
+                <td colSpan={5}>Loading…</td>
               </tr>
-            </thead>
-            <tbody>
-              {!products && (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center text-muted">Loading…</td>
-                </tr>
-              )}
-              {products && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center text-muted">No products found.</td>
-                </tr>
-              )}
-              {filtered.map((p) => (
-                <tr key={p.id} className="border-t border-border">
-                  <td className="py-2 font-semibold text-text">{p.name}</td>
-                  <td className="py-2 text-text-2">{p.category}</td>
-                  <td className="py-2 text-text-2">{Number(p.price).toLocaleString()}</td>
-                  <td className="py-2">
-                    <button
-                      onClick={() => toggleStock(p)}
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.in_stock ? "bg-success-bg text-success" : "bg-surface-2 text-muted"
-                      }`}
-                    >
-                      {p.in_stock ? "In stock" : "Out of stock"}
+            )}
+            {products && filtered.length === 0 && (
+              <tr>
+                <td colSpan={5}>No products found.</td>
+              </tr>
+            )}
+            {filtered.map((p) => (
+              <tr key={p.id}>
+                <td>{p.name}</td>
+                <td>{p.category}</td>
+                <td>{Number(p.price).toLocaleString()}</td>
+                <td>
+                  <span className={`badge ${p.in_stock ? "badge-success" : "badge-danger"}`} style={{ cursor: "pointer" }} onClick={() => toggleStock(p)}>
+                    {p.in_stock ? "In stock" : "Out of stock"}
+                  </span>
+                </td>
+                <td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-sm" onClick={() => setEditing(p)}>
+                      Edit
                     </button>
-                  </td>
-                  <td className="py-2">
-                    <div className="flex gap-2">
-                      <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => setEditing(p)}>
-                        Edit
-                      </Button>
-                      <Button variant="danger" className="!px-2 !py-1 text-xs" onClick={() => remove(p)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                    <button className="btn btn-sm btn-danger" onClick={() => setDeleting(p)}>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <ProductModal
-        product={editing}
-        onClose={() => setEditing(null)}
-        onSaved={load}
-      />
+      <ProductModal product={editing} onClose={() => setEditing(null)} onSaved={load} />
+
+      <div className={`modal-bg${deleting ? " open" : ""}`}>
+        <div className="modal">
+          <h3>Delete product?</h3>
+          <p>"{deleting?.name}" will be permanently removed from your catalog.</p>
+          <div className="modal-btns">
+            <button className="btn btn-danger" onClick={confirmDelete}>
+              Delete
+            </button>
+            <button className="btn" onClick={() => setDeleting(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -278,64 +242,44 @@ function ProductModal({
   }
 
   return (
-    <Modal open={!!product} onClose={onClose}>
-      {product && (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-base font-semibold text-text">
-            {isNew ? "Add product" : "Edit product"}
-          </h3>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">Name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">Category</label>
-            <select
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">Price</label>
-            <input
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-2">
-              Description (optional)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={save} loading={saving}>
-              Save
-            </Button>
-          </div>
-        </div>
-      )}
-    </Modal>
+    <div className={`modal-bg${product ? " open" : ""}`}>
+      <div className="modal">
+        {product && (
+          <>
+            <h3>{isNew ? "Add product" : "Edit product"}</h3>
+            <div className="form-group">
+              <label className="form-label">Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Category</label>
+              <select value={cat} onChange={(e) => setCat(e.target.value)}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Price</label>
+              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Description (optional)</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="modal-btns">
+              <button className="btn btn-primary" onClick={save} disabled={saving}>
+                Save
+              </button>
+              <button className="btn" onClick={onClose}>
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

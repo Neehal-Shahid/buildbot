@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { dashboardApi, type SupportTicket } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
-import { useToast } from "../../../components/ui/ToastProvider";
-import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
 
 export default function HelpTab() {
   const { token } = useStoreAuth();
-  const toast = useToast();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
 
   function loadTickets() {
@@ -21,66 +18,56 @@ export default function HelpTab() {
   useEffect(loadTickets, [token]);
 
   async function submit() {
-    if (!token || !subject || !message) {
-      toast.error("Missing fields", "Fill in both subject and message.");
-      return;
-    }
-    setSending(true);
+    if (!token || !subject || !message) return setAlert({ msg: "Fill in both fields.", type: "error" });
+    setBusy(true);
     try {
       const data = await dashboardApi.support.submit(token, subject, message);
-      toast.success("Sent", data.message);
+      setAlert({ msg: data.message, type: "success" });
       setSubject("");
       setMessage("");
       loadTickets();
     } catch {
-      toast.error("Error", "Could not submit ticket.");
+      setAlert({ msg: "Could not submit ticket.", type: "error" });
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card title="Contact support">
-        <div className="mb-3">
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            maxLength={150}
-            placeholder="Subject"
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-          />
-        </div>
-        <div className="mb-3">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            maxLength={2000}
-            rows={4}
-            placeholder="How can we help?"
-            className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-          />
-        </div>
-        <Button onClick={submit} loading={sending}>
-          Send message
-        </Button>
-      </Card>
+    <div>
+      <div className="section-title">Contact Support</div>
+      <div className="section-sub">Get help from the BuildVolt team — report issues, ask questions, or send feedback.</div>
 
-      <Card title="Your tickets">
-        <div className="flex flex-col gap-2">
-          {!tickets && <div className="text-sm text-muted">Loading…</div>}
-          {tickets?.length === 0 && <div className="text-sm text-muted">No tickets yet.</div>}
+      <div className="card">
+        <h2>Contact Support</h2>
+        <p style={{ marginBottom: 14 }}>Have a problem, complaint, or question? Send a message directly to the BuildVolt team.</p>
+        <div className="form-group">
+          <label className="form-label">Subject</label>
+          <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Brief summary of your issue" maxLength={150} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Message</label>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} maxLength={2000} placeholder="Describe your issue in detail…" />
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={submit} disabled={busy}>
+          Submit support request
+        </button>
+        {alert && <div className={`alert alert-${alert.type} show`} style={{ marginTop: 12 }}>{alert.msg}</div>}
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2>Your support requests</h2>
+        <div style={{ fontSize: 13, color: "var(--muted)" }}>
+          {!tickets && "Loading…"}
+          {tickets?.length === 0 && "No support requests yet."}
           {tickets?.map((t) => (
-            <div key={t.id} className="rounded-md border border-border p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold text-text">{t.subject}</div>
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{t.status}</span>
-              </div>
-              <p className="mt-1 text-text-2">{t.message}</p>
+            <div key={t.id} style={{ padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+              <strong style={{ color: "var(--text)" }}>{t.subject}</strong> — {t.status}
+              <div>{t.message}</div>
             </div>
           ))}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

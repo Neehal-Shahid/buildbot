@@ -6,7 +6,7 @@ import VerifyPage from "./pages/VerifyPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/AdminPage";
 import LandingPage from "./pages/LandingPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import DashboardPage from "./pages/DashboardPage";
 
 // Route paths mirror the original dashboard/vercel.json exactly, including
 // keeping the literal *.html paths (not just clean URLs) because
@@ -22,8 +22,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/index.html" element={<LandingPage />} />
-            <Route path="/dashboard" element={<PlaceholderPage name="Dashboard" />} />
-            <Route path="/dashboard.html" element={<PlaceholderPage name="Dashboard" />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard.html" element={<DashboardPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin.html" element={<AdminPage />} />
             <Route path="/verify.html" element={<VerifyPage />} />

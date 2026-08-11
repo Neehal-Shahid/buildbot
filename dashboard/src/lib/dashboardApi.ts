@@ -92,8 +92,10 @@ export const dashboardApi = {
   orderRequests: (token: string) =>
     apiFetch<{ success: boolean; orders: OrderRequest[] }>("/order-requests", auth(token)),
 
+  // Note: the server returns productCount as the raw DB row `{ count }`,
+  // not a plain number — see productDB.getCount() in server/database.js.
   analytics: (token: string, days: number) =>
-    apiFetch<{ success: boolean; stats: AnalyticsStats; productCount: number; days: number }>(
+    apiFetch<{ success: boolean; stats: AnalyticsStats; productCount: { count: number }; days: number }>(
       `/analytics?days=${days}`,
       auth(token),
     ),

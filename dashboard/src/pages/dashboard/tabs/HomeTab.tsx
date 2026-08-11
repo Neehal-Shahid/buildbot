@@ -11,7 +11,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
     if (!token) return;
     dashboardApi.analytics(token, 0).then((data) => {
       setStats(data.stats);
-      setProductCount(data.productCount);
+      setProductCount(data.productCount.count);
     });
   }, [token]);
 

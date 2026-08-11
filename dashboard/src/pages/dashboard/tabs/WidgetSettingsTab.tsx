@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ConfirmationResult } from "firebase/auth";
 import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { sendPhoneVerificationCode } from "../../../lib/firebasePhoneVerify";
-
-const RECAPTCHA_CONTAINER_ID = "recaptcha-container-settings";
+import { isLikelyValidPakistaniMobile } from "../../../lib/phone";
 
 function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
   if (!msg) return <div className="alert" />;
@@ -83,15 +80,18 @@ function BrandingCard() {
 function WhatsappCard() {
   const { token, store, refresh } = useStoreAuth();
   const [number, setNumber] = useState(store?.whatsappNumber || "");
-  const [code, setCode] = useState("");
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [savingNumber, setSavingNumber] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function saveNumber() {
     if (!token) return;
+    if (number.trim() && !isLikelyValidPakistaniMobile(number)) {
+      setAlert({
+        msg: "That doesn't look like a valid Pakistani mobile number. Use 03XXXXXXXXX or +923XXXXXXXXX.",
+        type: "error",
+      });
+      return;
+    }
     setSavingNumber(true);
     try {
       const data = await dashboardApi.whatsapp.save(token, number.trim());
@@ -104,76 +104,22 @@ function WhatsappCard() {
     }
   }
 
-  async function sendCode() {
-    if (!token || !number.trim()) return;
-    setSendingCode(true);
-    try {
-      const conf = await sendPhoneVerificationCode(number.trim(), RECAPTCHA_CONTAINER_ID);
-      setConfirmation(conf);
-      setAlert({ msg: "We sent a code by SMS to that number — type it below.", type: "success" });
-    } catch {
-      setAlert({ msg: "Could not send code. Check the number and try again.", type: "error" });
-    } finally {
-      setSendingCode(false);
-    }
-  }
-
-  async function verify() {
-    if (!token || !code.trim() || !confirmation) return;
-    setVerifying(true);
-    try {
-      const result = await confirmation.confirm(code.trim());
-      const idToken = await result.user.getIdToken();
-      const data = await dashboardApi.whatsapp.verifyFirebase(token, idToken);
-      if (data.success) {
-        setAlert({ msg: "WhatsApp number verified!", type: "success" });
-        refresh();
-      } else {
-        setAlert({ msg: data.error || "Incorrect code.", type: "error" });
-      }
-    } catch {
-      setAlert({ msg: "Incorrect or expired code. Please try again.", type: "error" });
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   return (
     <div className="card">
       <h2>Order via WhatsApp</h2>
       <p style={{ marginBottom: 20 }}>
-        Lets customers send a build straight to your WhatsApp when they don't check out through WooCommerce.{" "}
-        <strong>Must be verified before the widget can go live with it.</strong>
+        Lets customers send a build straight to your WhatsApp when they don't check out through WooCommerce.
       </p>
       <div className="form-group">
         <label className="form-label">WhatsApp Number</label>
-        <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="+923001234567" />
+        <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="03001234567" />
       </div>
       <button className="btn btn-primary" onClick={saveNumber} disabled={savingNumber}>
         Save WhatsApp Number
       </button>
 
-      {!store?.whatsappVerified && number && (
-        <div style={{ marginTop: 16 }}>
-          <button className="btn btn-outline" onClick={sendCode} disabled={sendingCode}>
-            {confirmation ? "Resend code" : "Send Code to Verify"}
-          </button>
-          {confirmation && (
-            <div style={{ marginTop: 14 }}>
-              <div className="form-group">
-                <label className="form-label">Enter the code we texted you</label>
-                <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} />
-              </div>
-              <button className="btn btn-primary" onClick={verify} disabled={verifying}>
-                Verify
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-      {store?.whatsappVerified && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Verified</div>}
+      {store?.whatsappVerified && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Saved</div>}
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
-      <div id={RECAPTCHA_CONTAINER_ID} />
     </div>
   );
 }

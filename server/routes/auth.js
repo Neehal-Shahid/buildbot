@@ -11,7 +11,7 @@ const {
 } = require("../database");
 const { OAuth2Client } = require("google-auth-library");
 const rateLimit = require("express-rate-limit");
-const { isValidPhoneNumber } = require("libphonenumber-js");
+const { parsePhoneNumberFromString } = require("libphonenumber-js");
 const {
   sendEmail,
   welcomeEmail,
@@ -795,77 +795,44 @@ router.put("/settings", authMiddleware, async (req, res) => {
 // aren't WooCommerce-connected — customers land in a chat with the full
 // build pre-filled instead of an automated cart.
 //
-// No paid WhatsApp Business API is wired up, so we can't confirm delivery
-// — but libphonenumber-js (Google's own number-formatting rules, no
-// network call, no cost) catches most fake/typo'd numbers up front by
-// checking real per-country length and prefix rules, which a plain regex
-// can't do (e.g. it rejects "+11234567890123" even though a naive
-// digit-count regex would happily accept it).
+// Real OTP-based verification (WhatsApp Cloud API and, later, Firebase
+// Phone Auth) is parked for now — see project notes. Standing in for it:
+// strict Pakistan-only mobile number validation via libphonenumber-js
+// (real per-country length/prefix rules, not a naive regex), which
+// catches the large majority of typo'd/fake numbers up front. A number
+// that parses as a valid Pakistani mobile is saved and marked usable
+// immediately — there is deliberately no separate "verified" step right
+// now.
 router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
   const raw = String(req.body.whatsappNumber || "").trim();
-  let digits = raw.replace(/[\s()-]/g, "");
-  if (digits && !digits.startsWith("+")) digits = `+${digits}`;
 
-  if (raw && !isValidPhoneNumber(digits))
+  if (!raw) {
+    try {
+      await storeDB.updateWhatsappNumber(req.store.storeId, "");
+      return res.json({ success: true, message: "WhatsApp ordering number removed." });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  const phoneNumber = parsePhoneNumberFromString(raw, "PK");
+  if (!phoneNumber || !phoneNumber.isValid() || phoneNumber.country !== "PK") {
     return res.status(400).json({
       error:
-        "That doesn't look like a real WhatsApp number. Enter it with country code, e.g. +923001234567",
+        "Enter a valid Pakistani mobile number, e.g. 03001234567 or +923001234567.",
     });
+  }
+
+  const digits = phoneNumber.number; // E.164, e.g. +923001234567
 
   try {
     await storeDB.updateWhatsappNumber(req.store.storeId, digits);
-    res.json({
-      success: true,
-      message: digits
-        ? "WhatsApp number saved — now verify it before it can be used for orders."
-        : "WhatsApp ordering number removed.",
-    });
+    await storeDB.markWhatsappVerified(req.store.storeId);
+    res.json({ success: true, message: "WhatsApp ordering number saved." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-// Verification is done via Firebase Phone Auth: the dashboard sends the
-// SMS OTP directly from the client using Firebase's own infrastructure
-// (free up to 10k verifications/month), then hands us the resulting
-// Firebase ID token. We verify that token server-side and only mark the
-// number verified if the phone number Firebase actually confirmed matches
-// the number saved on the store — this is real proof of delivery/ownership
-// (unlike the earlier free click-to-confirm flow), it just proves phone
-// ownership rather than WhatsApp-specifically, since Firebase verifies via
-// SMS, not WhatsApp. In practice a number that can receive SMS is almost
-// always usable on WhatsApp too (WhatsApp itself verifies numbers by SMS).
-router.post(
-  "/settings/whatsapp/verify-firebase",
-  authMiddleware,
-  async (req, res) => {
-    const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ error: "idToken is required" });
-
-    const store = await storeDB.findById(req.store.storeId);
-    if (!store) return res.status(404).json({ error: "Store not found" });
-    if (!store.whatsapp_number)
-      return res.status(400).json({ error: "Save a WhatsApp number first" });
-
-    try {
-      const admin = require("../firebaseAdmin");
-      const decoded = await admin.auth().verifyIdToken(idToken);
-      const verifiedNumber = decoded.phone_number;
-
-      if (!verifiedNumber || verifiedNumber !== store.whatsapp_number) {
-        return res.status(400).json({
-          error:
-            "The verified number doesn't match the number saved on your account — verify the same number you entered above.",
-        });
-      }
-
-      await storeDB.markWhatsappVerified(req.store.storeId);
-      res.json({ success: true, message: "Number verified!" });
-    } catch (err) {
-      res.status(400).json({ error: "Could not verify code: " + err.message });
-    }
-  },
-);
 
 // ─── STORE CONFIG (public, for widget) ───────────────────
 router.get("/store-config/:storeId", async (req, res) => {

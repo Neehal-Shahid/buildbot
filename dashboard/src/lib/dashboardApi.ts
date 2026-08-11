@@ -106,11 +106,6 @@ export const dashboardApi = {
         "/settings/whatsapp",
         { method: "PUT", body: { whatsappNumber }, ...auth(token) },
       ),
-    verifyFirebase: (token: string, idToken: string) =>
-      apiFetch<{ success: boolean; message?: string; error?: string }>(
-        "/settings/whatsapp/verify-firebase",
-        { method: "POST", body: { idToken }, ...auth(token) },
-      ),
   },
 
   settings: {

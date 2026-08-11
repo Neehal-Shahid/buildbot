@@ -3,7 +3,7 @@ require("dotenv").config();
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
-const APP_URL = process.env.APP_URL || "https://buildbot-nine.vercel.app";
+const APP_URL = process.env.APP_URL || "https://buildvolt.online";
 // Test mode configuration: Set EMAIL_TEST_MODE=true in Railway to intercept all emails
 const EMAIL_TEST_MODE = process.env.EMAIL_TEST_MODE === 'true';
 
@@ -40,9 +40,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1
             <tr>
               <td style="vertical-align:middle;">
                 <table cellpadding="0" cellspacing="0"><tr>
-                  <td style="width:30px;height:30px;background:#4f46e5;border-radius:7px;text-align:center;vertical-align:middle;">
-                    <img src="https://buildbot-nine.vercel.app/favicon.ico" width="16" height="16" alt="" style="display:block;margin:7px auto;" onerror="this.style.display='none'"/>
-                  </td>
+                  <td style="width:30px;height:30px;background:#4f46e5;border-radius:7px;text-align:center;vertical-align:middle;font-size:16px;line-height:30px;color:#ffffff;">&#9889;</td>
                   <td style="padding-left:9px;font-size:15px;font-weight:700;color:#111827;letter-spacing:-0.2px;vertical-align:middle;">BuildVolt</td>
                 </tr></table>
               </td>

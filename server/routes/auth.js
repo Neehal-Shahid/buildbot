@@ -827,11 +827,26 @@ router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
 
 // No paid WhatsApp Business API is wired up, so verification is a free
 // click-to-confirm flow instead of a real delivered OTP: the dashboard
-// opens a wa.me chat to the saved number with this code pre-filled, the
-// store owner sends it from their own WhatsApp, then types the code back
-// in. This can't prove delivery, but it does catch typos and fake/unused
-// numbers, since WhatsApp itself refuses to open a chat with an invalid
-// or unregistered number.
+// sends the store owner straight into a WhatsApp Web chat with this code
+// pre-filled, they send it from their own WhatsApp, then type the code
+// back in.
+//
+// Deliberately using web.whatsapp.com/send here instead of wa.me: wa.me
+// shows its own branded "Open app / Continue to WhatsApp Web" landing
+// page first, with the pre-filled message already visible in a preview
+// box on that page — before WhatsApp has even checked whether the number
+// is real. That means the code is readable the instant the link opens,
+// pass or fail, which defeats the point. Going straight to
+// web.whatsapp.com/send skips that landing page: an invalid/unregistered
+// number now surfaces WhatsApp's own "not on WhatsApp" error dialog with
+// the code never shown anywhere, and a valid number opens straight into
+// the real chat with the code visible only inside the compose box there.
+// This can't prove the code was actually delivered (no server-side
+// confirmation channel exists without a paid API — and a determined user
+// could still read the code out of the new tab's address bar without
+// ever letting the chat load), but it does mean an honest store owner
+// typing in a typo'd or fake number will see WhatsApp itself reject it
+// instead of getting a free pass.
 router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
   if (!store) return res.status(404).json({ error: "Store not found" });
@@ -845,12 +860,9 @@ router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => 
     const text = encodeURIComponent(
       `My BuildVolt verification code is: ${code}`,
     );
-    // The raw code is only ever embedded inside this wa.me link, never
-    // returned as its own field — it stays out of the frontend's reach
-    // except as part of the URL WhatsApp itself renders.
     res.json({
       success: true,
-      waLink: `https://wa.me/${waNumber}?text=${text}`,
+      waLink: `https://web.whatsapp.com/send?phone=${waNumber}&text=${text}`,
       whatsappNumber: store.whatsapp_number,
     });
   } catch (err) {

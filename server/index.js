@@ -47,20 +47,20 @@ function getPluginManifest(req) {
   const proto = req.get("x-forwarded-proto") || req.protocol || "https";
   const host = req.get("x-forwarded-host") || req.get("host");
   if (host) {
-    manifest.download_url = `${proto}://${host}/buildbot-woocommerce.zip`;
+    manifest.download_url = `${proto}://${host}/buildvolt-woocommerce.zip`;
   }
   return manifest;
 }
 
 // Serve WooCommerce plugin zip (WordPress updater downloads this)
-app.get("/buildbot-woocommerce.zip", (req, res) => {
-  const zipPath = path.join(__dirname, "buildbot-woocommerce.zip");
+app.get("/buildvolt-woocommerce.zip", (req, res) => {
+  const zipPath = path.join(__dirname, "buildvolt-woocommerce.zip");
   if (!fs.existsSync(zipPath)) {
     return res.status(404).json({ error: "Plugin file not found" });
   }
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Cache-Control", "public, max-age=300");
-  res.download(zipPath, "buildbot-woocommerce.zip");
+  res.download(zipPath, "buildvolt-woocommerce.zip");
 });
 
 // Plugin update manifest (WordPress checks this for new versions)

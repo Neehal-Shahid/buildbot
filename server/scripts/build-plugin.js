@@ -1,5 +1,5 @@
 /**
- * Build server/buildbot-woocommerce.zip from plugin source.
+ * Build server/buildvolt-woocommerce.zip from plugin source.
  * Version is read from server/plugin-update.json (single source of truth).
  *
  * Run: npm run build:plugin   (from server/)
@@ -14,18 +14,18 @@ const manifestPath = path.join(repoRoot, "server", "plugin-update.json");
 const pluginPhp = path.join(
   repoRoot,
   "plugin",
-  "buildbot-woocommerce",
-  "buildbot-woocommerce.php",
+  "buildvolt-woocommerce",
+  "buildvolt-woocommerce.php",
 );
-const pluginDir = path.join(repoRoot, "plugin", "buildbot-woocommerce");
-const zipPath = path.join(repoRoot, "server", "buildbot-woocommerce.zip");
+const pluginDir = path.join(repoRoot, "plugin", "buildvolt-woocommerce");
+const zipPath = path.join(repoRoot, "server", "buildvolt-woocommerce.zip");
 
 function syncPhpVersion(version) {
   let php = fs.readFileSync(pluginPhp, "utf8");
   php = php.replace(/\* Version:\s+[0-9.]+/, `* Version:     ${version}`);
   php = php.replace(
-    /define\('BUILDBOT_VERSION', '[0-9.]+'\)/,
-    `define('BUILDBOT_VERSION', '${version}')`,
+    /define\('BUILDVOLT_VERSION', '[0-9.]+'\)/,
+    `define('BUILDVOLT_VERSION', '${version}')`,
   );
   fs.writeFileSync(pluginPhp, php);
 }
@@ -41,7 +41,7 @@ function buildZip() {
     archive.on("error", reject);
     archive.pipe(output);
 
-    // WordPress expects: buildbot-woocommerce/buildbot-woocommerce.php
+    // WordPress expects: buildvolt-woocommerce/buildvolt-woocommerce.php
     archive.directory(pluginDir, path.basename(pluginDir));
     archive.finalize();
   });

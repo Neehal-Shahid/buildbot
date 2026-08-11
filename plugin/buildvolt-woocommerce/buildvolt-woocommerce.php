@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: BuildVolt PC Build Recommender
- * Plugin URI:  https://buildbot-nine.vercel.app
+ * Plugin URI:  https://buildvolt.online
  * Description: Connects your WooCommerce store to BuildVolt — syncs products automatically so customers get instant PC build recommendations.
- * Version:     2.0.0
+ * Version:     1.9.0
  * Author:      BuildVolt
- * Author URI:  https://buildbot-nine.vercel.app
+ * Author URI:  https://buildvolt.online
  * License:     GPL v2 or later
  * Requires at least: 5.0
  * Requires PHP: 7.4
@@ -15,13 +15,13 @@
 if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
-define('BUILDBOT_API',     'https://buildbot-production-3f70.up.railway.app/api');
-define('BUILDBOT_VERSION', '2.0.0');
-define('BUILDBOT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
+define('BUILDVOLT_API',     'https://buildbot-production-3f70.up.railway.app/api');
+define('BUILDVOLT_VERSION', '1.9.0');
+define('BUILDVOLT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
-register_activation_hook(__FILE__, 'buildbot_activate');
-function buildbot_activate() {
+register_activation_hook(__FILE__, 'buildvolt_activate');
+function buildvolt_activate() {
   if (!class_exists('WooCommerce')) {
     deactivate_plugins(plugin_basename(__FILE__));
     wp_die(
@@ -38,21 +38,21 @@ function buildbot_activate() {
   }
 
   // Schedule auto sync every 6 hours
-  if (!wp_next_scheduled('buildbot_auto_sync')) {
-    wp_schedule_event(time(), 'buildbot_6hours', 'buildbot_auto_sync');
+  if (!wp_next_scheduled('buildvolt_auto_sync')) {
+    wp_schedule_event(time(), 'buildvolt_6hours', 'buildvolt_auto_sync');
   }
 }
 
 // ─── DEACTIVATION ─────────────────────────────────────────
-register_deactivation_hook(__FILE__, 'buildbot_deactivate');
-function buildbot_deactivate() {
-  wp_clear_scheduled_hook('buildbot_auto_sync');
+register_deactivation_hook(__FILE__, 'buildvolt_deactivate');
+function buildvolt_deactivate() {
+  wp_clear_scheduled_hook('buildvolt_auto_sync');
 }
 
 // ─── CUSTOM CRON SCHEDULE ─────────────────────────────────
-add_filter('cron_schedules', 'buildbot_cron_schedules');
-function buildbot_cron_schedules($schedules) {
-  $schedules['buildbot_6hours'] = [
+add_filter('cron_schedules', 'buildvolt_cron_schedules');
+function buildvolt_cron_schedules($schedules) {
+  $schedules['buildvolt_6hours'] = [
     'interval' => 6 * HOUR_IN_SECONDS,
     'display'  => 'Every 6 Hours'
   ];
@@ -60,14 +60,14 @@ function buildbot_cron_schedules($schedules) {
 }
 
 // ─── AUTO SYNC CRON ───────────────────────────────────────
-add_action('buildbot_auto_sync', 'buildbot_full_sync');
+add_action('buildvolt_auto_sync', 'buildvolt_full_sync');
 
 // ─── AUTO UPDATES ─────────────────────────────────────────
-add_filter('pre_set_site_transient_update_plugins', 'buildbot_check_update');
-function buildbot_check_update($transient) {
+add_filter('pre_set_site_transient_update_plugins', 'buildvolt_check_update');
+function buildvolt_check_update($transient) {
   if (empty($transient->checked)) return $transient;
 
-  $response = wp_remote_get(BUILDBOT_UPDATE_URL, ['timeout' => 10]);
+  $response = wp_remote_get(BUILDVOLT_UPDATE_URL, ['timeout' => 10]);
   if (is_wp_error($response)) return $transient;
 
   $update = json_decode(wp_remote_retrieve_body($response), true);
@@ -75,13 +75,13 @@ function buildbot_check_update($transient) {
 
   $plugin_file = plugin_basename(__FILE__);
   if (isset($update['version']) &&
-      version_compare($update['version'], BUILDBOT_VERSION, '>')) {
+      version_compare($update['version'], BUILDVOLT_VERSION, '>')) {
     $item = (object)[
       'id'          => $plugin_file,
-      'slug'        => 'buildbot-woocommerce',
+      'slug'        => 'buildvolt-woocommerce',
       'plugin'      => $plugin_file,
       'new_version' => $update['version'],
-      'url'         => 'https://buildbot-nine.vercel.app',
+      'url'         => 'https://buildvolt.online',
       'package'     => $update['download_url'],
     ];
     if (!empty($update['tested'])) {
@@ -105,7 +105,7 @@ function buildbot_check_update($transient) {
 // and product name on every sync), but it must still agree with the
 // server's 9 canonical categories or the health check misreports what
 // will actually show up in recommendations.
-function buildbot_detect_category($text) {
+function buildvolt_detect_category($text) {
   $text = strtolower((string) $text);
   if ($text === '') return null;
 
@@ -206,22 +206,22 @@ function buildbot_detect_category($text) {
   return null;
 }
 
-function buildbot_map_category($woo_categories, $product_name = '') {
+function buildvolt_map_category($woo_categories, $product_name = '') {
   if (!empty($woo_categories)) {
     foreach ($woo_categories as $cat) {
-      $detected = buildbot_detect_category($cat['name']);
+      $detected = buildvolt_detect_category($cat['name']);
       if ($detected) return $detected;
     }
   }
 
-  $detected = buildbot_detect_category($product_name);
+  $detected = buildvolt_detect_category($product_name);
   if ($detected) return $detected;
 
   return 'Unmapped';
 }
 
 // ─── GET ALL WOOCOMMERCE PRODUCTS ─────────────────────────
-function buildbot_get_all_products() {
+function buildvolt_get_all_products() {
   $query = new WP_Query([
     'post_type'      => 'product',
     'posts_per_page' => -1,
@@ -254,7 +254,7 @@ function buildbot_get_all_products() {
     }
 
     $product_name     = $product->get_name();
-    $mapped_category  = buildbot_map_category($woo_cats, $product_name);
+    $mapped_category  = buildvolt_map_category($woo_cats, $product_name);
 
     if ($mapped_category === 'Unmapped') {
       $unmapped++;
@@ -293,7 +293,7 @@ function buildbot_get_all_products() {
 }
 
 // ─── DETECT IF PC STORE ───────────────────────────────────
-function buildbot_is_pc_store($category_stats) {
+function buildvolt_is_pc_store($category_stats) {
   $pc_categories = ['CPU', 'Motherboard', 'RAM', 'Storage', 'GPU', 'PSU', 'Case'];
   $pc_count      = 0;
   foreach ($pc_categories as $cat) {
@@ -303,29 +303,29 @@ function buildbot_is_pc_store($category_stats) {
 }
 
 // ─── FULL SYNC FUNCTION ───────────────────────────────────
-function buildbot_full_sync() {
-  $store_id = get_option('buildbot_store_id');
-  $secret   = get_option('buildbot_secret_key');
+function buildvolt_full_sync() {
+  $store_id = get_option('buildvolt_store_id');
+  $secret   = get_option('buildvolt_secret_key');
 
-  if (!$store_id || !$secret || !get_option('buildbot_connected')) return;
+  if (!$store_id || !$secret || !get_option('buildvolt_connected')) return;
   if (!class_exists('WooCommerce')) return;
 
-  $result   = buildbot_get_all_products();
+  $result   = buildvolt_get_all_products();
   $products = $result['products'];
 
   if (empty($products)) return;
 
   // Check if it's a PC store
-  $is_pc = buildbot_is_pc_store($result['category_stats']);
-  update_option('buildbot_is_pc_store', $is_pc);
-  update_option('buildbot_category_stats', $result['category_stats']);
-  update_option('buildbot_unmapped_count', $result['unmapped']);
+  $is_pc = buildvolt_is_pc_store($result['category_stats']);
+  update_option('buildvolt_is_pc_store', $is_pc);
+  update_option('buildvolt_category_stats', $result['category_stats']);
+  update_option('buildvolt_unmapped_count', $result['unmapped']);
 
-  $response = wp_remote_post(BUILDBOT_API . '/plugin/sync', [
+  $response = wp_remote_post(BUILDVOLT_API . '/plugin/sync', [
     'headers' => [
       'Content-Type'        => 'application/json',
-      'X-BuildBot-Store-ID' => $store_id,
-      'X-BuildBot-Secret'   => $secret
+      'X-BuildVolt-Store-ID' => $store_id,
+      'X-BuildVolt-Secret'   => $secret
     ],
     'body'    => json_encode([
       'products' => $products,
@@ -337,55 +337,55 @@ function buildbot_full_sync() {
   if (!is_wp_error($response)) {
     $body = json_decode(wp_remote_retrieve_body($response), true);
     if (!empty($body['synced'])) {
-      update_option('buildbot_last_sync',     current_time('mysql'));
-      update_option('buildbot_product_count', $body['synced']);
-      update_option('buildbot_woo_url',       get_site_url());
+      update_option('buildvolt_last_sync',     current_time('mysql'));
+      update_option('buildvolt_product_count', $body['synced']);
+      update_option('buildvolt_woo_url',       get_site_url());
     }
   }
 }
 
 // ─── ADMIN MENU ───────────────────────────────────────────
-add_action('admin_menu', 'buildbot_admin_menu');
-function buildbot_admin_menu() {
+add_action('admin_menu', 'buildvolt_admin_menu');
+function buildvolt_admin_menu() {
   add_menu_page(
     '⚡ BuildVolt',
     '⚡ BuildVolt',
     'manage_options',
-    'buildbot',
-    'buildbot_admin_page',
+    'buildvolt',
+    'buildvolt_admin_page',
     'dashicons-superhero',
     56
   );
 }
 
 // ─── ADMIN STYLES ─────────────────────────────────────────
-add_action('admin_enqueue_scripts', 'buildbot_enqueue_admin_scripts');
-function buildbot_enqueue_admin_scripts($hook) {
-  if ($hook !== 'toplevel_page_buildbot') return;
+add_action('admin_enqueue_scripts', 'buildvolt_enqueue_admin_scripts');
+function buildvolt_enqueue_admin_scripts($hook) {
+  if ($hook !== 'toplevel_page_buildvolt') return;
 
   // Enqueue jQuery (WordPress has it built-in)
   wp_enqueue_script('jquery');
 
   // Inline script with all BuildVolt JS
-  $store_id  = get_option('buildbot_store_id', '');
-  $secret    = get_option('buildbot_secret_key', '');
-  $api       = BUILDBOT_API;
-  $nonce     = wp_create_nonce('buildbot_nonce');
+  $store_id  = get_option('buildvolt_store_id', '');
+  $secret    = get_option('buildvolt_secret_key', '');
+  $api       = BUILDVOLT_API;
+  $nonce     = wp_create_nonce('buildvolt_nonce');
 
   $inline_js = "
-    var BB_API        = '" . esc_js($api) . "';
-    var BB_STORE_ID   = '" . esc_js($store_id) . "';
-    var BB_SECRET     = '" . esc_js($secret) . "';
-    var buildbotNonce = '" . esc_js($nonce) . "';
+    var BV_API        = '" . esc_js($api) . "';
+    var BV_STORE_ID   = '" . esc_js($store_id) . "';
+    var BV_SECRET     = '" . esc_js($secret) . "';
+    var buildvoltNonce = '" . esc_js($nonce) . "';
   ";
 
   wp_add_inline_script('jquery', $inline_js);
-  wp_add_inline_script('jquery', buildbot_get_admin_js());
+  wp_add_inline_script('jquery', buildvolt_get_admin_js());
 }
 
-function buildbot_get_admin_js() {
+function buildvolt_get_admin_js() {
   return <<<'JSEOF'
-  window.buildbotShowNotice = function(msg, type) {
+  window.buildvoltShowNotice = function(msg, type) {
     console.log('BuildVolt [' + type + ']:', msg);
     var el = document.getElementById('bb-notice');
     if (!el) { console.warn('BuildVolt: no #bb-notice element'); return; }
@@ -395,109 +395,109 @@ function buildbot_get_admin_js() {
     if (type === 'success') setTimeout(function(){ el.style.display = 'none'; }, 6000);
   };
 
-  window.buildbotConnect = async function() {
+  window.buildvoltConnect = async function() {
     var storeId = document.getElementById('bb-store-id').value.trim();
     var secret  = document.getElementById('bb-secret-key').value.trim();
     var btn     = document.getElementById('bb-connect-btn');
 
-    if (!storeId) { window.buildbotShowNotice('Please enter your Store ID.', 'error'); return; }
-    if (!secret)  { window.buildbotShowNotice('Please enter your Secret Key.', 'error'); return; }
-    if (secret.indexOf('bb_live_') !== 0) {
-      window.buildbotShowNotice('Invalid Secret Key. It should start with bb_live_', 'error');
+    if (!storeId) { window.buildvoltShowNotice('Please enter your Store ID.', 'error'); return; }
+    if (!secret)  { window.buildvoltShowNotice('Please enter your Secret Key.', 'error'); return; }
+    if (secret.indexOf('bv_live_') !== 0) {
+      window.buildvoltShowNotice('Invalid Secret Key. It should start with bv_live_', 'error');
       return;
     }
 
     btn.disabled    = true;
     btn.textContent = 'Testing connection...';
-    window.buildbotShowNotice('Testing connection to BuildVolt...', 'info');
+    window.buildvoltShowNotice('Testing connection to BuildVolt...', 'info');
 
     try {
-      var pingRes = await fetch(BB_API + '/plugin/ping', {
+      var pingRes = await fetch(BV_API + '/plugin/ping', {
         method:  'POST',
         headers: {
           'Content-Type':        'application/json',
-          'X-BuildBot-Store-ID': storeId,
-          'X-BuildBot-Secret':   secret
+          'X-BuildVolt-Store-ID': storeId,
+          'X-BuildVolt-Secret':   secret
         },
         body: JSON.stringify({ storeUrl: window.location.origin })
       });
       var pingData = await pingRes.json();
 
       if (!pingData.success) {
-        window.buildbotShowNotice('Connection failed: ' + (pingData.error || 'Check Store ID and Secret Key'), 'error');
+        window.buildvoltShowNotice('Connection failed: ' + (pingData.error || 'Check Store ID and Secret Key'), 'error');
         btn.disabled    = false;
         btn.textContent = 'Connect & Sync Products';
         return;
       }
 
-      window.buildbotShowNotice('Connected to ' + pingData.storeName + '! Saving settings...', 'info');
+      window.buildvoltShowNotice('Connected to ' + pingData.storeName + '! Saving settings...', 'info');
       btn.textContent = 'Syncing products...';
 
       var saveRes = await fetch(ajaxurl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          action:     'buildbot_save_settings',
+          action:     'buildvolt_save_settings',
           store_id:   storeId,
           secret_key: secret,
-          nonce:      buildbotNonce
+          nonce:      buildvoltNonce
         })
       });
       var saveData = await saveRes.json();
       console.log('Save settings response:', saveData);
 
-      await window.buildbotDoSync(storeId, secret);
+      await window.buildvoltDoSync(storeId, secret);
 
     } catch(err) {
-      window.buildbotShowNotice('Error: ' + err.message, 'error');
+      window.buildvoltShowNotice('Error: ' + err.message, 'error');
       btn.disabled    = false;
       btn.textContent = 'Connect & Sync Products';
     }
   };
 
-  window.buildbotSync = async function() {
+  window.buildvoltSync = async function() {
     var btn = document.getElementById('bb-sync-btn');
     btn.disabled    = true;
     btn.textContent = 'Syncing...';
-    await window.buildbotDoSync(BB_STORE_ID, BB_SECRET);
+    await window.buildvoltDoSync(BV_STORE_ID, BV_SECRET);
     btn.disabled    = false;
     btn.textContent = 'Sync All Products Now';
   };
 
-  window.buildbotDoSync = async function(storeId, secret) {
+  window.buildvoltDoSync = async function(storeId, secret) {
     try {
-      window.buildbotShowNotice('Getting your WooCommerce products...', 'info');
+      window.buildvoltShowNotice('Getting your WooCommerce products...', 'info');
 
       var prodRes = await fetch(ajaxurl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          action: 'buildbot_get_products',
-          nonce:  buildbotNonce
+          action: 'buildvolt_get_products',
+          nonce:  buildvoltNonce
         })
       });
       var prodData = await prodRes.json();
       console.log('Products response:', prodData);
 
       if (!prodData.success) {
-        window.buildbotShowNotice('Could not get products: ' + (prodData.data ? prodData.data.error : 'Unknown error'), 'error');
+        window.buildvoltShowNotice('Could not get products: ' + (prodData.data ? prodData.data.error : 'Unknown error'), 'error');
         return;
       }
 
       var products = prodData.data.products;
       if (!products || products.length === 0) {
-        window.buildbotShowNotice('No published products found in WooCommerce. Please add products first.', 'warning');
+        window.buildvoltShowNotice('No published products found in WooCommerce. Please add products first.', 'warning');
         return;
       }
 
-      window.buildbotShowNotice('Sending ' + products.length + ' products to BuildVolt...', 'info');
+      window.buildvoltShowNotice('Sending ' + products.length + ' products to BuildVolt...', 'info');
 
-      var syncRes = await fetch(BB_API + '/plugin/sync', {
+      var syncRes = await fetch(BV_API + '/plugin/sync', {
         method:  'POST',
         headers: {
           'Content-Type':        'application/json',
-          'X-BuildBot-Store-ID': storeId,
-          'X-BuildBot-Secret':   secret
+          'X-BuildVolt-Store-ID': storeId,
+          'X-BuildVolt-Secret':   secret
         },
         body: JSON.stringify({
           products: products,
@@ -512,34 +512,34 @@ function buildbot_get_admin_js() {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
-            action:        'buildbot_save_sync',
+            action:        'buildvolt_save_sync',
             product_count: syncData.synced,
             woo_url:       window.location.origin,
-            nonce:         buildbotNonce
+            nonce:         buildvoltNonce
           })
         });
-        window.buildbotShowNotice(syncData.synced + ' products synced! Reloading...', 'success');
+        window.buildvoltShowNotice(syncData.synced + ' products synced! Reloading...', 'success');
         setTimeout(function(){ location.reload(); }, 2000);
       } else {
-        window.buildbotShowNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
+        window.buildvoltShowNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
       }
 
     } catch(err) {
-      window.buildbotShowNotice('Error: ' + err.message, 'error');
+      window.buildvoltShowNotice('Error: ' + err.message, 'error');
     }
   };
 
-  window.buildbotDisconnect = async function() {
+  window.buildvoltDisconnect = async function() {
     if (!confirm('Disconnect BuildVolt? Auto-sync will stop.')) return;
     await fetch(ajaxurl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ action: 'buildbot_disconnect', nonce: buildbotNonce })
+      body: new URLSearchParams({ action: 'buildvolt_disconnect', nonce: buildvoltNonce })
     });
     location.reload();
   };
 
-  window.buildbotToggleWidget = async function(enabled) {
+  window.buildvoltToggleWidget = async function(enabled) {
     var slider = document.getElementById('bb-toggle-slider');
     var knob   = document.getElementById('bb-toggle-knob');
     var notice = document.getElementById('bb-toggle-notice');
@@ -557,9 +557,9 @@ function buildbot_get_admin_js() {
         method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          action:  'buildbot_toggle_widget',
+          action:  'buildvolt_toggle_widget',
           enabled: enabled ? 'true' : 'false',
-          nonce:   buildbotNonce
+          nonce:   buildvoltNonce
         })
       });
       var data = await res.json();
@@ -581,13 +581,13 @@ JSEOF;
 }
 
 
-add_action('admin_head', 'buildbot_admin_styles');
-function buildbot_admin_styles() {
+add_action('admin_head', 'buildvolt_admin_styles');
+function buildvolt_admin_styles() {
   $screen = get_current_screen();
-  if (!$screen || $screen->id !== 'toplevel_page_buildbot') return;
+  if (!$screen || $screen->id !== 'toplevel_page_buildvolt') return;
   ?>
   <style>
-    #buildbot-wrap{max-width:800px;margin:30px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;}
+    #buildvolt-wrap{max-width:800px;margin:30px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#334155;}
     .bb-header{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:20px;padding:32px 40px;margin-bottom:28px;display:flex;align-items:center;gap:20px;box-shadow:0 10px 25px -5px rgba(124,58,237,0.3);}
     .bb-header-icon{font-size:48px;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.1));}
     .bb-header h1{color:#fff!important;font-size:28px!important;font-weight:800!important;margin:0 0 6px!important;padding:0!important;border:none!important;letter-spacing:-0.5px;}
@@ -633,16 +633,16 @@ function buildbot_admin_styles() {
 }
 
 // ─── ADMIN PAGE ───────────────────────────────────────────
-function buildbot_sync_connection_status_from_api() {
-  $store_id = get_option('buildbot_store_id', '');
-  $secret   = get_option('buildbot_secret_key', '');
+function buildvolt_sync_connection_status_from_api() {
+  $store_id = get_option('buildvolt_store_id', '');
+  $secret   = get_option('buildvolt_secret_key', '');
   if (!$store_id || !$secret) return;
 
-  $response = wp_remote_post(BUILDBOT_API . '/plugin/connection-status', [
+  $response = wp_remote_post(BUILDVOLT_API . '/plugin/connection-status', [
     'headers' => [
       'Content-Type'        => 'application/json',
-      'X-BuildBot-Store-ID' => $store_id,
-      'X-BuildBot-Secret'   => $secret,
+      'X-BuildVolt-Store-ID' => $store_id,
+      'X-BuildVolt-Secret'   => $secret,
     ],
     'timeout' => 12,
   ]);
@@ -652,29 +652,29 @@ function buildbot_sync_connection_status_from_api() {
   $body = json_decode(wp_remote_retrieve_body($response), true);
   if (empty($body['success'])) return;
 
-  update_option('buildbot_connected', !empty($body['wooConnected']));
+  update_option('buildvolt_connected', !empty($body['wooConnected']));
   if (empty($body['wooConnected'])) {
-    update_option('buildbot_last_sync', '');
-    update_option('buildbot_product_count', 0);
-    update_option('buildbot_woo_url', '');
+    update_option('buildvolt_last_sync', '');
+    update_option('buildvolt_product_count', 0);
+    update_option('buildvolt_woo_url', '');
   }
 }
 
-function buildbot_admin_page() {
-  buildbot_sync_connection_status_from_api();
+function buildvolt_admin_page() {
+  buildvolt_sync_connection_status_from_api();
 
-  $store_id       = get_option('buildbot_store_id', '');
-  $secret_key     = get_option('buildbot_secret_key', '');
-  $is_connected   = get_option('buildbot_connected', false);
-  $last_sync      = get_option('buildbot_last_sync', '');
-  $product_count  = get_option('buildbot_product_count', 0);
-  $is_pc_store    = get_option('buildbot_is_pc_store', true);
-  $cat_stats      = get_option('buildbot_category_stats', []);
-  $unmapped       = get_option('buildbot_unmapped_count', 0);
-  $widget_enabled = get_option('buildbot_widget_enabled', true);
+  $store_id       = get_option('buildvolt_store_id', '');
+  $secret_key     = get_option('buildvolt_secret_key', '');
+  $is_connected   = get_option('buildvolt_connected', false);
+  $last_sync      = get_option('buildvolt_last_sync', '');
+  $product_count  = get_option('buildvolt_product_count', 0);
+  $is_pc_store    = get_option('buildvolt_is_pc_store', true);
+  $cat_stats      = get_option('buildvolt_category_stats', []);
+  $unmapped       = get_option('buildvolt_unmapped_count', 0);
+  $widget_enabled = get_option('buildvolt_widget_enabled', true);
   ?>
 
-  <div id="buildbot-wrap">
+  <div id="buildvolt-wrap">
 
     <!-- Header -->
     <div class="bb-header">
@@ -686,7 +686,7 @@ function buildbot_admin_page() {
       <?php if ($is_connected): ?>
       <div style="margin-left:auto;background:rgba(255,255,255,.15);
         border-radius:8px;padding:8px 14px;font-size:12px;color:#fff;">
-        v<?php echo BUILDBOT_VERSION; ?>
+        v<?php echo BUILDVOLT_VERSION; ?>
       </div>
       <?php endif; ?>
     </div>
@@ -715,7 +715,7 @@ function buildbot_admin_page() {
         </div>
         <div class="bb-stat">
           <div class="bb-stat-value" style="font-size:13px;">
-            <?php echo $last_sync ? esc_html(buildbot_time_ago($last_sync)) : 'Never'; ?>
+            <?php echo $last_sync ? esc_html(buildvolt_time_ago($last_sync)) : 'Never'; ?>
           </div>
           <div class="bb-stat-label">Last Synced</div>
         </div>
@@ -737,10 +737,10 @@ function buildbot_admin_page() {
       <?php endif; ?>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="bb-btn bb-btn-primary" onclick="buildbotSync()" id="bb-sync-btn">
+        <button class="bb-btn bb-btn-primary" onclick="buildvoltSync()" id="bb-sync-btn">
           🔄 Sync All Products Now
         </button>
-        <button class="bb-btn bb-btn-danger" onclick="buildbotDisconnect()">
+        <button class="bb-btn bb-btn-danger" onclick="buildvoltDisconnect()">
           Disconnect
         </button>
       </div>
@@ -769,7 +769,7 @@ function buildbot_admin_page() {
         <label style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
           <input type="checkbox" id="bb-widget-toggle"
             <?php echo $widget_enabled ? 'checked' : ''; ?>
-            onchange="buildbotToggleWidget(this.checked)"
+            onchange="buildvoltToggleWidget(this.checked)"
             style="opacity:0;width:0;height:0;">
           <span id="bb-toggle-slider" style="position:absolute;cursor:pointer;inset:0;
             background:<?php echo $widget_enabled ? '#7c3aed' : '#cbd5e1'; ?>;
@@ -822,14 +822,14 @@ function buildbot_admin_page() {
         <label>Secret Key</label>
         <input type="password" id="bb-secret-key"
           value="<?php echo esc_attr($secret_key); ?>"
-          placeholder="bb_live_..."/>
+          placeholder="bv_live_..."/>
         <div class="bb-hint">
           BuildVolt Dashboard → Settings → WooCommerce section → Generate Key → Copy
         </div>
       </div>
 
       <button class="bb-btn bb-btn-primary"
-        onclick="buildbotConnect()" id="bb-connect-btn">
+        onclick="buildvoltConnect()" id="bb-connect-btn">
         🔌 Connect & Sync Products
       </button>
 
@@ -890,78 +890,78 @@ function buildbot_admin_page() {
     <?php endif; ?>
 
     <div class="bb-footer">
-      BuildVolt v<?php echo BUILDBOT_VERSION; ?> •
-      <a href="https://buildbot-nine.vercel.app" target="_blank">Dashboard</a> •
+      BuildVolt v<?php echo BUILDVOLT_VERSION; ?> •
+      <a href="https://buildvolt.online/dashboard.html" target="_blank">Dashboard</a> •
       Auto-syncs every 6 hours
     </div>
 
   </div>
 
-  <?php // JavaScript loaded via buildbot_enqueue_admin_scripts ?>
+  <?php // JavaScript loaded via buildvolt_enqueue_admin_scripts ?>
 
   <?php
 }
 
 // ─── AJAX HANDLERS ────────────────────────────────────────
-add_action('wp_ajax_buildbot_save_settings', 'buildbot_save_settings_ajax');
-function buildbot_save_settings_ajax() {
-  check_ajax_referer('buildbot_nonce', 'nonce');
+add_action('wp_ajax_buildvolt_save_settings', 'buildvolt_save_settings_ajax');
+function buildvolt_save_settings_ajax() {
+  check_ajax_referer('buildvolt_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-  update_option('buildbot_store_id',  sanitize_text_field($_POST['store_id']));
-  update_option('buildbot_secret_key', sanitize_text_field($_POST['secret_key']));
-  update_option('buildbot_connected', true);
+  update_option('buildvolt_store_id',  sanitize_text_field($_POST['store_id']));
+  update_option('buildvolt_secret_key', sanitize_text_field($_POST['secret_key']));
+  update_option('buildvolt_connected', true);
   wp_send_json_success();
 }
 
-add_action('wp_ajax_buildbot_get_products', 'buildbot_get_products_ajax');
-function buildbot_get_products_ajax() {
-  check_ajax_referer('buildbot_nonce', 'nonce');
+add_action('wp_ajax_buildvolt_get_products', 'buildvolt_get_products_ajax');
+function buildvolt_get_products_ajax() {
+  check_ajax_referer('buildvolt_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
   if (!class_exists('WooCommerce')) {
     wp_send_json_error(['error' => 'WooCommerce not active']);
     return;
   }
-  $result = buildbot_get_all_products();
+  $result = buildvolt_get_all_products();
   wp_send_json_success($result);
 }
 
-add_action('wp_ajax_buildbot_save_sync', 'buildbot_save_sync_ajax');
-function buildbot_save_sync_ajax() {
-  check_ajax_referer('buildbot_nonce', 'nonce');
+add_action('wp_ajax_buildvolt_save_sync', 'buildvolt_save_sync_ajax');
+function buildvolt_save_sync_ajax() {
+  check_ajax_referer('buildvolt_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
-  update_option('buildbot_last_sync',     current_time('mysql'));
-  update_option('buildbot_product_count', intval($_POST['product_count']));
-  update_option('buildbot_woo_url',       esc_url_raw($_POST['woo_url']));
+  update_option('buildvolt_last_sync',     current_time('mysql'));
+  update_option('buildvolt_product_count', intval($_POST['product_count']));
+  update_option('buildvolt_woo_url',       esc_url_raw($_POST['woo_url']));
   wp_send_json_success();
 }
 
-add_action('wp_ajax_buildbot_disconnect', 'buildbot_disconnect_ajax');
-function buildbot_disconnect_ajax() {
-  check_ajax_referer('buildbot_nonce', 'nonce');
+add_action('wp_ajax_buildvolt_disconnect', 'buildvolt_disconnect_ajax');
+function buildvolt_disconnect_ajax() {
+  check_ajax_referer('buildvolt_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
 
-  $store_id = get_option('buildbot_store_id', '');
-  $secret   = get_option('buildbot_secret_key', '');
+  $store_id = get_option('buildvolt_store_id', '');
+  $secret   = get_option('buildvolt_secret_key', '');
   if ($store_id && $secret) {
-    wp_remote_post(BUILDBOT_API . '/plugin/remote-disconnect', [
+    wp_remote_post(BUILDVOLT_API . '/plugin/remote-disconnect', [
       'headers' => [
         'Content-Type'          => 'application/json',
-        'X-BuildBot-Store-ID'   => $store_id,
-        'X-BuildBot-Secret'     => $secret,
+        'X-BuildVolt-Store-ID'   => $store_id,
+        'X-BuildVolt-Secret'     => $secret,
       ],
       'timeout' => 15,
     ]);
   }
 
-  update_option('buildbot_connected', false);
-  update_option('buildbot_last_sync', '');
-  update_option('buildbot_product_count', 0);
-  update_option('buildbot_woo_url', '');
-  update_option('buildbot_is_pc_store', true);
-  update_option('buildbot_category_stats', []);
-  update_option('buildbot_unmapped_count', 0);
+  update_option('buildvolt_connected', false);
+  update_option('buildvolt_last_sync', '');
+  update_option('buildvolt_product_count', 0);
+  update_option('buildvolt_woo_url', '');
+  update_option('buildvolt_is_pc_store', true);
+  update_option('buildvolt_category_stats', []);
+  update_option('buildvolt_unmapped_count', 0);
   // keep store_id and secret_key so reconnect is quick, but stop all features
-  update_option('buildbot_widget_enabled', true);
+  update_option('buildvolt_widget_enabled', true);
   wp_send_json_success(['disconnected' => true]);
 }
 
@@ -969,12 +969,12 @@ function buildbot_disconnect_ajax() {
 // Note: nonce is now defined inline in the admin page script
 
 // ─── REAL-TIME HOOKS ──────────────────────────────────────
-add_action('woocommerce_update_product', 'buildbot_hook_product_update');
-add_action('woocommerce_new_product',    'buildbot_hook_product_update');
-function buildbot_hook_product_update($product_id) {
-  if (!get_option('buildbot_connected')) return;
-  $store_id = get_option('buildbot_store_id');
-  $secret   = get_option('buildbot_secret_key');
+add_action('woocommerce_update_product', 'buildvolt_hook_product_update');
+add_action('woocommerce_new_product',    'buildvolt_hook_product_update');
+function buildvolt_hook_product_update($product_id) {
+  if (!get_option('buildvolt_connected')) return;
+  $store_id = get_option('buildvolt_store_id');
+  $secret   = get_option('buildvolt_secret_key');
   if (!$store_id || !$secret) return;
 
   $product = wc_get_product($product_id);
@@ -991,8 +991,8 @@ function buildbot_hook_product_update($product_id) {
 
   $description = strip_tags($product->get_short_description() ?: wp_trim_words($product->get_description(), 25, ''));
 
-  wp_remote_post(BUILDBOT_API . '/plugin/product/update', [
-    'headers' => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
+  wp_remote_post(BUILDVOLT_API . '/plugin/product/update', [
+    'headers' => ['Content-Type' => 'application/json', 'X-BuildVolt-Store-ID' => $store_id, 'X-BuildVolt-Secret' => $secret],
     'body'    => json_encode(['product' => [
       'id'                => $product->get_id(),
       'name'              => $product->get_name(),
@@ -1008,19 +1008,19 @@ function buildbot_hook_product_update($product_id) {
   ]);
 }
 
-add_action('wp_trash_post', 'buildbot_hook_product_delete');
-function buildbot_hook_product_delete($post_id) {
+add_action('wp_trash_post', 'buildvolt_hook_product_delete');
+function buildvolt_hook_product_delete($post_id) {
   if (get_post_type($post_id) !== 'product') return;
-  if (!get_option('buildbot_connected')) return;
-  $store_id = get_option('buildbot_store_id');
-  $secret   = get_option('buildbot_secret_key');
+  if (!get_option('buildvolt_connected')) return;
+  $store_id = get_option('buildvolt_store_id');
+  $secret   = get_option('buildvolt_secret_key');
   if (!$store_id || !$secret) return;
   // wc_get_product() can be null here depending on trash timing; fall back to post title.
   $product = wc_get_product($post_id);
   $product_name = $product ? $product->get_name() : get_the_title($post_id);
   if (!$product_name) $product_name = 'Deleted product';
-  wp_remote_post(BUILDBOT_API . '/plugin/product/delete', [
-    'headers'  => ['Content-Type' => 'application/json', 'X-BuildBot-Store-ID' => $store_id, 'X-BuildBot-Secret' => $secret],
+  wp_remote_post(BUILDVOLT_API . '/plugin/product/delete', [
+    'headers'  => ['Content-Type' => 'application/json', 'X-BuildVolt-Store-ID' => $store_id, 'X-BuildVolt-Secret' => $secret],
     'body'     => json_encode(['productName' => $product_name, 'wooId' => $post_id]),
     'timeout'  => 10,
     'blocking' => false
@@ -1028,7 +1028,7 @@ function buildbot_hook_product_delete($post_id) {
 }
 
 // ─── TIME AGO HELPER ──────────────────────────────────────
-function buildbot_time_ago($datetime) {
+function buildvolt_time_ago($datetime) {
   $diff = time() - strtotime($datetime);
   if ($diff < 60)    return $diff . 's ago';
   if ($diff < 3600)  return floor($diff/60) . 'm ago';
@@ -1037,24 +1037,24 @@ function buildbot_time_ago($datetime) {
 }
 
 // ─── WIDGET ENABLE/DISABLE TOGGLE ────────────────────────
-add_action('wp_ajax_buildbot_toggle_widget', 'buildbot_toggle_widget_ajax');
-function buildbot_toggle_widget_ajax() {
-  check_ajax_referer('buildbot_nonce', 'nonce');
+add_action('wp_ajax_buildvolt_toggle_widget', 'buildvolt_toggle_widget_ajax');
+function buildvolt_toggle_widget_ajax() {
+  check_ajax_referer('buildvolt_nonce', 'nonce');
   if (!current_user_can('manage_options')) wp_die('Unauthorized');
 
   $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
-  update_option('buildbot_widget_enabled', $enabled);
+  update_option('buildvolt_widget_enabled', $enabled);
 
   // Also notify BuildVolt server
-  $store_id = get_option('buildbot_store_id');
-  $secret   = get_option('buildbot_secret_key');
+  $store_id = get_option('buildvolt_store_id');
+  $secret   = get_option('buildvolt_secret_key');
 
   if ($store_id && $secret) {
-    wp_remote_post(BUILDBOT_API . '/plugin/widget-toggle', [
+    wp_remote_post(BUILDVOLT_API . '/plugin/widget-toggle', [
       'headers' => [
         'Content-Type'        => 'application/json',
-        'X-BuildBot-Store-ID' => $store_id,
-        'X-BuildBot-Secret'   => $secret
+        'X-BuildVolt-Store-ID' => $store_id,
+        'X-BuildVolt-Secret'   => $secret
       ],
       'body'    => json_encode(['enabled' => $enabled]),
       'timeout' => 10
@@ -1072,9 +1072,9 @@ function buildbot_toggle_widget_ajax() {
 // "qty":1}, ...] JSON, matched by the WooCommerce product ID BuildVolt
 // stored when this product was synced. Runs on template_redirect so
 // WooCommerce's cart/session is guaranteed to be initialized.
-add_action('template_redirect', 'buildbot_handle_add_to_cart');
-function buildbot_handle_add_to_cart() {
-  if (empty($_GET['buildbot_add_to_cart']) || empty($_GET['items'])) return;
+add_action('template_redirect', 'buildvolt_handle_add_to_cart');
+function buildvolt_handle_add_to_cart() {
+  if (empty($_GET['buildvolt_add_to_cart']) || empty($_GET['items'])) return;
   if (!class_exists('WooCommerce') || !function_exists('WC') || !WC()->cart) return;
 
   $items = json_decode(stripslashes($_GET['items']), true);
@@ -1104,13 +1104,13 @@ function buildbot_handle_add_to_cart() {
 }
 
 // ─── AUTO INJECT WIDGET SCRIPT ────────────────────────────
-add_action('wp_footer', 'buildbot_inject_widget');
-function buildbot_inject_widget() {
+add_action('wp_footer', 'buildvolt_inject_widget');
+function buildvolt_inject_widget() {
   // Only inject if connected AND widget is enabled
-  if (!get_option('buildbot_connected'))     return;
-  if (!get_option('buildbot_widget_enabled', true)) return;
+  if (!get_option('buildvolt_connected'))     return;
+  if (!get_option('buildvolt_widget_enabled', true)) return;
 
-  $store_id = get_option('buildbot_store_id');
+  $store_id = get_option('buildvolt_store_id');
   if (!$store_id) return;
 
   // Never inject in admin

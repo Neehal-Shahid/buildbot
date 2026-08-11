@@ -17,8 +17,8 @@ const pluginLimiter = rateLimit({
 
 // ─── AUTHENTICATE PLUGIN REQUEST ──────────────────────────
 async function authenticatePlugin(req, res) {
-  const storeId = req.headers["x-buildbot-store-id"];
-  const secret = req.headers["x-buildbot-secret"];
+  const storeId = req.headers["x-buildvolt-store-id"];
+  const secret = req.headers["x-buildvolt-secret"];
 
   if (!storeId || !secret) {
     res
@@ -118,7 +118,7 @@ router.post("/plugin/generate-key", async (req, res) => {
       });
     }
 
-    const secret = "bb_live_" + crypto.randomBytes(16).toString("hex");
+    const secret = "bv_live_" + crypto.randomBytes(16).toString("hex");
     await storeDB.updatePluginKey(decoded.storeId, secret);
     res.json({ success: true, secret });
   } catch (err) {
@@ -411,7 +411,7 @@ router.post("/plugin/ping", async (req, res) => {
     const store = await authenticatePlugin(req, res);
     if (!store) return;
 
-    const storeUrl = req.body?.storeUrl || req.headers["x-buildbot-woo-url"] || "";
+    const storeUrl = req.body?.storeUrl || req.headers["x-buildvolt-woo-url"] || "";
     if (storeUrl && !(await validateWooSiteBinding(store, storeUrl, res))) return;
 
     res.json({

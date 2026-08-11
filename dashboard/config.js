@@ -6,12 +6,12 @@ const useLocalApi =
   (new URLSearchParams(window.location.search).get('localApi') === '1' ||
     localStorage.getItem('bb_use_local_api') === '1');
 
-const BUILDBOT_API = useLocalApi
+const BUILDVOLT_API = useLocalApi
   ? 'http://localhost:3001/api'
   : 'https://buildbot-production-3f70.up.railway.app/api';
 
-window.BB_API = BUILDBOT_API;
-window.BB_ORIGIN = BUILDBOT_API.replace(/\/api\/?$/, '');
+window.BB_API = BUILDVOLT_API;
+window.BB_ORIGIN = BUILDVOLT_API.replace(/\/api\/?$/, '');
 window.BB_SUPPORT_EMAIL = 'workwithneehal@gmail.com';
 
 // Session TTL — must match server JWT expiry (7 days)
@@ -40,7 +40,7 @@ window.BB_clearSession = function () {
 };
 
 window.BB_getWidgetScriptUrl = function (storeId) {
-  const origin = window.BB_ORIGIN || BUILDBOT_API.replace(/\/api\/?$/, '');
+  const origin = window.BB_ORIGIN || BUILDVOLT_API.replace(/\/api\/?$/, '');
   return `<script src="${origin}/widget.js" data-store-id="${storeId}"><\/script>`;
 };
 

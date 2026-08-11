@@ -269,7 +269,7 @@
       </div>
 
       <div class="bb-powered">
-        Powered by <a href="https://buildbot-nine.vercel.app" target="_blank">BuildVolt</a>
+        Powered by <a href="https://buildvolt.online" target="_blank">BuildVolt</a>
       </div>
     `;
 
@@ -800,7 +800,7 @@
         .filter((p) => p.wooId)
         .map((p) => ({ id: p.wooId, qty: p.quantity || 1 }));
       if (!items.length) return;
-      const url = `${WOO_URL}/?buildbot_add_to_cart=1&items=${encodeURIComponent(JSON.stringify(items))}`;
+      const url = `${WOO_URL}/?buildvolt_add_to_cart=1&items=${encodeURIComponent(JSON.stringify(items))}`;
       window.location.href = url;
       return;
     }

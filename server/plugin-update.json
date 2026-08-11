@@ -1,6 +1,6 @@
 {
   "version": "1.9.0",
-  "download_url": "https://buildbot-production-3f70.up.railway.app/buildbot-woocommerce.zip",
+  "download_url": "https://buildbot-production-3f70.up.railway.app/buildvolt-woocommerce.zip",
   "tested": "6.5",
   "requires": "5.0",
   "requires_php": "7.4"

@@ -825,7 +825,7 @@ router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
   }
 });
 
-// No paid WhatsApp Business API is wired up, so verification is a free
+// No paid WhatsApp Business API is wired up yet, so verification is a free
 // click-to-confirm flow instead of a real delivered OTP: the dashboard
 // sends the store owner straight into a WhatsApp Web chat with this code
 // pre-filled, they send it from their own WhatsApp, then type the code
@@ -847,6 +847,14 @@ router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
 // ever letting the chat load), but it does mean an honest store owner
 // typing in a typo'd or fake number will see WhatsApp itself reject it
 // instead of getting a free pass.
+//
+// TODO: swap this for the real Meta WhatsApp Cloud API once a dedicated
+// (never-used-on-WhatsApp) number is registered and business verification
+// is done — a working Cloud API integration (server-side send, approved
+// AUTHENTICATION template with a required OTP button) was already built
+// and connectivity-tested against the sandbox; it's just parked until
+// then since the sandbox's 5-recipient cap and lack of template-creation
+// permission make it a dead end for real users in the meantime.
 router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
   if (!store) return res.status(404).json({ error: "Store not found" });

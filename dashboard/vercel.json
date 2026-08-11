@@ -1,31 +1,5 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "*.html",
-        "use": "@vercel/static"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/admin",
-        "dest": "/admin.html"
-      },
-      {
-        "src": "/dashboard",
-        "dest": "/dashboard.html"
-      },
-      {
-        "src": "/dashboard.html",
-        "dest": "/dashboard.html"
-      },
-      {
-        "src": "/admin.html",
-        "dest": "/admin.html"
-      },
-      {
-        "src": "/(.*)",
-        "dest": "/$1"
-      }
-    ]
-  }
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

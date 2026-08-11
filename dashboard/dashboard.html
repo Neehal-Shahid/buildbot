@@ -5682,6 +5682,43 @@
         }
       }
 
+      // Tries the WhatsApp Desktop app first (whatsapp:// deep link), and
+      // falls back to opening web.whatsapp.com in a new tab if nothing
+      // seems to have happened after a beat. Detecting whether the desktop
+      // app actually opened isn't reliable across all browsers/OSes (this
+      // is a well-known limitation of custom-protocol links) — worst case
+      // if detection guesses wrong, both the desktop app and a redundant
+      // web tab end up open, which is harmless, just slightly untidy.
+      function openWhatsAppSmart(waLink) {
+        let desktopLink = null;
+        try {
+          const url = new URL(waLink);
+          const phone = url.searchParams.get("phone");
+          const text = url.searchParams.get("text") || "";
+          if (phone) desktopLink = `whatsapp://send?phone=${phone}&text=${text}`;
+        } catch (e) {}
+
+        if (!desktopLink) {
+          window.open(waLink, "_blank", "noopener");
+          return;
+        }
+
+        let sawHide = false;
+        const onHide = () => {
+          if (document.hidden) sawHide = true;
+        };
+        document.addEventListener("visibilitychange", onHide);
+
+        window.location.href = desktopLink;
+
+        setTimeout(() => {
+          document.removeEventListener("visibilitychange", onHide);
+          if (!sawHide) {
+            window.open(waLink, "_blank", "noopener");
+          }
+        }, 900);
+      }
+
       async function setupSendWhatsappCode(btn) {
         const number = document
           .getElementById("setup-whatsapp-number")
@@ -5729,7 +5766,7 @@
           btn.textContent = "Resend Code";
 
           if (codeData.success) {
-            window.open(codeData.waLink, "_blank", "noopener");
+            openWhatsAppSmart(codeData.waLink);
             document.getElementById("setup-whatsapp-code-block").style.display =
               "block";
             alertEl.textContent =
@@ -6870,7 +6907,7 @@
           setBtnLoading(btn, false);
 
           if (data.success) {
-            window.open(data.waLink, "_blank", "noopener");
+            openWhatsAppSmart(data.waLink);
             document.getElementById("whatsapp-code-entry").style.display =
               "block";
             showAlert(

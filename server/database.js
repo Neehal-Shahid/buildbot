@@ -264,13 +264,6 @@ const storeDB = {
     });
   },
 
-  setWhatsappVerifyCode: async (storeId, code) => {
-    return await client.execute({
-      sql: "UPDATE stores SET whatsapp_verify_code = ? WHERE store_id = ?",
-      args: [code, storeId],
-    });
-  },
-
   markWhatsappVerified: async (storeId) => {
     return await client.execute({
       sql: `UPDATE stores SET whatsapp_verified = 1, whatsapp_verify_code = ''

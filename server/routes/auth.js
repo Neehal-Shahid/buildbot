@@ -825,76 +825,47 @@ router.put("/settings/whatsapp", authMiddleware, async (req, res) => {
   }
 });
 
-// No paid WhatsApp Business API is wired up yet, so verification is a free
-// click-to-confirm flow instead of a real delivered OTP: the dashboard
-// sends the store owner straight into a WhatsApp Web chat with this code
-// pre-filled, they send it from their own WhatsApp, then type the code
-// back in.
-//
-// Deliberately using web.whatsapp.com/send here instead of wa.me: wa.me
-// shows its own branded "Open app / Continue to WhatsApp Web" landing
-// page first, with the pre-filled message already visible in a preview
-// box on that page — before WhatsApp has even checked whether the number
-// is real. That means the code is readable the instant the link opens,
-// pass or fail, which defeats the point. Going straight to
-// web.whatsapp.com/send skips that landing page: an invalid/unregistered
-// number now surfaces WhatsApp's own "not on WhatsApp" error dialog with
-// the code never shown anywhere, and a valid number opens straight into
-// the real chat with the code visible only inside the compose box there.
-// This can't prove the code was actually delivered (no server-side
-// confirmation channel exists without a paid API — and a determined user
-// could still read the code out of the new tab's address bar without
-// ever letting the chat load), but it does mean an honest store owner
-// typing in a typo'd or fake number will see WhatsApp itself reject it
-// instead of getting a free pass.
-//
-// TODO: swap this for the real Meta WhatsApp Cloud API once a dedicated
-// (never-used-on-WhatsApp) number is registered and business verification
-// is done — a working Cloud API integration (server-side send, approved
-// AUTHENTICATION template with a required OTP button) was already built
-// and connectivity-tested against the sandbox; it's just parked until
-// then since the sandbox's 5-recipient cap and lack of template-creation
-// permission make it a dead end for real users in the meantime.
-router.post("/settings/whatsapp/send-code", authMiddleware, async (req, res) => {
-  const store = await storeDB.findById(req.store.storeId);
-  if (!store) return res.status(404).json({ error: "Store not found" });
-  if (!store.whatsapp_number)
-    return res.status(400).json({ error: "Save a WhatsApp number first" });
+// Verification is done via Firebase Phone Auth: the dashboard sends the
+// SMS OTP directly from the client using Firebase's own infrastructure
+// (free up to 10k verifications/month), then hands us the resulting
+// Firebase ID token. We verify that token server-side and only mark the
+// number verified if the phone number Firebase actually confirmed matches
+// the number saved on the store — this is real proof of delivery/ownership
+// (unlike the earlier free click-to-confirm flow), it just proves phone
+// ownership rather than WhatsApp-specifically, since Firebase verifies via
+// SMS, not WhatsApp. In practice a number that can receive SMS is almost
+// always usable on WhatsApp too (WhatsApp itself verifies numbers by SMS).
+router.post(
+  "/settings/whatsapp/verify-firebase",
+  authMiddleware,
+  async (req, res) => {
+    const { idToken } = req.body;
+    if (!idToken) return res.status(400).json({ error: "idToken is required" });
 
-  const code = String(crypto.randomInt(100000, 999999));
-  try {
-    await storeDB.setWhatsappVerifyCode(req.store.storeId, code);
-    const waNumber = store.whatsapp_number.replace(/[^\d]/g, "");
-    const text = encodeURIComponent(
-      `My BuildVolt verification code is: ${code}`,
-    );
-    res.json({
-      success: true,
-      waLink: `https://web.whatsapp.com/send?phone=${waNumber}&text=${text}`,
-      whatsappNumber: store.whatsapp_number,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const store = await storeDB.findById(req.store.storeId);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+    if (!store.whatsapp_number)
+      return res.status(400).json({ error: "Save a WhatsApp number first" });
 
-router.post("/settings/whatsapp/verify", authMiddleware, async (req, res) => {
-  const code = String(req.body.code || "").trim();
-  if (!code) return res.status(400).json({ error: "Code is required" });
+    try {
+      const admin = require("../firebaseAdmin");
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      const verifiedNumber = decoded.phone_number;
 
-  const store = await storeDB.findById(req.store.storeId);
-  if (!store) return res.status(404).json({ error: "Store not found" });
+      if (!verifiedNumber || verifiedNumber !== store.whatsapp_number) {
+        return res.status(400).json({
+          error:
+            "The verified number doesn't match the number saved on your account — verify the same number you entered above.",
+        });
+      }
 
-  if (!store.whatsapp_verify_code || store.whatsapp_verify_code !== code)
-    return res.status(400).json({ error: "Incorrect code. Please try again." });
-
-  try {
-    await storeDB.markWhatsappVerified(req.store.storeId);
-    res.json({ success: true, message: "WhatsApp number verified!" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+      await storeDB.markWhatsappVerified(req.store.storeId);
+      res.json({ success: true, message: "Number verified!" });
+    } catch (err) {
+      res.status(400).json({ error: "Could not verify code: " + err.message });
+    }
+  },
+);
 
 // ─── STORE CONFIG (public, for widget) ───────────────────
 router.get("/store-config/:storeId", async (req, res) => {

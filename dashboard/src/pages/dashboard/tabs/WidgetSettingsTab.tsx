@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import type { ConfirmationResult } from "firebase/auth";
 import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { openWhatsAppSmart } from "../../../lib/whatsapp";
+import { sendPhoneVerificationCode } from "../../../lib/firebasePhoneVerify";
+
+const RECAPTCHA_CONTAINER_ID = "recaptcha-container-settings";
 
 function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
   if (!msg) return <div className="alert" />;
@@ -81,7 +84,7 @@ function WhatsappCard() {
   const { token, store, refresh } = useStoreAuth();
   const [number, setNumber] = useState(store?.whatsappNumber || "");
   const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [savingNumber, setSavingNumber] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -102,29 +105,26 @@ function WhatsappCard() {
   }
 
   async function sendCode() {
-    if (!token) return;
+    if (!token || !number.trim()) return;
     setSendingCode(true);
     try {
-      const data = await dashboardApi.whatsapp.sendCode(token);
-      if (data.success) {
-        openWhatsAppSmart(data.waLink);
-        setCodeSent(true);
-        setAlert({ msg: "We opened WhatsApp with a code pre-filled — send that message, then type the code below.", type: "success" });
-      } else {
-        setAlert({ msg: data.error || "Could not send code.", type: "error" });
-      }
+      const conf = await sendPhoneVerificationCode(number.trim(), RECAPTCHA_CONTAINER_ID);
+      setConfirmation(conf);
+      setAlert({ msg: "We sent a code by SMS to that number — type it below.", type: "success" });
     } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+      setAlert({ msg: "Could not send code. Check the number and try again.", type: "error" });
     } finally {
       setSendingCode(false);
     }
   }
 
   async function verify() {
-    if (!token || !code.trim()) return;
+    if (!token || !code.trim() || !confirmation) return;
     setVerifying(true);
     try {
-      const data = await dashboardApi.whatsapp.verify(token, code.trim());
+      const result = await confirmation.confirm(code.trim());
+      const idToken = await result.user.getIdToken();
+      const data = await dashboardApi.whatsapp.verifyFirebase(token, idToken);
       if (data.success) {
         setAlert({ msg: "WhatsApp number verified!", type: "success" });
         refresh();
@@ -132,7 +132,7 @@ function WhatsappCard() {
         setAlert({ msg: data.error || "Incorrect code.", type: "error" });
       }
     } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+      setAlert({ msg: "Incorrect or expired code. Please try again.", type: "error" });
     } finally {
       setVerifying(false);
     }
@@ -156,14 +156,12 @@ function WhatsappCard() {
       {!store?.whatsappVerified && number && (
         <div style={{ marginTop: 16 }}>
           <button className="btn btn-outline" onClick={sendCode} disabled={sendingCode}>
-            {codeSent ? "Resend code" : "Send Test Message to Verify"}
+            {confirmation ? "Resend code" : "Send Code to Verify"}
           </button>
-          {codeSent && (
+          {confirmation && (
             <div style={{ marginTop: 14 }}>
               <div className="form-group">
-                <label className="form-label">
-                  We opened WhatsApp with a code pre-filled — send that message, then type the code here
-                </label>
+                <label className="form-label">Enter the code we texted you</label>
                 <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} />
               </div>
               <button className="btn btn-primary" onClick={verify} disabled={verifying}>
@@ -175,6 +173,7 @@ function WhatsappCard() {
       )}
       {store?.whatsappVerified && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Verified</div>}
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+      <div id={RECAPTCHA_CONTAINER_ID} />
     </div>
   );
 }

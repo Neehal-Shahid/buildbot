@@ -1,7 +1,8 @@
 import { useState } from "react";
+import type { ConfirmationResult } from "firebase/auth";
 import { dashboardApi } from "../../lib/dashboardApi";
 import { useStoreAuth } from "../../context/StoreAuthContext";
-import { openWhatsAppSmart } from "../../lib/whatsapp";
+import { sendPhoneVerificationCode } from "../../lib/firebasePhoneVerify";
 import { ApiError } from "../../lib/api";
 
 const inputStyle = {
@@ -15,11 +16,13 @@ const inputStyle = {
   outline: "none",
 } as const;
 
+const RECAPTCHA_CONTAINER_ID = "recaptcha-container-onboarding";
+
 export default function OnboardingStep2() {
   const { token, store, refresh } = useStoreAuth();
   const [number, setNumber] = useState(store?.whatsappNumber || "");
   const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; color: string } | null>(null);
@@ -35,16 +38,14 @@ export default function OnboardingStep2() {
         setAlert({ msg: saveData.error || "Could not save number.", color: "#ef4444" });
         return;
       }
-      const codeData = await dashboardApi.whatsapp.sendCode(token);
-      if (codeData.success) {
-        openWhatsAppSmart(codeData.waLink);
-        setCodeSent(true);
-        setAlert({ msg: "We opened WhatsApp with the code — send it, then type the code below.", color: "#16a34a" });
-      } else {
-        setAlert({ msg: codeData.error || "Could not send code.", color: "#ef4444" });
-      }
+      const conf = await sendPhoneVerificationCode(number.trim(), RECAPTCHA_CONTAINER_ID);
+      setConfirmation(conf);
+      setAlert({ msg: "We sent a code by SMS to that number — type it below.", color: "#16a34a" });
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", color: "#ef4444" });
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not send code. Check the number and try again.",
+        color: "#ef4444",
+      });
     } finally {
       setSending(false);
     }
@@ -52,11 +53,13 @@ export default function OnboardingStep2() {
 
   async function verify() {
     if (!code.trim()) return setAlert({ msg: "Enter the code.", color: "#ef4444" });
-    if (!token) return;
+    if (!token || !confirmation) return;
     setVerifying(true);
     setAlert(null);
     try {
-      const data = await dashboardApi.whatsapp.verify(token, code.trim());
+      const result = await confirmation.confirm(code.trim());
+      const idToken = await result.user.getIdToken();
+      const data = await dashboardApi.whatsapp.verifyFirebase(token, idToken);
       if (data.success) {
         setAlert({ msg: "Verified! Taking you to your dashboard…", color: "#16a34a" });
         setTimeout(refresh, 800);
@@ -64,7 +67,7 @@ export default function OnboardingStep2() {
         setAlert({ msg: data.error || "Incorrect code.", color: "#ef4444" });
       }
     } catch {
-      setAlert({ msg: "Connection error.", color: "#ef4444" });
+      setAlert({ msg: "Incorrect or expired code. Please try again.", color: "#ef4444" });
     } finally {
       setVerifying(false);
     }
@@ -96,14 +99,14 @@ export default function OnboardingStep2() {
           disabled={sending}
           style={{ width: "100%", padding: 12, background: "#fff", color: "#4f46e5", border: "1.5px solid #4f46e5", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 8 }}
         >
-          {codeSent ? "Resend Code" : "Send Verification Code"}
+          {confirmation ? "Resend Code" : "Send Verification Code"}
         </button>
 
-        {codeSent && (
+        {confirmation && (
           <div style={{ marginTop: 16 }}>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
-                We opened WhatsApp with a code pre-filled — send that message, then type the code here
+                Enter the code we texted you
               </label>
               <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} style={inputStyle} />
             </div>
@@ -121,6 +124,7 @@ export default function OnboardingStep2() {
           <div style={{ marginTop: 16, fontSize: 13, textAlign: "center", color: alert.color }}>{alert.msg}</div>
         )}
       </div>
+      <div id={RECAPTCHA_CONTAINER_ID} />
     </div>
   );
 }

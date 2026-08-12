@@ -17,6 +17,15 @@ interface RequestOptions {
   formData?: FormData;
 }
 
+// Fired when an *authenticated* request (one that sent a bearer token) gets
+// a 401 back — i.e. the session itself is dead (expired/revoked token), not
+// a login-form rejecting bad credentials (those calls never pass `token`).
+// StoreAuthContext/AdminAuthContext each listen for this and compare
+// event.detail.token against their own current token before clearing their
+// own session — a store session 401ing must not touch an unrelated admin
+// session that happens to be active in the same browser, and vice versa.
+export const AUTH_EXPIRED_EVENT = "bb:auth-expired";
+
 // Central fetch wrapper for every /api call in the app. Replaces the
 // original vanilla code's per-call-site `fetch` + manual `Authorization`
 // header + ad-hoc error handling with one place that (a) always sends the
@@ -58,6 +67,11 @@ export async function apiFetch<T = unknown>(
         (data as { error?: string })?.error ||
         res.statusText ||
         "Request failed";
+      if (res.status === 401 && opts.token) {
+        window.dispatchEvent(
+          new CustomEvent(AUTH_EXPIRED_EVENT, { detail: { token: opts.token } }),
+        );
+      }
       throw new ApiError(message, res.status);
     }
 

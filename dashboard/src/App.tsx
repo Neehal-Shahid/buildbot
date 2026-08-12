@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastProvider } from "./components/ui/ToastProvider";
-import { ConfirmProvider } from "./components/ui/ConfirmDialog";
 import { GlobalLoader } from "./components/ui/GlobalLoader";
 import VerifyPage from "./pages/VerifyPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -17,23 +16,21 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        <ConfirmProvider>
-          <GlobalLoader />
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/index.html" element={<LandingPage />} />
-            <Route path="/login" element={<LandingPage />} />
-            <Route path="/signup" element={<LandingPage />} />
-            <Route path="/forgot-password" element={<LandingPage />} />
-            <Route path="/verify-email" element={<LandingPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/dashboard.html" element={<DashboardPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/admin.html" element={<AdminPage />} />
-            <Route path="/verify.html" element={<VerifyPage />} />
-            <Route path="/reset-password.html" element={<ResetPasswordPage />} />
-          </Routes>
-        </ConfirmProvider>
+        <GlobalLoader />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/index.html" element={<LandingPage />} />
+          <Route path="/login" element={<LandingPage />} />
+          <Route path="/signup" element={<LandingPage />} />
+          <Route path="/forgot-password" element={<LandingPage />} />
+          <Route path="/verify-email" element={<LandingPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard.html" element={<DashboardPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin.html" element={<AdminPage />} />
+          <Route path="/verify.html" element={<VerifyPage />} />
+          <Route path="/reset-password.html" element={<ResetPasswordPage />} />
+        </Routes>
       </ToastProvider>
     </BrowserRouter>
   );

@@ -46,10 +46,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     info: (title, message) => push("info", title, message),
   };
 
+  // Fixed, explicit colors rather than the design-token classes
+  // (bg-surface/text-success/etc.) — this provider is mounted once at the
+  // app root and toasts can fire from any page, but --surface/--success/
+  // --danger are redeclared with different (dark-theme) values by
+  // landing.css's :root block. A component with no single page context
+  // needs colors that are correct everywhere, not colors that happen to
+  // match whichever page's stylesheet is currently injected.
   const typeClass: Record<ToastType, string> = {
-    success: "border-success bg-success-bg text-success",
-    error: "border-danger bg-danger-bg text-danger",
-    info: "border-info bg-info-bg text-info",
+    success: "border-emerald-600 text-emerald-700",
+    error: "border-red-600 text-red-700",
+    info: "border-sky-600 text-sky-700",
   };
 
   return (
@@ -59,10 +66,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`rounded-lg border px-4 py-3 shadow-md bg-surface flex items-start justify-between gap-2 ${typeClass[t.type]}`}
+            className={`rounded-lg border bg-white px-4 py-3 shadow-md flex items-start justify-between gap-2 ${typeClass[t.type]}`}
           >
             <div>
-              <div className="text-sm font-semibold">{t.title}</div>
+              <div className="text-sm font-semibold text-neutral-900">{t.title}</div>
               {t.message && <div className="text-xs mt-0.5">{t.message}</div>}
             </div>
             <button

@@ -11,6 +11,7 @@ const { router: authRoute } = require("./routes/auth");
 const analyticsRoute = require("./routes/analytics");
 const adminRoute = require("./routes/admin");
 const pluginRoute = require("./routes/plugin");
+const osposRoute = require("./routes/ospos");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ app.use("/api", recommendRoute);
 app.use("/api", analyticsRoute);
 app.use("/api", adminRoute);
 app.use("/api", pluginRoute);
+app.use("/api", osposRoute);
 
 // Serve widget script
 app.get("/widget.js", (req, res) => {
@@ -61,6 +63,20 @@ app.get("/buildvolt-woocommerce.zip", (req, res) => {
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Cache-Control", "public, max-age=300");
   res.download(zipPath, "buildvolt-woocommerce.zip");
+});
+
+// Serve the OSPOS export-endpoint template a store owner downloads and
+// uploads to their own OSPOS server — see ospos-connector/README.md.
+// Lives at the repo root (sibling to server/), same as the plugin/ folder
+// the WooCommerce zip above is built from.
+app.get("/buildvolt-export.php", (req, res) => {
+  const filePath = path.join(__dirname, "..", "ospos-connector", "buildvolt-export.php");
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "Export file not found" });
+  }
+  res.setHeader("Content-Type", "application/x-httpd-php");
+  res.setHeader("Cache-Control", "public, max-age=300");
+  res.download(filePath, "buildvolt-export.php");
 });
 
 // Plugin update manifest (WordPress checks this for new versions)
@@ -142,7 +158,36 @@ initDB().then(async () => {
       },
       60 * 60 * 1000,
     );
+
+    // ─── SCHEDULED OSPOS PULL JOB ─────────────────────────────
+    // For every store that has pasted an OSPOS export URL into the
+    // dashboard (Store & Sync), pull its catalog on the same six-hour
+    // cadence the WooCommerce plugin uses. No script or cron needs to run
+    // on the store's own server — see server/routes/ospos.js and
+    // ospos-connector/README.md.
+    const { pullAllStores } = require("./routes/ospos");
+
+    setTimeout(async () => {
+      try {
+        const results = await pullAllStores();
+        if (results.length > 0) console.log("OSPOS pull (startup):", results);
+      } catch (e) {
+        console.error("Startup OSPOS pull error:", e.message);
+      }
+    }, 45 * 1000);
+
+    setInterval(
+      async () => {
+        try {
+          const results = await pullAllStores();
+          if (results.length > 0) console.log("OSPOS pull (scheduled):", results);
+        } catch (e) {
+          console.error("Scheduled OSPOS pull error:", e.message);
+        }
+      },
+      6 * 60 * 60 * 1000,
+    );
   } else {
-    console.log("Email cron disabled (CRON_ENABLED=false)");
+    console.log("Email + OSPOS pull cron disabled (CRON_ENABLED=false)");
   }
 });

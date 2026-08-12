@@ -202,9 +202,15 @@ export const dashboardApi = {
         method: "DELETE",
         ...auth(token),
       }),
-    upload: (token: string, file: File) => {
+    // mode: "replace" (default) wipes the entire catalog first, no matter
+    // which method(s) put products there before — "append" adds on top of
+    // whatever already exists. ProductsTab asks the store owner which one
+    // they want whenever a second method is used after the first already
+    // has data (see the confirm dialog in ProductsTab.tsx).
+    upload: (token: string, file: File, mode: "replace" | "append" = "replace") => {
       const formData = new FormData();
       formData.append("catalog", file);
+      formData.append("mode", mode);
       return apiFetch<{
         success: boolean;
         message: string;
@@ -219,9 +225,12 @@ export const dashboardApi = {
     // imports, and disconnects, all in this one request. On success the
     // (encrypted) credentials are saved server-side so BuildVolt can keep
     // pulling automatically afterwards — see osposAutoSyncStatus below.
+    // Later automatic pulls only ever refresh OSPOS's own rows regardless
+    // of the mode used here (see server/routes/ospos.js "auto" mode).
     importFromOspos: (
       token: string,
       creds: { host: string; port?: string; database: string; username: string; password?: string },
+      mode: "replace" | "append" = "replace",
     ) =>
       apiFetch<{
         success: boolean;
@@ -231,7 +240,7 @@ export const dashboardApi = {
         synced?: number;
         skipped?: number;
         skippedCategory?: number;
-      }>("/ospos/import", { method: "POST", body: creds, ...auth(token) }),
+      }>("/ospos/import", { method: "POST", body: { ...creds, mode }, ...auth(token) }),
     osposAutoSyncStatus: (token: string) =>
       apiFetch<{
         success: boolean;

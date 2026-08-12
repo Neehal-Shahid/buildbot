@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useStoreAuth } from "../../context/StoreAuthContext";
+import { dashboardApi } from "../../lib/dashboardApi";
+import { hasChosenMode } from "../../lib/storeMode";
 import { TopNav } from "./TopNav";
 import HomeTab from "./tabs/HomeTab";
 import StoreSyncTab from "./tabs/StoreSyncTab";
@@ -12,6 +14,10 @@ import EmbedTab from "./tabs/EmbedTab";
 import AccountTab from "./tabs/AccountTab";
 import HelpTab from "./tabs/HelpTab";
 
+// Store & Sync, Products, and Install Widget are one sequence — setting up
+// a widget genuinely isn't done until all three are — so each carries a
+// `step` number the sidebar renders as a numbered badge instead of (or
+// alongside) its icon, in that order, ahead of Orders/Analytics.
 const WORKSPACE_TABS = [
   {
     id: "home",
@@ -28,6 +34,7 @@ const WORKSPACE_TABS = [
   {
     id: "store",
     label: "Store & sync",
+    step: 1,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -38,11 +45,26 @@ const WORKSPACE_TABS = [
   {
     id: "products",
     label: "Products",
+    step: 2,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
         <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
         <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    ),
+  },
+  {
+    id: "embed",
+    label: "Install Widget",
+    step: 3,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="2" />
+        <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+        <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+        <path d="M20.07 4.93a10 10 0 0 1 0 14.14" />
+        <path d="M3.93 19.07a10 10 0 0 1 0-14.14" />
       </svg>
     ),
   },
@@ -65,19 +87,6 @@ const WORKSPACE_TABS = [
         <line x1="18" y1="20" x2="18" y2="10" />
         <line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-    ),
-  },
-  {
-    id: "embed",
-    label: "Install Widget",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="2" />
-        <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
-        <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
-        <path d="M20.07 4.93a10 10 0 0 1 0 14.14" />
-        <path d="M3.93 19.07a10 10 0 0 1 0-14.14" />
       </svg>
     ),
   },
@@ -128,10 +137,17 @@ function activate(e: KeyboardEvent<HTMLDivElement>, fn: () => void) {
   }
 }
 
+function lastSeenOrderKey(storeId: string) {
+  return `bb_last_seen_order_${storeId}`;
+}
+
 export default function DashboardApp() {
-  const { store, logout } = useStoreAuth();
+  const { store, token, logout } = useStoreAuth();
   const [tab, setTab] = useState<TabId>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [unseenOrders, setUnseenOrders] = useState(0);
+  const [latestOrderId, setLatestOrderId] = useState<string | number | null>(null);
 
   const initials = ((store?.email || "").trim().charAt(0) || "U").toUpperCase();
 
@@ -152,6 +168,133 @@ export default function DashboardApp() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarOpen]);
+
+  // Powers the Step 2 (Products) completion badge — a lightweight count,
+  // not the full catalog, refreshed whenever the Products tab is left (so
+  // finishing Step 2 there updates the sidebar immediately).
+  function loadProductCount() {
+    if (!token) return;
+    dashboardApi
+      .analytics(token, 0)
+      .then((data) => setProductCount(data.productCount?.count ?? 0))
+      .catch(() => {});
+  }
+  useEffect(loadProductCount, [token]);
+
+  // New-order notification: compares the newest order's id against what
+  // was last seen (per store, in localStorage) to compute an unread count
+  // for the Orders sidebar badge. Polls every 60s so a badge can appear
+  // without needing a manual refresh; opening the Orders tab marks
+  // everything caught up.
+  function checkOrders() {
+    if (!token || !store) return;
+    dashboardApi
+      .orderRequests(token)
+      .then((data) => {
+        const orders = data.orders || [];
+        setLatestOrderId(orders[0]?.id ?? null);
+        const lastSeen = localStorage.getItem(lastSeenOrderKey(store.storeId));
+        if (!lastSeen) {
+          // First time this store has ever been viewed on this device —
+          // nothing is "new", there's just no history yet.
+          setUnseenOrders(0);
+          return;
+        }
+        const idx = orders.findIndex((o) => String(o.id) === lastSeen);
+        // Not found means the last-seen order aged out of the 100-row
+        // window — treat everything currently loaded as unseen rather
+        // than guessing.
+        setUnseenOrders(idx === -1 ? orders.length : idx);
+      })
+      .catch(() => {});
+  }
+  useEffect(() => {
+    checkOrders();
+    const interval = setInterval(checkOrders, 60 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, store?.storeId]);
+
+  function goTo(id: TabId) {
+    setTab(id);
+    setSidebarOpen(false);
+    if (id === "orders" && store && latestOrderId !== null) {
+      localStorage.setItem(lastSeenOrderKey(store.storeId), String(latestOrderId));
+      setUnseenOrders(0);
+    }
+    if (id === "products") {
+      // Coming FROM Products (Step 2) is when the count is most likely to
+      // have just changed — refresh so the sidebar badge reflects it.
+      loadProductCount();
+    }
+  }
+
+  const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
+  const stepDone: Record<number, boolean> = {
+    1: hasChosenMode(),
+    2: (productCount ?? 0) > 0,
+    3: hasOrderMethod && store?.widgetEnabled !== false,
+  };
+
+  function renderTab(t: (typeof WORKSPACE_TABS)[number] | (typeof ACCOUNT_TABS)[number]) {
+    const step = "step" in t ? t.step : undefined;
+    const done = step ? stepDone[step] : undefined;
+    const go = () => goTo(t.id);
+    return (
+      <div
+        key={t.id}
+        role="button"
+        tabIndex={0}
+        aria-current={tab === t.id ? "page" : undefined}
+        className={`sidebar-item${tab === t.id ? " active" : ""}`}
+        onClick={go}
+        onKeyDown={(e) => activate(e, go)}
+        style={{ position: "relative" }}
+      >
+        {step ? (
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              fontSize: 11,
+              fontWeight: 700,
+              flexShrink: 0,
+              background: done ? "var(--success)" : "var(--border)",
+              color: done ? "#fff" : "var(--muted)",
+            }}
+          >
+            {done ? "✓" : step}
+          </span>
+        ) : (
+          t.icon
+        )}
+        {t.label}
+        {t.id === "orders" && unseenOrders > 0 && (
+          <span
+            aria-label={`${unseenOrders} new order${unseenOrders === 1 ? "" : "s"}`}
+            style={{
+              marginLeft: "auto",
+              background: "var(--danger)",
+              color: "#fff",
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "1px 7px",
+              minWidth: 18,
+              textAlign: "center",
+            }}
+          >
+            {unseenOrders > 99 ? "99+" : unseenOrders}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="page" id="page-app">
@@ -175,49 +318,11 @@ export default function DashboardApp() {
           </div>
           <nav className="sidebar-nav">
             <span className="sidebar-section-label">Workspace</span>
-            {WORKSPACE_TABS.map((t) => {
-              const go = () => {
-                setTab(t.id);
-                setSidebarOpen(false);
-              };
-              return (
-                <div
-                  key={t.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-current={tab === t.id ? "page" : undefined}
-                  className={`sidebar-item${tab === t.id ? " active" : ""}`}
-                  onClick={go}
-                  onKeyDown={(e) => activate(e, go)}
-                >
-                  {t.icon}
-                  {t.label}
-                </div>
-              );
-            })}
+            {WORKSPACE_TABS.map(renderTab)}
 
             <div className="sidebar-divider" />
             <span className="sidebar-section-label">Your account</span>
-            {ACCOUNT_TABS.map((t) => {
-              const go = () => {
-                setTab(t.id);
-                setSidebarOpen(false);
-              };
-              return (
-                <div
-                  key={t.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-current={tab === t.id ? "page" : undefined}
-                  className={`sidebar-item${tab === t.id ? " active" : ""}`}
-                  onClick={go}
-                  onKeyDown={(e) => activate(e, go)}
-                >
-                  {t.icon}
-                  {t.label}
-                </div>
-              );
-            })}
+            {ACCOUNT_TABS.map(renderTab)}
           </nav>
           <div className="sidebar-footer">
             <div className="sidebar-user">

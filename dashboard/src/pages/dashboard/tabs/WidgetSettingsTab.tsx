@@ -16,7 +16,11 @@ export default function WidgetSettingsTab() {
   return (
     <div>
       <div className="section-title">Widget Settings</div>
-      <div className="section-sub">Customize how your widget looks and what it says.</div>
+      <div className="section-sub">
+        Customize how your widget looks and what it says. To turn the widget itself on or off, see{" "}
+        <strong style={{ color: "var(--text)" }}>Install Widget</strong> — that's also where you'll see why it's
+        off, if it is.
+      </div>
 
       <div className="two-col">
         <BrandingCard />
@@ -25,7 +29,6 @@ export default function WidgetSettingsTab() {
       </div>
 
       <WidgetTextCard />
-      <WidgetToggleCard />
     </div>
   );
 }
@@ -317,56 +320,3 @@ function WidgetTextCard() {
   );
 }
 
-function WidgetToggleCard() {
-  const { token, store, refresh } = useStoreAuth();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-
-  // This used to be handed `wooConnected || whatsappVerified` — i.e. whether
-  // the store *could* enable the widget, not whether it actually was
-  // enabled. A store that had turned its widget off still saw the box
-  // ticked. stores.widget_enabled is the real flag.
-  const enabled = store?.widgetEnabled !== false;
-  const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
-
-  async function toggle(next: boolean) {
-    if (!token) return;
-    setBusy(true);
-    try {
-      const data = await dashboardApi.settings.toggleWidget(token, next);
-      if (data.success) {
-        toast.success("Saved", data.message);
-        await refresh();
-      } else {
-        toast.error("Could not update widget", data.error || "Please try again.");
-      }
-    } catch (err) {
-      // The server refuses to enable a widget with no ordering method and
-      // explains why — surface that message rather than a generic one.
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not update your widget status.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <h2>Widget Status</h2>
-      <p style={{ marginBottom: 8 }}>
-        {enabled
-          ? "Your widget is on and will show on any page where you've installed the embed snippet."
-          : "Your widget is off and will not appear on your storefront."}
-      </p>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", marginTop: 10, cursor: busy ? "wait" : "pointer" }}>
-        <input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
-        Widget enabled
-      </label>
-      {!hasOrderMethod && (
-        <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-          Connect WooCommerce or save a WhatsApp number above before turning the widget on — customers need a way
-          to actually place their order.
-        </div>
-      )}
-    </div>
-  );
-}

@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { dashboardApi, todayCount, type AnalyticsStats } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { ApiError } from "../../../lib/api";
+import { hasChosenMode } from "../../../lib/storeMode";
 
-export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "store" | "embed") => void }) {
+export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "store" | "products" | "embed") => void }) {
   const { token, store } = useStoreAuth();
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [productCount, setProductCount] = useState(0);
@@ -43,6 +44,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
   // when widget_enabled is 0, no matter how the store is set up.
   const isLive = hasOrderMethod && store?.widgetEnabled !== false;
   const hasProducts = productCount > 0;
+  const websiteChosen = hasChosenMode();
   const launched = hasProducts && isLive;
 
   const today = todayCount(stats);
@@ -96,21 +98,26 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
             <p style={{ marginBottom: 12 }}>Complete the three steps to launch your assistant</p>
             <div className="journey-steps">
               <div className="journey-stepbox">
-                <div className="journey-num done">1</div>
+                <div className={`journey-num ${websiteChosen ? "done" : "pending"}`}>1</div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>Step 1</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Store created</div>
-                  <div style={{ fontSize: 11 }}>Done</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Choose website type</div>
+                  <div style={{ fontSize: 11 }}>{websiteChosen ? "Done" : "Pending"}</div>
+                  {!websiteChosen && (
+                    <button type="button" className="btn btn-sm" onClick={() => onNavigate("store")} style={{ marginTop: 8 }}>
+                      Continue
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="journey-stepbox">
                 <div className={`journey-num ${hasProducts ? "done" : "pending"}`}>2</div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>Step 2</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Add product source</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Add products</div>
                   <div style={{ fontSize: 11 }}>{hasProducts ? "Done" : "Pending"}</div>
                   {!hasProducts && (
-                    <button type="button" className="btn btn-sm" onClick={() => onNavigate("store")} style={{ marginTop: 8 }}>
+                    <button type="button" className="btn btn-sm" onClick={() => onNavigate("products")} style={{ marginTop: 8 }}>
                       Continue
                     </button>
                   )}
@@ -120,7 +127,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
                 <div className={`journey-num ${isLive ? "done" : "pending"}`}>3</div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>Step 3</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Publish widget</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Install &amp; publish widget</div>
                   <div style={{ fontSize: 11 }}>{isLive ? "Done" : "Pending"}</div>
                   {!isLive && (
                     <button type="button" className="btn btn-sm" onClick={() => onNavigate("embed")} style={{ marginTop: 8 }}>

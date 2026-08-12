@@ -238,8 +238,14 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
   if (!(await validateWooSiteBinding(store, storeUrl, res))) return;
 
   try {
+    // Scoped to source='woo' rather than a blanket delete: this endpoint
+    // is called both for the initial connection AND every unattended
+    // 6-hourly WP-Cron sync (buildvolt_full_sync in the plugin), so it
+    // must never wipe out products the store owner separately added
+    // manually, via CSV, or via OSPOS import — only refresh WooCommerce's
+    // own previously-synced rows.
     await client.execute({
-      sql: "DELETE FROM products WHERE store_id = ?",
+      sql: "DELETE FROM products WHERE store_id = ? AND source = 'woo'",
       args: [store.store_id],
     });
 
@@ -267,8 +273,8 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
       }
 
       await client.execute({
-        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'woo')`,
         args: [
           store.store_id,
           p.name,
@@ -327,17 +333,20 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
       });
     }
 
-    // Fallback to matching by name if woo_id not found (for backwards compatibility)
+    // Fallback to matching by name if woo_id not found (for backwards
+    // compatibility) — scoped to source='woo' so this can never match (and
+    // silently overwrite) a manually-added or CSV-uploaded product that
+    // happens to share the same name.
     if (!existing || existing.rows.length === 0) {
       existing = await client.execute({
-        sql: "SELECT id FROM products WHERE store_id = ? AND name = ?",
+        sql: "SELECT id FROM products WHERE store_id = ? AND name = ? AND source = 'woo'",
         args: [store.store_id, p.name],
       });
     }
 
     if (existing && existing.rows.length > 0) {
       await client.execute({
-        sql: `UPDATE products SET name=?, category=?, price=?, description=?, in_stock=?, woo_id=?
+        sql: `UPDATE products SET name=?, category=?, price=?, description=?, in_stock=?, woo_id=?, source='woo'
                WHERE id=?`,
         args: [
           p.name,
@@ -351,8 +360,8 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
       });
     } else {
       await client.execute({
-        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, woo_id, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'woo')`,
         args: [
           store.store_id,
           p.name,
@@ -393,8 +402,11 @@ router.post("/plugin/product/delete", pluginLimiter, async (req, res) => {
         args: [store.store_id, wooId],
       });
     } else {
+      // Scoped to source='woo' — a name-only match must never delete a
+      // manually-added or CSV-uploaded product that happens to share the
+      // trashed WooCommerce product's name.
       await client.execute({
-        sql: "DELETE FROM products WHERE store_id = ? AND name = ?",
+        sql: "DELETE FROM products WHERE store_id = ? AND name = ? AND source = 'woo'",
         args: [store.store_id, productName],
       });
     }

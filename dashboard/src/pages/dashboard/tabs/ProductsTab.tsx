@@ -48,6 +48,11 @@ export default function ProductsTab() {
   const [osposAutoSync, setOsposAutoSync] = useState<{ enabled: boolean; lastSync: string | null; productCount: number; host: string } | null>(null);
   const [osposDisabling, setOsposDisabling] = useState(false);
 
+  // Asked whenever a second catalog method is used after the first
+  // already put products in the list — never silently guessed. `run` is
+  // whichever of runUpload/runOsposImport was waiting on the answer.
+  const [confirmMode, setConfirmMode] = useState<{ run: (mode: "replace" | "append") => void } | null>(null);
+
   function loadOsposStatus() {
     if (!token) return;
     dashboardApi.products.osposAutoSyncStatus(token).then(setOsposAutoSync).catch(() => {});
@@ -132,13 +137,13 @@ export default function ProductsTab() {
     }
   }
 
-  async function handleUploadClick() {
+  async function runUpload(mode: "replace" | "append") {
     const file = fileRef.current?.files?.[0];
     if (!file || !token) return;
     setFileName(file.name);
     setUploading(true);
     try {
-      const data = await dashboardApi.products.upload(token, file);
+      const data = await dashboardApi.products.upload(token, file, mode);
       if (data.success) {
         toast.success("Upload complete", data.message);
         load();
@@ -154,6 +159,22 @@ export default function ProductsTab() {
       setUploading(false);
       setFileName("");
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  // Runs on every file selection — decides whether to ask Add-vs-Replace
+  // first, or just go straight to "replace" when there's nothing to lose.
+  function handleFileChosen() {
+    if (!fileRef.current?.files?.[0] || !token) return;
+    if (products === null) {
+      toast.error("Still loading", "Your current catalog is still loading — try again in a moment.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    if (products.length > 0) {
+      setConfirmMode({ run: runUpload });
+    } else {
+      runUpload("replace");
     }
   }
 
@@ -187,7 +208,7 @@ export default function ProductsTab() {
     };
   }
 
-  async function handleOsposImport() {
+  async function runOsposImport(mode: "replace" | "append") {
     if (!token) return;
 
     let creds: { host: string; port: string; database: string; username: string; password: string };
@@ -213,7 +234,7 @@ export default function ProductsTab() {
 
     setOsposImporting(true);
     try {
-      const data = await dashboardApi.products.importFromOspos(token, creds);
+      const data = await dashboardApi.products.importFromOspos(token, creds, mode);
       if (data.success) {
         toast.success("Import complete", data.message || `${data.synced ?? 0} products imported.`);
         setOsposOpen(false);
@@ -231,12 +252,28 @@ export default function ProductsTab() {
     }
   }
 
+  // Runs when "Import now" is clicked — asks Add-vs-Replace first only if
+  // there's actually something that could be lost.
+  function handleOsposImportClick() {
+    if (!token) return;
+    if (products === null) {
+      toast.error("Still loading", "Your current catalog is still loading — try again in a moment.");
+      return;
+    }
+    if (products.length > 0) {
+      setConfirmMode({ run: runOsposImport });
+    } else {
+      runOsposImport("replace");
+    }
+  }
+
   return (
     <div>
       <div className="section-title">Product Catalog</div>
       <div className="section-sub">
-        Edit SKUs, stock, and pricing here when your catalog source is <strong style={{ color: "var(--text)" }}>Manual / CSV</strong>.
-        WooCommerce stores manage inventory in WordPress.
+        Build your catalog with any combination of the three methods below — add products one at a time, upload a
+        file, or import from OSPOS. If you're on WordPress with the BuildVolt plugin connected, that catalog syncs
+        automatically and shows up here too, but is still managed from WooCommerce itself.
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -268,7 +305,7 @@ export default function ProductsTab() {
           type="file"
           accept=".csv,.xlsx,.docx,.pdf"
           style={{ display: "none" }}
-          onChange={handleUploadClick}
+          onChange={handleFileChosen}
         />
       </div>
 
@@ -323,7 +360,9 @@ export default function ProductsTab() {
               </div>
             </div>
             <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-              Runs automatically every few hours — no need to re-import when your OSPOS listing changes.
+              Runs automatically every few hours — no need to re-import when your OSPOS listing changes. This always
+              merges (updates existing items, adds new ones) and never deletes anything from your catalog, even
+              products added through a different method — only a manual "Replace entire list" choice above does that.
             </p>
             <button
               type="button"
@@ -408,7 +447,7 @@ export default function ProductsTab() {
               <button
                 type="button"
                 className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
-                onClick={handleOsposImport}
+                onClick={handleOsposImportClick}
                 disabled={osposImporting}
               >
                 {osposImporting ? "Importing…" : "Import now"}
@@ -527,6 +566,50 @@ export default function ProductsTab() {
       </div>
 
       <ProductModal product={editing} onClose={() => setEditing(null)} onSaved={load} />
+
+      <div className={`modal-bg${confirmMode ? " open" : ""}`}>
+        <div className="modal">
+          <h2>Add or replace?</h2>
+          <p>
+            You already have {products?.length ?? 0} product{products?.length === 1 ? "" : "s"} in your catalog.
+            Add these on top of them, or replace the entire list with just this new source?
+          </p>
+          <div className="modal-btns" style={{ flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                confirmMode?.run("append");
+                setConfirmMode(null);
+              }}
+            >
+              Add to existing list
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => {
+                confirmMode?.run("replace");
+                setConfirmMode(null);
+              }}
+            >
+              Replace entire list
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setConfirmMode(null);
+                // A cancelled file pick must be cleared, or re-choosing the
+                // exact same file wouldn't fire onChange a second time.
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className={`modal-bg${deleting ? " open" : ""}`}>
         <div className="modal">

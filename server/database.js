@@ -198,6 +198,15 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN ospos_db_name TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_db_user TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_db_password TEXT DEFAULT ''`,
+    // Which method added a given product row — "manual" | "csv" | "ospos" |
+    // "woo". Lets an automatic background sync (OSPOS auto-sync, the
+    // WooCommerce plugin's cron/hooks) refresh only the rows it owns
+    // without wiping out products added a different way. Existing rows
+    // predate this column and default to 'manual'; that's a reasonable
+    // guess for a mixed manual/CSV history and doesn't affect anything
+    // since neither of those two sources runs as a background job that
+    // could accidentally delete the other's rows.
+    `ALTER TABLE products ADD COLUMN source TEXT DEFAULT 'manual'`,
   ];
   for (const sql of migrations) {
     try {
@@ -589,12 +598,24 @@ const adminDB = {
 
 // ─── PRODUCT FUNCTIONS ────────────────────────────────────
 const productDB = {
-  bulkInsert: async (storeId, products) => {
-    // Delete old products first
-    await client.execute({
-      sql: "DELETE FROM products WHERE store_id = ?",
-      args: [storeId],
-    });
+  // mode: "replace" (default) wipes the store's ENTIRE catalog (regardless
+  // of which method added each row) before inserting — this is what a
+  // store owner means when they explicitly choose "replace" over "add to
+  // existing" in the dashboard. mode: "append" never deletes anything, it
+  // only adds. `source` tags every inserted row ("manual" | "csv" |
+  // "ospos" | "woo") so *automatic* background syncs (OSPOS auto-sync,
+  // the WooCommerce plugin's cron/hooks) can later refresh only the rows
+  // they themselves own without silently wiping out what came from a
+  // different method — see server/routes/ospos.js and
+  // server/routes/plugin.js, which both scope their own deletes to a
+  // single source rather than calling this in "replace" mode.
+  bulkInsert: async (storeId, products, { source = "manual", mode = "replace" } = {}) => {
+    if (mode === "replace") {
+      await client.execute({
+        sql: "DELETE FROM products WHERE store_id = ?",
+        args: [storeId],
+      });
+    }
 
     if (!products || !products.length) return 0;
 
@@ -603,14 +624,15 @@ const productDB = {
     for (let i = 0; i < products.length; i += chunkSize) {
       const chunk = products.slice(i, i + chunkSize);
       const stmts = chunk.map((p) => ({
-        sql: `INSERT INTO products (store_id, name, category, price, description)
-               VALUES (?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO products (store_id, name, category, price, description, source)
+               VALUES (?, ?, ?, ?, ?, ?)`,
         args: [
           storeId,
           p.name || p.Name || "",
           p.category || p.Category || "",
           parseFloat(p.price || p.Price || 0),
           p.description || p.Description || "",
+          source,
         ],
       }));
       await client.batch(stmts, "write");

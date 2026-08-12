@@ -67,11 +67,28 @@ function mapOsposItem(item) {
 // Full-replace strategy, identical to POST /plugin/sync's WooCommerce path
 // and POST /upload's CSV path, so every catalog source behaves the same
 // way from the recommendation engine's point of view.
-async function syncItemsForStore(storeId, items) {
-  await client.execute({
-    sql: "DELETE FROM products WHERE store_id = ?",
-    args: [storeId],
-  });
+// mode:
+//   "replace" — the store owner explicitly chose, in the dashboard, to
+//               replace their WHOLE catalog — deletes every row
+//               regardless of source, then inserts fresh. Only ever
+//               triggered by a deliberate, in-person action on the
+//               Products tab (the Add-vs-Replace confirm dialog) — never
+//               by anything automatic.
+//   "append" / "auto" — everything else: a manual "add to existing" import,
+//               and every unattended scheduled auto-sync run alike. Both
+//               MERGE rather than replace: an OSPOS item already present
+//               (matched by ospos_item_id) is updated in place, a new one
+//               is inserted, and nothing already in the catalog — from
+//               OSPOS or any other source — is ever deleted. This is what
+//               makes auto-sync safe to run unattended every few hours: it
+//               can only add or refresh, never wipe.
+async function syncItemsForStore(storeId, items, mode = "replace") {
+  if (mode === "replace") {
+    await client.execute({
+      sql: "DELETE FROM products WHERE store_id = ?",
+      args: [storeId],
+    });
+  }
 
   let synced = 0;
   let skipped = 0;
@@ -95,19 +112,36 @@ async function syncItemsForStore(storeId, items) {
       continue;
     }
 
-    await client.execute({
-      sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, ospos_item_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        storeId,
-        p.name,
-        p.category,
-        p.price,
-        p.description,
-        p.in_stock,
-        p.ospos_item_id,
-      ],
-    });
+    let existingId = null;
+    if (mode !== "replace" && p.ospos_item_id) {
+      const existing = await client.execute({
+        sql: "SELECT id FROM products WHERE store_id = ? AND ospos_item_id = ? AND source = 'ospos'",
+        args: [storeId, p.ospos_item_id],
+      });
+      existingId = existing.rows[0]?.id ?? null;
+    }
+
+    if (existingId) {
+      await client.execute({
+        sql: `UPDATE products SET name=?, category=?, price=?, description=?, in_stock=?
+               WHERE id=?`,
+        args: [p.name, p.category, p.price, p.description, p.in_stock, existingId],
+      });
+    } else {
+      await client.execute({
+        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, ospos_item_id, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'ospos')`,
+        args: [
+          storeId,
+          p.name,
+          p.category,
+          p.price,
+          p.description,
+          p.in_stock,
+          p.ospos_item_id,
+        ],
+      });
+    }
     synced++;
   }
 
@@ -185,6 +219,7 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
   }
 
   const { host, port, database, username, password } = req.body || {};
+  const mode = req.body?.mode === "append" ? "append" : "replace";
   if (!host || !database || !username) {
     return res.status(400).json({
       success: false,
@@ -210,7 +245,7 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
   }
 
   try {
-    const result = await syncItemsForStore(decoded.storeId, rows);
+    const result = await syncItemsForStore(decoded.storeId, rows, mode);
     await storeDB.saveOsposCredentials(decoded.storeId, {
       host,
       port,
@@ -292,7 +327,7 @@ async function pullAllAutoSyncStores() {
         username: store.ospos_db_user,
         password: decrypt(store.ospos_db_password),
       });
-      const result = await syncItemsForStore(store.store_id, rows);
+      const result = await syncItemsForStore(store.store_id, rows, "auto");
       results.push({ storeId: store.store_id, ok: true, ...result });
     } catch (err) {
       console.error(`OSPOS auto-sync failed for store ${store.store_id}:`, err.message);

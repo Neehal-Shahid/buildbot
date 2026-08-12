@@ -398,10 +398,16 @@ router.post(
         });
       }
 
-      const count = await productDB.bulkInsert(storeId, validProducts);
+      // "replace" (default) wipes the store's whole catalog first, exactly
+      // like before this option existed. "append" is opt-in — the store
+      // owner is asked in the dashboard whenever they already have
+      // products from a different method (manual entry, OSPOS import),
+      // so uploading a second file never silently destroys the first.
+      const mode = req.body.mode === "append" ? "append" : "replace";
+      const count = await productDB.bulkInsert(storeId, validProducts, { source: "csv", mode });
       await storeDB.touchCatalog(storeId);
 
-      let message = `${count} products uploaded successfully!`;
+      let message = `${count} products ${mode === "append" ? "added" : "uploaded"} successfully!`;
       if (skippedCategory.length) {
         const sample = skippedCategory
           .slice(0, 10)
@@ -473,8 +479,8 @@ router.post("/product", authMiddleware, async (req, res) => {
   }
   try {
     await client.execute({
-      sql: `INSERT INTO products (store_id, name, category, price, description)
-             VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO products (store_id, name, category, price, description, source)
+             VALUES (?, ?, ?, ?, ?, 'manual')`,
       args: [
         req.store.storeId,
         name,

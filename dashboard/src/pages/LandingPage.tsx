@@ -378,8 +378,8 @@ function SignupPage({
             </div>
           </div>
 
-          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
-            Create account
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }} onClick={submit} disabled={busy}>
+            {busy ? "Creating account…" : "Create account"}
           </button>
 
           <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
@@ -477,19 +477,31 @@ function VerifyPendingPage({
             />
           </div>
 
-          <button className="btn btn-primary btn-full" style={{ marginBottom: 10 }} onClick={verify} disabled={busy}>
-            Verify with code
+          <button
+            className="btn btn-primary btn-full"
+            style={{ marginBottom: 10, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
+            onClick={verify}
+            disabled={busy}
+          >
+            {busy ? "Verifying…" : "Verify with code"}
           </button>
 
           <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
 
           <button
             className="btn btn-primary btn-full"
-            style={{ background: "#fff", color: "#4f46e5", border: "1.5px solid #e5e7eb", boxShadow: "none" }}
+            style={{
+              background: "#fff",
+              color: "#4f46e5",
+              border: "1.5px solid #e5e7eb",
+              boxShadow: "none",
+              opacity: resending ? 0.7 : 1,
+              cursor: resending ? "not-allowed" : "pointer",
+            }}
             onClick={resend}
             disabled={resending}
           >
-            Resend verification email
+            {resending ? "Sending…" : "Resend verification email"}
           </button>
 
           <div className="auth-switch">
@@ -600,8 +612,8 @@ function LoginPage({
             </div>
           </div>
 
-          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
-            Sign in to Dashboard
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }} onClick={submit} disabled={busy}>
+            {busy ? "Signing in…" : "Sign in to Dashboard"}
           </button>
 
           <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
@@ -649,8 +661,8 @@ function ForgotPage({ onBack }: { onBack: () => void }) {
             <input id="forgot-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
           </div>
 
-          <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>
-            Send reset link
+          <button className="btn btn-primary btn-full" style={{ marginTop: 4, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }} onClick={submit} disabled={busy}>
+            {busy ? "Sending…" : "Send reset link"}
           </button>
 
           <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />

@@ -36,8 +36,11 @@ export default function ProductsTab() {
   const [stockBusyId, setStockBusyId] = useState<number | null>(null);
 
   const [osposOpen, setOsposOpen] = useState(false);
+  const [osposUseUrl, setOsposUseUrl] = useState(true);
+  const [osposConnUrl, setOsposConnUrl] = useState("");
+  // "Host" doubles as "host:port" so Port never needs its own box — 3306
+  // is assumed unless a :port suffix is given.
   const [osposHost, setOsposHost] = useState("");
-  const [osposPort, setOsposPort] = useState("3306");
   const [osposDatabase, setOsposDatabase] = useState("");
   const [osposUsername, setOsposUsername] = useState("");
   const [osposPassword, setOsposPassword] = useState("");
@@ -154,25 +157,68 @@ export default function ProductsTab() {
     }
   }
 
+  // Accepts "host" or "host:port" in the single Host box, so Port never
+  // needs a field of its own — 3306 is assumed when no port is given.
+  function splitHostPort(input: string): { host: string; port: string } {
+    const trimmed = input.trim();
+    const lastColon = trimmed.lastIndexOf(":");
+    if (lastColon > 0 && /^\d+$/.test(trimmed.slice(lastColon + 1))) {
+      return { host: trimmed.slice(0, lastColon), port: trimmed.slice(lastColon + 1) };
+    }
+    return { host: trimmed, port: "3306" };
+  }
+
+  // Many hosts (and OSPOS's own .env-style config) already hand out a
+  // single mysql://user:pass@host:port/database string — parsing that
+  // turns a 4-field form into a 1-field paste for anyone who has one.
+  function parseConnectionUrl(raw: string) {
+    const withScheme = raw.trim().replace(/^mysql:\/\//, "");
+    const url = new URL(`mysql://${withScheme}`);
+    const database = url.pathname.replace(/^\//, "");
+    if (!url.hostname || !url.username || !database) {
+      throw new Error("That doesn't look like a complete connection URL (need user:pass@host/database).");
+    }
+    return {
+      host: url.hostname,
+      port: url.port || "3306",
+      database,
+      username: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+    };
+  }
+
   async function handleOsposImport() {
     if (!token) return;
-    if (!osposHost.trim() || !osposDatabase.trim() || !osposUsername.trim()) {
-      toast.error("Missing fields", "Host, database name, and username are required.");
-      return;
+
+    let creds: { host: string; port: string; database: string; username: string; password: string };
+    if (osposUseUrl) {
+      if (!osposConnUrl.trim()) {
+        toast.error("Missing URL", "Paste your connection URL, or switch to entering details separately.");
+        return;
+      }
+      try {
+        creds = parseConnectionUrl(osposConnUrl);
+      } catch (err) {
+        toast.error("Invalid URL", err instanceof Error ? err.message : "Could not read that connection URL.");
+        return;
+      }
+    } else {
+      if (!osposHost.trim() || !osposDatabase.trim() || !osposUsername.trim()) {
+        toast.error("Missing fields", "Host, database name, and username are required.");
+        return;
+      }
+      const { host, port } = splitHostPort(osposHost);
+      creds = { host, port, database: osposDatabase.trim(), username: osposUsername.trim(), password: osposPassword };
     }
+
     setOsposImporting(true);
     try {
-      const data = await dashboardApi.products.importFromOspos(token, {
-        host: osposHost.trim(),
-        port: osposPort.trim() || "3306",
-        database: osposDatabase.trim(),
-        username: osposUsername.trim(),
-        password: osposPassword,
-      });
+      const data = await dashboardApi.products.importFromOspos(token, creds);
       if (data.success) {
         toast.success("Import complete", data.message || `${data.synced ?? 0} products imported.`);
         setOsposOpen(false);
         setOsposPassword("");
+        setOsposConnUrl("");
         load();
         loadOsposStatus();
       } else {
@@ -293,44 +339,72 @@ export default function ProductsTab() {
           osposOpen && (
             <div style={{ marginTop: 16 }}>
               <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
-                Enter your OSPOS database's connection details below. BuildVolt connects, reads your items, and
-                imports them. Your host or whoever set up OSPOS can give you these details; on shared hosting
-                (cPanel), check for a <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to
-                allow the connection.{" "}
+                Connect your OSPOS database below — your host or whoever set up OSPOS can give you these details;
+                on shared hosting (cPanel), check for a <strong style={{ color: "var(--text)" }}>Remote MySQL</strong>{" "}
+                setting to allow the connection.{" "}
                 <strong style={{ color: "var(--text)" }}>
                   After this first import, BuildVolt securely stores these details (encrypted) and keeps your
                   catalog in sync with OSPOS automatically
                 </strong>{" "}
                 — you can turn that off any time below.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label className="form-label" htmlFor="ospos-host">Database Host</label>
-                  <input
-                    id="ospos-host"
-                    type="text"
-                    placeholder="e.g. localhost or db.hostingsite.com"
-                    value={osposHost}
-                    onChange={(e) => setOsposHost(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label" htmlFor="ospos-port">Port</label>
-                  <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
-                </div>
-                <div>
-                  <label className="form-label" htmlFor="ospos-db">Database Name</label>
-                  <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
-                </div>
-                <div>
-                  <label className="form-label" htmlFor="ospos-user">Username</label>
-                  <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
-                </div>
-                <div>
-                  <label className="form-label" htmlFor="ospos-pass">Password</label>
-                  <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
-                </div>
+
+              <div style={{ display: "flex", gap: 16, marginBottom: 14, fontSize: 12 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input type="radio" checked={osposUseUrl} onChange={() => setOsposUseUrl(true)} />
+                  Paste a connection URL
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input type="radio" checked={!osposUseUrl} onChange={() => setOsposUseUrl(false)} />
+                  Enter details separately
+                </label>
               </div>
+
+              {osposUseUrl ? (
+                <div style={{ marginBottom: 14 }}>
+                  <label className="form-label" htmlFor="ospos-url">Connection URL</label>
+                  <input
+                    id="ospos-url"
+                    type="text"
+                    placeholder="mysql://username:password@host:3306/database_name"
+                    value={osposConnUrl}
+                    onChange={(e) => setOsposConnUrl(e.target.value)}
+                  />
+                  <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+                    One line, in the form <code>username:password@host/database</code> — many hosting panels show
+                    this exact string already. Don't have one? Switch to "Enter details separately" above.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label className="form-label" htmlFor="ospos-host">Database Host</label>
+                    <input
+                      id="ospos-host"
+                      type="text"
+                      placeholder="e.g. localhost or db.hostingsite.com"
+                      value={osposHost}
+                      onChange={(e) => setOsposHost(e.target.value)}
+                    />
+                    <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                      Not on port 3306? Add it here too, e.g. <code>db.host.com:3307</code>.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="ospos-db">Database Name</label>
+                    <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="ospos-user">Username</label>
+                    <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="ospos-pass">Password</label>
+                    <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
                 className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}

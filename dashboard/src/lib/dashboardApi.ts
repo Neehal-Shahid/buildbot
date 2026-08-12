@@ -214,6 +214,23 @@ export const dashboardApi = {
         error?: string;
       }>("/upload", { method: "POST", formData, token });
     },
+    // One-click OSPOS import (server/routes/ospos.js) — connects directly
+    // to the store's OSPOS MySQL database with the credentials given here,
+    // imports, and disconnects, all in this one request. Nothing is saved
+    // on BuildVolt's side except the resulting products, same as upload()
+    // above; there's no separate "connect" step or persisted connection.
+    importFromOspos: (
+      token: string,
+      creds: { host: string; port?: string; database: string; username: string; password?: string },
+    ) =>
+      apiFetch<{
+        success: boolean;
+        message?: string;
+        error?: string;
+        synced?: number;
+        skipped?: number;
+        skippedCategory?: number;
+      }>("/ospos/import", { method: "POST", body: creds, ...auth(token) }),
   },
 
   plugin: {
@@ -236,50 +253,6 @@ export const dashboardApi = {
       ),
     disconnect: (token: string) =>
       apiFetch<{ success: boolean; message: string }>("/plugin/disconnect", {
-        method: "POST",
-        ...auth(token),
-      }),
-  },
-
-  // Open Source Point of Sale (OSPOS) catalog integration — see
-  // server/routes/ospos.js and ospos-connector/. Pull-based: the store
-  // owner only pastes the URL of their uploaded buildvolt-export.php;
-  // BuildVolt's own scheduler does the rest.
-  ospos: {
-    status: (token: string) =>
-      apiFetch<{
-        success: boolean;
-        hasKey: boolean;
-        osposConnected: boolean;
-        exportUrl: string;
-        lastSync: string | null;
-        productCount: number;
-        widgetEnabled: boolean;
-      }>("/ospos/status", auth(token)),
-    // Saves the export URL AND performs the first pull in the same
-    // request — mirrors products.upload()'s one-click behaviour instead
-    // of only scheduling a sync for later.
-    configure: (token: string, exportUrl: string) =>
-      apiFetch<{
-        success: boolean;
-        message?: string;
-        error?: string;
-        urlSaved?: boolean;
-        synced?: number;
-        skipped?: number;
-        skippedCategory?: number;
-      }>("/ospos/configure", {
-        method: "POST",
-        body: { exportUrl },
-        ...auth(token),
-      }),
-    pullNow: (token: string) =>
-      apiFetch<{ success: boolean; synced?: number; skipped?: number; skippedCategory?: number; error?: string }>(
-        "/ospos/pull-now",
-        { method: "POST", ...auth(token) },
-      ),
-    disconnect: (token: string) =>
-      apiFetch<{ success: boolean; message: string }>("/ospos/disconnect", {
         method: "POST",
         ...auth(token),
       }),

@@ -118,14 +118,6 @@ router.post("/plugin/generate-key", async (req, res) => {
       });
     }
 
-    if (info.ospos_connected === 1 || info.ospos_export_url) {
-      return res.status(400).json({
-        error:
-          "Cannot generate a new key while an OSPOS connection is configured. Disconnect it first, or it will silently stop syncing (the export file / connector script on your OSPOS server still has the old key).",
-        osposConnected: true,
-      });
-    }
-
     const secret = "bv_live_" + crypto.randomBytes(16).toString("hex");
     await storeDB.updatePluginKey(decoded.storeId, secret);
     res.json({ success: true, secret });

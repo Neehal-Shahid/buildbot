@@ -179,18 +179,13 @@ async function initDB() {
   created_at TEXT DEFAULT (datetime('now'))
 )`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES ('budget_presets', '50000,80000,120000,200000')`,
-    // OSPOS (Open Source Point of Sale) catalog integration — mirrors the
-    // woo_* connection-tracking columns above, but for a read-only MySQL
-    // connector script instead of the WordPress plugin (see server/routes/ospos.js).
-    `ALTER TABLE stores ADD COLUMN ospos_connected INTEGER DEFAULT 0`,
+    // OSPOS (Open Source Point of Sale) catalog import — a one-click,
+    // Products-tab action (server/routes/ospos.js POST /ospos/import), not
+    // a persistent connection like WooCommerce, so there's no connected/
+    // disconnected state to track — only when the last import happened.
     `ALTER TABLE stores ADD COLUMN ospos_last_sync TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_product_count INTEGER DEFAULT 0`,
     `ALTER TABLE products ADD COLUMN ospos_item_id INTEGER DEFAULT NULL`,
-    // URL of the store's own buildvolt-export.php (see ospos-connector/) —
-    // set once from the dashboard, then BuildVolt's own scheduler pulls
-    // from it automatically. Nothing to install or schedule on the store's
-    // own server beyond that one file existing.
-    `ALTER TABLE stores ADD COLUMN ospos_export_url TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try {
@@ -370,8 +365,7 @@ const storeDB = {
   getPluginKey: async (storeId) => {
     const res = await client.execute({
       sql: `SELECT plugin_secret, woo_connected, woo_url,
-             woo_last_sync, woo_product_count, widget_enabled,
-             ospos_connected, ospos_export_url
+             woo_last_sync, woo_product_count, widget_enabled
              FROM stores WHERE store_id = ?`,
       args: [storeId],
     });
@@ -422,42 +416,17 @@ const storeDB = {
     });
   },
 
-  updateOsposStatus: async (storeId, productCount) => {
+  // Records the result of a one-click OSPOS import (server/routes/ospos.js
+  // POST /ospos/import). There's no persistent "connection" the way
+  // WooCommerce has — a store owner re-enters their database details each
+  // time — so this just timestamps the most recent import, the same way a
+  // CSV upload doesn't remember the file, only its result.
+  updateOsposLastImport: async (storeId, productCount) => {
     const now = new Date().toISOString();
     return await client.execute({
-      sql: `UPDATE stores SET ospos_connected = 1,
-             ospos_last_sync = ?, ospos_product_count = ?
+      sql: `UPDATE stores SET ospos_last_sync = ?, ospos_product_count = ?
              WHERE store_id = ?`,
       args: [now, productCount, storeId],
-    });
-  },
-
-  disconnectOspos: async (storeId) => {
-    return await client.execute({
-      sql: `UPDATE stores SET
-              ospos_connected = 0,
-              ospos_last_sync = '',
-              ospos_product_count = 0,
-              ospos_export_url = ''
-            WHERE store_id = ?`,
-      args: [storeId],
-    });
-  },
-
-  getOsposStatus: async (storeId) => {
-    const res = await client.execute({
-      sql: `SELECT plugin_secret, ospos_connected, ospos_last_sync,
-             ospos_product_count, ospos_export_url, widget_enabled
-             FROM stores WHERE store_id = ?`,
-      args: [storeId],
-    });
-    return res.rows[0] || null;
-  },
-
-  updateOsposExportUrl: async (storeId, exportUrl) => {
-    return await client.execute({
-      sql: "UPDATE stores SET ospos_export_url = ? WHERE store_id = ?",
-      args: [exportUrl, storeId],
     });
   },
 

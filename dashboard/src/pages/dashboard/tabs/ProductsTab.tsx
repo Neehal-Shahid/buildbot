@@ -35,6 +35,14 @@ export default function ProductsTab() {
   const [fileName, setFileName] = useState("");
   const [stockBusyId, setStockBusyId] = useState<number | null>(null);
 
+  const [osposOpen, setOsposOpen] = useState(false);
+  const [osposHost, setOsposHost] = useState("");
+  const [osposPort, setOsposPort] = useState("3306");
+  const [osposDatabase, setOsposDatabase] = useState("");
+  const [osposUsername, setOsposUsername] = useState("");
+  const [osposPassword, setOsposPassword] = useState("");
+  const [osposImporting, setOsposImporting] = useState(false);
+
   function load() {
     if (!token || !store) return;
     setLoadError(null);
@@ -123,6 +131,36 @@ export default function ProductsTab() {
     }
   }
 
+  async function handleOsposImport() {
+    if (!token) return;
+    if (!osposHost.trim() || !osposDatabase.trim() || !osposUsername.trim()) {
+      toast.error("Missing fields", "Host, database name, and username are required.");
+      return;
+    }
+    setOsposImporting(true);
+    try {
+      const data = await dashboardApi.products.importFromOspos(token, {
+        host: osposHost.trim(),
+        port: osposPort.trim() || "3306",
+        database: osposDatabase.trim(),
+        username: osposUsername.trim(),
+        password: osposPassword,
+      });
+      if (data.success) {
+        toast.success("Import complete", data.message || `${data.synced ?? 0} products imported.`);
+        setOsposOpen(false);
+        setOsposPassword("");
+        load();
+      } else {
+        toast.error("Import failed", data.error || "Could not import from OSPOS.");
+      }
+    } catch (err) {
+      toast.error("Import failed", err instanceof ApiError ? err.message : "Could not connect to OSPOS.");
+    } finally {
+      setOsposImporting(false);
+    }
+  }
+
   return (
     <div>
       <div className="section-title">Product Catalog</div>
@@ -162,6 +200,67 @@ export default function ProductsTab() {
           style={{ display: "none" }}
           onChange={handleUploadClick}
         />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Import from OSPOS</h2>
+            <p style={{ margin: "4px 0 0" }}>
+              Pull your catalog directly from Open Source Point of Sale — one click, nothing to install.
+            </p>
+          </div>
+          <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
+            {osposOpen ? "Cancel" : "Import from OSPOS"}
+          </button>
+        </div>
+
+        {osposOpen && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
+              Enter your OSPOS database's connection details below. BuildVolt connects, reads your items, imports
+              them, and disconnects — nothing is saved except the resulting product list. Your host or whoever set
+              up OSPOS can give you these details; on shared hosting (cPanel), check for a{" "}
+              <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to allow the connection.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
+              <div>
+                <label className="form-label" htmlFor="ospos-host">Database Host</label>
+                <input
+                  id="ospos-host"
+                  type="text"
+                  placeholder="e.g. localhost or db.hostingsite.com"
+                  value={osposHost}
+                  onChange={(e) => setOsposHost(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ospos-port">Port</label>
+                <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ospos-db">Database Name</label>
+                <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ospos-user">Username</label>
+                <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ospos-pass">Password</label>
+                <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
+              onClick={handleOsposImport}
+              disabled={osposImporting}
+            >
+              {osposImporting ? "Importing…" : "Import now"}
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>

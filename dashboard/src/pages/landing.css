@@ -581,7 +581,12 @@
       #main-nav {
         position: sticky;
         top: 30px;
-        z-index: 100;
+        /* Must outrank .nav-overlay (z-index: 150) - the mobile slide-in
+           menu (.nav-links) lives inside this nav, and a child can never
+           rank above its own ancestor's stacking level no matter what
+           z-index it sets on itself. At 100 the overlay painted on top of
+           the whole nav, washing out the open mobile menu. */
+        z-index: 160;
         padding: 20px 60px;
         background: rgba(10, 11, 15, 0.7);
         border-bottom: 1px solid var(--border);

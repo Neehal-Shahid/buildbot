@@ -111,7 +111,7 @@ export default function VerifyPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-dvh bg-bg">
       <a
         href="/"
         className="fixed top-5 left-6 z-10 inline-flex items-center gap-1.5 text-[13px] font-medium text-muted no-underline hover:text-text"
@@ -122,7 +122,7 @@ export default function VerifyPage() {
         Back to home
       </a>
 
-      <div className="mx-auto flex min-h-screen max-w-[440px] items-center justify-center px-5 py-6">
+      <div className="mx-auto flex min-h-dvh max-w-[440px] items-center justify-center px-5 py-6">
         <div className="w-full rounded-2xl border border-border bg-surface p-9 pb-8 shadow-sm">
           <div className="mb-[22px]">
             <BrandLogo />

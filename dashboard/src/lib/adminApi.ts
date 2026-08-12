@@ -60,11 +60,13 @@ export const adminApi = {
       body: { email },
     }),
 
+  // A non-2xx (bad/expired token, weak password) surfaces as a thrown
+  // ApiError, so the success response is the only shape callers see.
   resetPassword: (token: string, password: string) =>
-    apiFetch<{ success: boolean; message?: string; error?: string }>(
-      "/admin/reset-password",
-      { method: "POST", body: { token, password } },
-    ),
+    apiFetch<{ success: boolean; message: string }>("/admin/reset-password", {
+      method: "POST",
+      body: { token, password },
+    }),
 
   me: (token: string) =>
     apiFetch<{ success: boolean; admin: AdminInfo }>("/admin/me", adminAuth(token)),
@@ -147,7 +149,12 @@ export const adminApi = {
     apiFetch<{
       success: boolean;
       counts: Record<string, number>;
-      orphans: { products: number; recommendations: number; orphanProductsTop: unknown[] };
+      orphans: {
+        products: number;
+        recommendations: number;
+        // Raw rows from `SELECT p.store_id, COUNT(*) AS c ... LIMIT 10`
+        orphanProductsTop: { store_id: string; c: number }[];
+      };
       tokens: { expired: number; used: number };
       notes: string[];
     }>("/admin/db-audit", adminAuth(token)),
@@ -191,8 +198,13 @@ export const adminApi = {
       { method: "POST", body: { status }, ...adminAuth(token) },
     ),
 
+  // `results` mirrors the accumulator built by runScheduledEmails() in
+  // server/routes/admin.js.
   runDrip: (token: string) =>
-    apiFetch<{ success: boolean; results: unknown }>("/admin/run-drip", {
+    apiFetch<{
+      success: boolean;
+      results: { onboarding: number; skipped: number; errors: string[] };
+    }>("/admin/run-drip", {
       method: "POST",
       ...adminAuth(token),
     }),

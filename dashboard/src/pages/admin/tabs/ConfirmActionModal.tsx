@@ -12,6 +12,7 @@ export function ConfirmActionModal({
   desc,
   detail,
   confirmLabel,
+  busyLabel = "Working…",
   confirmClass,
 }: {
   open: boolean;
@@ -24,6 +25,7 @@ export function ConfirmActionModal({
   desc: string;
   detail: ReactNode;
   confirmLabel: string;
+  busyLabel?: string;
   confirmClass: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -48,9 +50,12 @@ export function ConfirmActionModal({
         <div className="modal-detail">{detail}</div>
         <div className="modal-btns">
           <button className={confirmClass} onClick={confirm} disabled={busy}>
-            {confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
-          <button className="btn" onClick={onClose}>
+          {/* Cancel is locked while the action is in flight — closing the
+              modal mid-request left the caller's success toast firing over
+              an already-dismissed dialog. */}
+          <button className="btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
         </div>

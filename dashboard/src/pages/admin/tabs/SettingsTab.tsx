@@ -8,6 +8,16 @@ function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | 
   return <div className={`alert alert-${type} show`}>{msg}</div>;
 }
 
+// platform_config rows are persisted by the backend as TEXT — configDB
+// stores String(value), the seed row is ('maintenance_mode', 'false') and
+// recommend.js gates the widget on `=== "true"`. A plain truthiness check
+// on the returned value therefore reads the *string* "false" as true, which
+// showed this toggle permanently ON and risked an admin saving that back
+// and taking every store widget offline.
+function isConfigTrue(value: unknown): boolean {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
 const EyeIcon = () => (
   <svg viewBox="0 0 24 24">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -21,23 +31,35 @@ export default function SettingsTab() {
   const [email, setEmail] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    adminApi.me(token).then((data) => {
-      setName(data.admin.name);
-      setEmail(data.admin.email);
-      setRecoveryEmail(data.admin.recoveryEmail || "");
-    });
-    adminApi.platformConfig(token).then((data) => {
-      setMaintenanceMode(!!data.config.maintenance_mode);
-    });
+    adminApi
+      .me(token)
+      .then((data) => {
+        setName(data.admin.name);
+        setEmail(data.admin.email);
+        setRecoveryEmail(data.admin.recoveryEmail || "");
+      })
+      .catch((err) =>
+        setLoadError(err instanceof ApiError ? err.message : "Could not load your admin profile."),
+      );
+    adminApi
+      .platformConfig(token)
+      .then((data) => {
+        setMaintenanceMode(isConfigTrue(data.config.maintenance_mode));
+      })
+      .catch((err) =>
+        setLoadError(err instanceof ApiError ? err.message : "Could not load platform configuration."),
+      );
   }, [token]);
 
   return (
     <div>
       <div className="section-title">Admin Settings</div>
-      <div className="section-sub">Manage your admin profile and password.</div>
+      <div className="section-sub">Manage your admin profile, password and platform-wide configuration.</div>
+      {loadError && <div className="alert alert-error show">{loadError}</div>}
       <div className="two-col">
         <ProfileCard name={name} email={email} setName={setName} setEmail={setEmail} />
         <RecoveryEmailCard recoveryEmail={recoveryEmail} setRecoveryEmail={setRecoveryEmail} />
@@ -64,13 +86,14 @@ function ProfileCard({
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function save() {
-    if (!token || !name || !email) return setAlert({ msg: "Name and email required", type: "error" });
+    if (!token) return;
+    if (!name || !email) return setAlert({ msg: "Name and email required", type: "error" });
     setBusy(true);
     try {
       const data = await adminApi.updateProfile(token, name, email);
       setAlert({ msg: data.message, type: "success" });
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Something went wrong.", type: "error" });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not save your profile.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -84,15 +107,19 @@ function ProfileCard({
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Name</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+        <label className="form-label" htmlFor="prof-name">
+          Name
+        </label>
+        <input id="prof-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
       </div>
       <div className="form-group">
-        <label className="form-label">Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" />
+        <label className="form-label" htmlFor="prof-email">
+          Email
+        </label>
+        <input id="prof-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" />
       </div>
       <button className="btn btn-primary" id="prof-save-btn" onClick={save} disabled={busy}>
-        Save Profile
+        {busy ? "Saving…" : "Save Profile"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -117,7 +144,7 @@ function RecoveryEmailCard({
       const data = await adminApi.updateRecoveryEmail(token, recoveryEmail);
       setAlert({ msg: data.message, type: "success" });
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Something went wrong.", type: "error" });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not save your recovery email.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -135,11 +162,19 @@ function RecoveryEmailCard({
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Recovery Email (optional)</label>
-        <input type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} placeholder="backup@example.com" />
+        <label className="form-label" htmlFor="recovery-email">
+          Recovery Email (optional)
+        </label>
+        <input
+          id="recovery-email"
+          type="email"
+          value={recoveryEmail}
+          onChange={(e) => setRecoveryEmail(e.target.value)}
+          placeholder="backup@example.com"
+        />
       </div>
       <button className="btn btn-primary" id="recovery-save-btn" onClick={save} disabled={busy}>
-        Save Recovery Email
+        {busy ? "Saving…" : "Save Recovery Email"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -156,7 +191,8 @@ function ChangePasswordCard() {
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function save() {
-    if (!token || !current || !next) return setAlert({ msg: "Both passwords are required.", type: "error" });
+    if (!token) return;
+    if (!current || !next) return setAlert({ msg: "Both passwords are required.", type: "error" });
     setBusy(true);
     try {
       const data = await adminApi.updatePassword(token, current, next);
@@ -164,7 +200,7 @@ function ChangePasswordCard() {
       setCurrent("");
       setNext("");
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Something went wrong.", type: "error" });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not change your password.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -178,37 +214,69 @@ function ChangePasswordCard() {
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Current Password</label>
+        <label className="form-label" htmlFor="cp-current">
+          Current Password
+        </label>
         <div className="pwd-wrap">
           <input
+            id="cp-current"
             type={showCurrent ? "text" : "password"}
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             placeholder="Current password"
+            autoComplete="current-password"
             style={{ paddingRight: 38 }}
           />
-          <span className="pwd-toggle" onClick={() => setShowCurrent((s) => !s)}>
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showCurrent ? "Hide current password" : "Show current password"}
+            onClick={() => setShowCurrent((s) => !s)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowCurrent((s) => !s);
+              }
+            }}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">New Password</label>
+        <label className="form-label" htmlFor="cp-next">
+          New Password
+        </label>
         <div className="pwd-wrap">
           <input
+            id="cp-next"
             type={showNext ? "text" : "password"}
             value={next}
             onChange={(e) => setNext(e.target.value)}
             placeholder="Min 8 chars"
+            autoComplete="new-password"
             style={{ paddingRight: 38 }}
           />
-          <span className="pwd-toggle" onClick={() => setShowNext((s) => !s)}>
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showNext ? "Hide new password" : "Show new password"}
+            onClick={() => setShowNext((s) => !s)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowNext((s) => !s);
+              }
+            }}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <button className="btn btn-primary" id="cp-save-btn" onClick={save} disabled={busy}>
-        Change Password
+        {busy ? "Changing…" : "Change Password"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -230,10 +298,14 @@ function PlatformConfigCard({
     if (!token) return;
     setBusy(true);
     try {
-      const data = await adminApi.savePlatformConfig(token, { maintenance_mode: maintenanceMode });
+      // Persist the exact string form the rest of the backend compares
+      // against (recommend.js: `maintenanceMode === "true"`).
+      const data = await adminApi.savePlatformConfig(token, {
+        maintenance_mode: maintenanceMode ? "true" : "false",
+      });
       setAlert({ msg: data.message, type: "success" });
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Something went wrong.", type: "error" });
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not save platform configuration.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -252,7 +324,7 @@ function PlatformConfigCard({
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
           </svg>
-          Save
+          {busy ? "Saving…" : "Save"}
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: "var(--r-md)" }}>
@@ -262,15 +334,23 @@ function PlatformConfigCard({
             When enabled, all store widgets will stop working and show a maintenance message.
           </div>
         </div>
-        <label style={{ position: "relative", display: "inline-block", width: 44, height: 24, flexShrink: 0 }}>
+        {/* The checkbox id is what drives admin.css's
+            `#cfg-maintenance-mode:checked + #cfg-maintenance-toggle::after`
+            knob-slide rules — without it the white knob never moves. The
+            wrapping <label> forwards clicks to the checkbox, so the track
+            needs no click handler of its own. */}
+        <label
+          htmlFor="cfg-maintenance-mode"
+          style={{ position: "relative", display: "inline-block", width: 44, height: 24, flexShrink: 0, cursor: "pointer" }}
+        >
           <input
+            id="cfg-maintenance-mode"
             type="checkbox"
             checked={maintenanceMode}
             onChange={(e) => setMaintenanceMode(e.target.checked)}
             style={{ opacity: 0, width: 0, height: 0, position: "absolute" }}
           />
           <span
-            onClick={() => setMaintenanceMode(!maintenanceMode)}
             id="cfg-maintenance-toggle"
             style={{
               position: "absolute",

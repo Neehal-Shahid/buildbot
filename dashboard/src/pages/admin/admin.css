@@ -667,6 +667,18 @@
             display: block;
         }
 
+        .alert-success {
+            background: var(--success-bg);
+            color: var(--success);
+            border-color: var(--success-border);
+        }
+
+        .alert-error {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-color: var(--danger-border);
+        }
+
         /* ── ACTION BUTTONS — EXPAND ON HOVER ── */
 
         /* ── SECTION ── */

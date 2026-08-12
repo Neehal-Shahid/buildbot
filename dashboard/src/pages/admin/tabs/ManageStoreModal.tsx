@@ -16,20 +16,31 @@ export function ManageStoreModal({
 }) {
   const { token } = useAdminAuth();
   const toast = useToast();
-  const [status, setStatus] = useState(store?.plan_status || "active");
+  // effectiveStatus is the backend's own normalized view of plan_status
+  // (anything that isn't literally 'disabled' counts as active), so it is
+  // guaranteed to match one of the two <option> values below — plan_status
+  // itself could hold some other plan string and leave the select unmatched.
+  const initialStatus = store?.effectiveStatus || "active";
+  const [status, setStatus] = useState<string>(initialStatus);
   const [notes, setNotes] = useState(store?.admin_notes || "");
-  const [dripPaused, setDripPaused] = useState(String(store?.drip_emails_paused) === "1");
+  const [dripPaused, setDripPaused] = useState(Number(store?.drip_emails_paused) === 1);
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!store || !token) return;
     setSaving(true);
     try {
-      const statusRoute = status === "disabled" ? "disableStore" : "activateStore";
-      await adminApi[statusRoute](token, store.store_id);
+      // Only touch the status routes when the status actually changed:
+      // /admin/disable-store also disconnects WooCommerce and emails the
+      // store owner a "your store has been disabled" notice, so firing it
+      // on every save meant editing notes on an already-disabled store
+      // re-sent that email each time.
+      if (status !== initialStatus) {
+        await adminApi[status === "disabled" ? "disableStore" : "activateStore"](token, store.store_id);
+        logActivity("Store status updated", `${store.store_id} → ${status}`);
+      }
       await adminApi.saveNotes(token, store.store_id, notes.trim());
       await adminApi.setDripPaused(token, store.store_id, dripPaused);
-      logActivity("Store status updated", `${store.store_id} → ${status}`);
       toast.success("Store updated", "Changes saved successfully.");
       onSaved();
       onClose();
@@ -50,7 +61,7 @@ export function ManageStoreModal({
           </svg>
         </div>
         <h3>Manage Store</h3>
-        <p>Change store status, or send a manual email to this store.</p>
+        <p>Change this store's status, pause its automated emails, or record internal notes.</p>
         {store && (
           <>
             <div className="modal-detail">
@@ -61,8 +72,15 @@ export function ManageStoreModal({
               <strong>Store ID:</strong> {store.store_id}
             </div>
             <div className="form-group" style={{ marginTop: 16 }}>
-              <label className="form-label">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "100%" }}>
+              <label className="form-label" htmlFor="manage-store-status">
+                Status
+              </label>
+              <select
+                id="manage-store-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                style={{ width: "100%" }}
+              >
                 <option value="active">Active</option>
                 <option value="disabled">Disabled</option>
               </select>
@@ -74,8 +92,11 @@ export function ManageStoreModal({
               </label>
             </div>
             <div className="form-group">
-              <label className="form-label">Internal Admin Notes</label>
+              <label className="form-label" htmlFor="manage-store-notes">
+                Internal Admin Notes
+              </label>
               <textarea
+                id="manage-store-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
@@ -88,9 +109,9 @@ export function ManageStoreModal({
         )}
         <div className="modal-btns">
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            Save Changes
+            {saving ? "Saving…" : "Save Changes"}
           </button>
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={onClose} disabled={saving}>
             Cancel
           </button>
         </div>

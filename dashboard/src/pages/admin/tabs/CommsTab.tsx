@@ -5,6 +5,12 @@ import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { ApiError } from "../../../lib/api";
 
+// Server-side limits from server/routes/admin.js (/admin/send-email and
+// /admin/broadcast both reject beyond these), mirrored here so the input
+// stops at the limit instead of failing the request after composing.
+const SUBJECT_MAX = 150;
+const MESSAGE_MAX = 2000;
+
 const textareaStyle: CSSProperties = {
   width: "100%",
   padding: "9px 12px",
@@ -27,10 +33,16 @@ function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | 
 export default function CommsTab() {
   const { token } = useAdminAuth();
   const [stores, setStores] = useState<AdminStore[]>([]);
+  const [storesError, setStoresError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    adminApi.stores(token).then((data) => setStores(data.stores));
+    adminApi
+      .stores(token)
+      .then((data) => setStores(data.stores))
+      .catch((err) =>
+        setStoresError(err instanceof ApiError ? err.message : "Could not load the store list."),
+      );
   }, [token]);
 
   return (
@@ -45,7 +57,7 @@ export default function CommsTab() {
 
       <EmailLogCard />
       <SupportTicketsCard />
-      <SendToStoreCard stores={stores} />
+      <SendToStoreCard stores={stores} storesError={storesError} />
     </div>
   );
 }
@@ -58,7 +70,8 @@ function BroadcastCard() {
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function send() {
-    if (!token || !subject || !message) return setAlert({ msg: "Fill subject and message.", type: "error" });
+    if (!token) return;
+    if (!subject || !message) return setAlert({ msg: "Fill subject and message.", type: "error" });
     setBusy(true);
     try {
       const data = await adminApi.broadcast(token, subject, message);
@@ -77,29 +90,52 @@ function BroadcastCard() {
       <div className="card-head">
         <div>
           <h2>Broadcast Email</h2>
-          <div className="card-sub">Send a message to all or filtered stores</div>
+          {/* The backend targets every store whose plan_status isn't
+              'disabled' — there is no audience filter to promise here. */}
+          <div className="card-sub">Send a message to every active store</div>
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Target Audience</label>
-        <select disabled>
+        <label className="form-label" htmlFor="bc-audience">
+          Target Audience
+        </label>
+        <select id="bc-audience" disabled title="Broadcasts always go to all active stores">
           <option>All active stores</option>
         </select>
       </div>
       <div className="form-group">
-        <label className="form-label">Subject</label>
-        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject line" />
+        <label className="form-label" htmlFor="bc-subject">
+          Subject
+        </label>
+        <input
+          id="bc-subject"
+          type="text"
+          value={subject}
+          maxLength={SUBJECT_MAX}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Email subject line"
+        />
       </div>
       <div className="form-group">
-        <label className="form-label">Message</label>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} placeholder="Your message…" style={textareaStyle} />
+        <label className="form-label" htmlFor="bc-message">
+          Message
+        </label>
+        <textarea
+          id="bc-message"
+          value={message}
+          maxLength={MESSAGE_MAX}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={6}
+          placeholder="Your message…"
+          style={textareaStyle}
+        />
       </div>
       <button className="btn btn-primary" onClick={send} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 2L11 13" />
           <path d="M22 2l-7 20-4-9-9-4 20-7z" />
         </svg>
-        Send Broadcast
+        {busy ? "Sending…" : "Send Broadcast"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -115,8 +151,15 @@ function DripCard() {
     if (!token) return;
     setBusy(true);
     try {
-      await adminApi.runDrip(token);
-      setAlert({ msg: "Automated onboarding emails processed.", type: "success" });
+      // The run returns a per-type tally; reporting it is the only way an
+      // admin can tell a real send apart from an all-skipped no-op.
+      const data = await adminApi.runDrip(token);
+      const { onboarding = 0, skipped = 0, errors = [] } = data.results || {};
+      const summary = `${onboarding} onboarding email${onboarding !== 1 ? "s" : ""} sent, ${skipped} skipped (already sent).`;
+      setAlert({
+        msg: errors.length ? `${summary} ${errors.length} failed: ${errors.join("; ")}` : summary,
+        type: errors.length ? "error" : "success",
+      });
     } catch (err) {
       setAlert({ msg: err instanceof ApiError ? err.message : "Drip run failed.", type: "error" });
     } finally {
@@ -148,7 +191,7 @@ function DripCard() {
           <polyline points="23 4 23 10 17 10" />
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
         </svg>
-        Run Drip Now
+        {busy ? "Running…" : "Run Drip Now"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -158,10 +201,21 @@ function DripCard() {
 function EmailLogCard() {
   const { token } = useAdminAuth();
   const [logs, setLogs] = useState<EmailLog[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function load() {
+  async function load() {
     if (!token) return;
-    adminApi.emailLog(token, 80).then((data) => setLogs(data.logs));
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await adminApi.emailLog(token, 80);
+      setLogs(data.logs);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load the email log.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -171,13 +225,14 @@ function EmailLogCard() {
           <h2>Email Send Log</h2>
           <div className="card-sub">Automated drip deduplication audit — each type sends once per store</div>
         </div>
-        <button className="btn btn-sm" onClick={load}>
-          Refresh
+        <button className="btn btn-sm" onClick={load} disabled={busy}>
+          {busy ? "Loading…" : "Refresh"}
         </button>
       </div>
       <div style={{ fontSize: 12, color: "var(--muted)" }}>
-        {!logs && "Click Refresh to load recent sends."}
-        {logs?.length === 0 && "No emails logged yet."}
+        {error && <div className="alert alert-error show">{error}</div>}
+        {!logs && !error && !busy && "Click Refresh to load recent sends."}
+        {logs?.length === 0 && !error && "No emails logged yet."}
         {logs && logs.length > 0 && (
           <table>
             <thead>
@@ -204,15 +259,32 @@ function EmailLogCard() {
 }
 
 const STATUS_OPTIONS: SupportTicket["status"][] = ["open", "in_progress", "resolved", "closed"];
+const STATUS_LABELS: Record<SupportTicket["status"], string> = {
+  open: "Open",
+  in_progress: "In progress",
+  resolved: "Resolved",
+  closed: "Closed",
+};
 
 function SupportTicketsCard() {
   const { token } = useAdminAuth();
   const toast = useToast();
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function load() {
+  async function load() {
     if (!token) return;
-    adminApi.supportTickets(token).then((data) => setTickets(data.tickets));
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await adminApi.supportTickets(token);
+      setTickets(data.tickets);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load support tickets.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function updateStatus(id: string | number, status: SupportTicket["status"]) {
@@ -233,24 +305,35 @@ function SupportTicketsCard() {
           <h2>Support Tickets</h2>
           <div className="card-sub">Messages from store owners</div>
         </div>
-        <button className="btn btn-sm" onClick={load}>
-          Refresh
+        <button className="btn btn-sm" onClick={load} disabled={busy}>
+          {busy ? "Loading…" : "Refresh"}
         </button>
       </div>
       <div style={{ fontSize: 12, color: "var(--muted)" }}>
-        {!tickets && "Click Refresh to load tickets."}
-        {tickets?.length === 0 && "No support tickets."}
+        {error && <div className="alert alert-error show">{error}</div>}
+        {!tickets && !error && !busy && "Click Refresh to load tickets."}
+        {tickets?.length === 0 && !error && "No support tickets."}
         {tickets?.map((t) => (
           <div key={t.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <strong style={{ color: "var(--text)" }}>{t.subject}</strong>
-              <select value={t.status} onChange={(e) => updateStatus(t.id, e.target.value as SupportTicket["status"])}>
+              <select
+                value={t.status}
+                aria-label={`Status for ticket: ${t.subject}`}
+                onChange={(e) => updateStatus(t.id, e.target.value as SupportTicket["status"])}
+              >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {STATUS_LABELS[s]}
                   </option>
                 ))}
               </select>
+            </div>
+            {/* Without the sender and date an admin can't tell who raised
+                the ticket, though the API returns both. */}
+            <div style={{ marginTop: 2, color: "var(--dim)" }}>
+              {t.store_id ? `Store ${t.store_id}` : "Unknown store"}
+              {t.created_at ? ` — ${new Date(t.created_at).toLocaleString()}` : ""}
             </div>
             <p style={{ marginTop: 4 }}>{t.message}</p>
           </div>
@@ -260,7 +343,7 @@ function SupportTicketsCard() {
   );
 }
 
-function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
+function SendToStoreCard({ stores, storesError }: { stores: AdminStore[]; storesError: string | null }) {
   const { token } = useAdminAuth();
   const [storeId, setStoreId] = useState("");
   const [subject, setSubject] = useState("");
@@ -269,7 +352,8 @@ function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function send() {
-    if (!token || !storeId || !subject || !message) return setAlert({ msg: "Pick a store and fill subject/message.", type: "error" });
+    if (!token) return;
+    if (!storeId || !subject || !message) return setAlert({ msg: "Pick a store and fill subject/message.", type: "error" });
     setBusy(true);
     try {
       const data = await adminApi.sendEmail(token, storeId, subject, message);
@@ -288,13 +372,16 @@ function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
       <div className="card-head">
         <div>
           <h2>Send to Specific Store</h2>
-          <div className="card-sub">Search for a store and send them a custom email</div>
+          <div className="card-sub">Choose a store and send them a custom email</div>
         </div>
       </div>
+      {storesError && <div className="alert alert-error show">{storesError}</div>}
       <div className="form-group">
-        <label className="form-label">Select Store</label>
-        <select value={storeId} onChange={(e) => setStoreId(e.target.value)} style={{ width: "100%" }}>
-          <option value="">Search or select a store…</option>
+        <label className="form-label" htmlFor="ss-store">
+          Select Store
+        </label>
+        <select id="ss-store" value={storeId} onChange={(e) => setStoreId(e.target.value)} style={{ width: "100%" }}>
+          <option value="">Select a store…</option>
           {stores.map((s) => (
             <option key={s.store_id} value={s.store_id}>
               {s.name} — {s.email}
@@ -303,19 +390,38 @@ function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
         </select>
       </div>
       <div className="form-group">
-        <label className="form-label">Subject</label>
-        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject line" />
+        <label className="form-label" htmlFor="ss-subject">
+          Subject
+        </label>
+        <input
+          id="ss-subject"
+          type="text"
+          value={subject}
+          maxLength={SUBJECT_MAX}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Email subject line"
+        />
       </div>
       <div className="form-group">
-        <label className="form-label">Message</label>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Your message to this store…" style={textareaStyle} />
+        <label className="form-label" htmlFor="ss-message">
+          Message
+        </label>
+        <textarea
+          id="ss-message"
+          value={message}
+          maxLength={MESSAGE_MAX}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={5}
+          placeholder="Your message to this store…"
+          style={textareaStyle}
+        />
       </div>
       <button className="btn btn-primary" onClick={send} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 2L11 13" />
           <path d="M22 2l-7 20-4-9-9-4 20-7z" />
         </svg>
-        Send Email
+        {busy ? "Sending…" : "Send Email"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>

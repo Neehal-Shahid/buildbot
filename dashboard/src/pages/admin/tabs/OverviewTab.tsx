@@ -2,24 +2,32 @@ import { useEffect, useState } from "react";
 import { adminApi, type AdminStore } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { StatusBadge } from "../../../components/StatusBadge";
+import { ApiError } from "../../../lib/api";
 
 export default function OverviewTab() {
   const { token } = useAdminAuth();
   const [stores, setStores] = useState<AdminStore[] | null>(null);
   const [totalRecs, setTotalRecs] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    adminApi.overview(token).then((data) => {
-      setStores(data.stores);
-      setTotalRecs(data.totalRecs);
-    });
+    adminApi
+      .overview(token)
+      .then((data) => {
+        setStores(data.stores);
+        setTotalRecs(data.totalRecs);
+      })
+      .catch((err) =>
+        setLoadError(err instanceof ApiError ? err.message : "Could not load the platform overview."),
+      );
   }, [token]);
 
   return (
     <div>
       <div className="section-title">Platform Overview</div>
       <div className="section-sub">Everything happening across BuildVolt right now.</div>
+      {loadError && <div className="alert alert-error show">{loadError}</div>}
 
       <div className="stats">
         <div className="stat">
@@ -64,7 +72,9 @@ export default function OverviewTab() {
           <tbody>
             {!stores && (
               <tr>
-                <td colSpan={4}>Loading…</td>
+                <td colSpan={4} style={loadError ? { color: "var(--danger)" } : undefined}>
+                  {loadError || "Loading…"}
+                </td>
               </tr>
             )}
             {stores?.length === 0 && (

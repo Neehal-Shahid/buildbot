@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { adminApi } from "../../lib/adminApi";
 import OverviewTab from "./tabs/OverviewTab";
 import StoresTab from "./tabs/StoresTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
@@ -99,7 +100,19 @@ type TabId = (typeof TABS)[number]["id"];
 export default function AdminApp() {
   const [tab, setTab] = useState<TabId>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { logout } = useAdminAuth();
+  const { token, logout } = useAdminAuth();
+  const [adminName, setAdminName] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    adminApi
+      .me(token)
+      .then((data) => setAdminName(data.admin.name))
+      .catch(() => {
+        // Decorative (nav-bar name) — a failed fetch just leaves it blank
+        // rather than surfacing an error toast for something this minor.
+      });
+  }, [token]);
 
   return (
     <div id="admin-app">
@@ -122,7 +135,23 @@ export default function AdminApp() {
           </div>
         </div>
         <div className="nav-right">
-          <a onClick={logout}>Sign out</a>
+          {adminName && <span id="nav-admin-name">{adminName}</span>}
+          {/* Styled by the `.nav-right a` element selector, so it stays an
+              anchor — but it needs an explicit role/tabIndex to be
+              reachable without a mouse, having no href. */}
+          <a
+            role="button"
+            tabIndex={0}
+            onClick={logout}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                logout();
+              }
+            }}
+          >
+            Sign out
+          </a>
         </div>
       </nav>
 
@@ -139,19 +168,31 @@ export default function AdminApp() {
           {(["Platform", "Admin"] as const).map((section) => (
             <div key={section}>
               <div className="sb-sep">{section}</div>
-              {TABS.filter((t) => t.section === section).map((t) => (
-                <div
-                  key={t.id}
-                  className={`sb-item${tab === t.id ? " active" : ""}`}
-                  onClick={() => {
-                    setTab(t.id);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  {t.icon}
-                  {t.label}
-                </div>
-              ))}
+              {TABS.filter((t) => t.section === section).map((t) => {
+                const select = () => {
+                  setTab(t.id);
+                  setSidebarOpen(false);
+                };
+                return (
+                  <div
+                    key={t.id}
+                    className={`sb-item${tab === t.id ? " active" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-current={tab === t.id ? "page" : undefined}
+                    onClick={select}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        select();
+                      }
+                    }}
+                  >
+                    {t.icon}
+                    {t.label}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

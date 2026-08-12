@@ -3,33 +3,60 @@ import { adminApi } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { ApiError } from "../../../lib/api";
+import { ConfirmActionModal } from "./ConfirmActionModal";
 
 type AuditResult = Awaited<ReturnType<typeof adminApi.dbAudit>>;
+type CleanupAction = "tokens" | "orphans";
+
+const CLEANUP_COPY: Record<CleanupAction, { title: string; desc: string; confirmLabel: string; busyLabel: string }> = {
+  tokens: {
+    title: "Clean Expired Tokens",
+    desc: "This permanently deletes every password-reset and verification token that has already expired or been used. Active tokens are not affected.",
+    confirmLabel: "Delete Tokens",
+    busyLabel: "Cleaning…",
+  },
+  orphans: {
+    title: "Remove Orphaned Records",
+    desc: "This permanently deletes products and recommendations whose store no longer exists. No existing store's data is touched.",
+    confirmLabel: "Remove Records",
+    busyLabel: "Removing…",
+  },
+};
 
 export default function DbHealthTab() {
   const { token } = useAdminAuth();
   const toast = useToast();
   const [audit, setAudit] = useState<AuditResult | null>(null);
+  const [auditing, setAuditing] = useState(false);
+  const [pendingCleanup, setPendingCleanup] = useState<CleanupAction | null>(null);
   const [cleanupAlert, setCleanupAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function runAudit() {
     if (!token) return;
+    setAuditing(true);
     try {
       const data = await adminApi.dbAudit(token);
       setAudit(data);
     } catch (err) {
       toast.error("Error", err instanceof ApiError ? err.message : "Could not run DB audit.");
+    } finally {
+      setAuditing(false);
     }
   }
 
-  async function cleanup(action: "tokens" | "orphans") {
-    if (!token) return;
+  async function runCleanup() {
+    const action = pendingCleanup;
+    if (!token || !action) return;
+    setCleanupAlert(null);
     try {
       const data = await adminApi.dbCleanup(token, action);
       setCleanupAlert({ msg: data.message, type: "success" });
-      if (audit) runAudit();
+      setPendingCleanup(null);
+      // Keep the on-screen report in sync with what was just deleted.
+      if (audit) await runAudit();
     } catch (err) {
       setCleanupAlert({ msg: err instanceof ApiError ? err.message : "Cleanup failed.", type: "error" });
+      setPendingCleanup(null);
     }
   }
 
@@ -42,18 +69,18 @@ export default function DbHealthTab() {
         <div className="card-head">
           <div>
             <h2>Integrity Audit</h2>
-            <div className="card-sub">{audit ? "Report generated" : 'Click "Run audit" to generate report'}</div>
+            <div className="card-sub">{audit ? "Report generated" : 'Click "Run Audit" to generate a report'}</div>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={runAudit}>
+          <button className="btn btn-primary btn-sm" onClick={runAudit} disabled={auditing}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Run Audit
+            {auditing ? "Running…" : "Run Audit"}
           </button>
         </div>
         <div className="audit-out">
-          {!audit && 'Click "Run Audit" to generate a report.'}
+          {!audit && (auditing ? "Running audit…" : 'Click "Run Audit" to generate a report.')}
           {audit && (
             <div>
               {Object.entries(audit.counts).map(([table, count]) => (
@@ -65,6 +92,17 @@ export default function DbHealthTab() {
               <div>Orphan recommendations: {audit.orphans.recommendations}</div>
               <div>Expired tokens: {audit.tokens.expired}</div>
               <div>Used tokens: {audit.tokens.used}</div>
+              {audit.orphans.orphanProductsTop?.length > 0 && (
+                <>
+                  <div>&nbsp;</div>
+                  <div>Top missing store_ids by orphaned products:</div>
+                  {audit.orphans.orphanProductsTop.map((row) => (
+                    <div key={String(row.store_id)}>
+                      &nbsp;&nbsp;{String(row.store_id)}: {Number(row.c)}
+                    </div>
+                  ))}
+                </>
+              )}
               {audit.notes.map((n, i) => (
                 <div key={i}>— {n}</div>
               ))}
@@ -87,7 +125,7 @@ export default function DbHealthTab() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="btn btn-sm" onClick={() => cleanup("tokens")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <button className="btn btn-sm" onClick={() => setPendingCleanup("tokens")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -97,7 +135,7 @@ export default function DbHealthTab() {
             </svg>
             Clean Expired Tokens
           </button>
-          <button className="btn btn-sm" onClick={() => cleanup("orphans")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <button className="btn btn-sm" onClick={() => setPendingCleanup("orphans")} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -107,6 +145,45 @@ export default function DbHealthTab() {
         </div>
         {cleanupAlert && <div className={`alert alert-${cleanupAlert.type} show`} style={{ marginTop: 12 }}>{cleanupAlert.msg}</div>}
       </div>
+
+      <ConfirmActionModal
+        open={!!pendingCleanup}
+        onClose={() => setPendingCleanup(null)}
+        onConfirm={runCleanup}
+        iconBg="var(--warning-bg)"
+        iconColor="var(--warning)"
+        icon={
+          <svg viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4" />
+          </svg>
+        }
+        title={pendingCleanup ? CLEANUP_COPY[pendingCleanup].title : ""}
+        desc={pendingCleanup ? CLEANUP_COPY[pendingCleanup].desc : ""}
+        detail={
+          pendingCleanup === "tokens" && audit ? (
+            <>
+              <strong>Expired tokens:</strong> {audit.tokens.expired}
+              <br />
+              <strong>Used tokens:</strong> {audit.tokens.used}
+            </>
+          ) : pendingCleanup === "orphans" && audit ? (
+            <>
+              <strong>Orphan products:</strong> {audit.orphans.products}
+              <br />
+              <strong>Orphan recommendations:</strong> {audit.orphans.recommendations}
+            </>
+          ) : (
+            "Run an audit first to see exactly how many rows this will remove."
+          )
+        }
+        confirmLabel={pendingCleanup ? CLEANUP_COPY[pendingCleanup].confirmLabel : "Confirm"}
+        busyLabel={pendingCleanup ? CLEANUP_COPY[pendingCleanup].busyLabel : "Working…"}
+        confirmClass="btn btn-danger"
+      />
     </div>
   );
 }

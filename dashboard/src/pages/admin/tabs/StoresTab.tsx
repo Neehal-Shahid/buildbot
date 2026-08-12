@@ -14,6 +14,7 @@ export default function StoresTab() {
   const toast = useToast();
 
   const [stores, setStores] = useState<AdminStore[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [manageStore, setManageStore] = useState<AdminStore | null>(null);
   const [productsStore, setProductsStore] = useState<{ storeId: string; name: string } | null>(null);
@@ -23,7 +24,13 @@ export default function StoresTab() {
 
   function load() {
     if (!token) return;
-    adminApi.stores(token).then((data) => setStores(data.stores));
+    setLoadError(null);
+    adminApi
+      .stores(token)
+      .then((data) => setStores(data.stores))
+      .catch((err) =>
+        setLoadError(err instanceof ApiError ? err.message : "Could not load stores."),
+      );
   }
 
   useEffect(load, [token]);
@@ -63,15 +70,13 @@ export default function StoresTab() {
   async function confirmDelete() {
     if (!deleteStore || !token) return;
     try {
-      const data = await adminApi.deleteStore(token, deleteStore.store_id);
-      if (data.success) {
-        toast.success("Store deleted", "All store data has been permanently removed.");
-        logActivity("Store deleted", deleteStore.store_id);
-        setDeleteStore(null);
-        load();
-      }
+      await adminApi.deleteStore(token, deleteStore.store_id);
+      toast.success("Store deleted", "All store data has been permanently removed.");
+      logActivity("Store deleted", deleteStore.store_id);
+      setDeleteStore(null);
+      load();
     } catch (err) {
-      toast.error("Delete failed", err instanceof ApiError ? err.message : "Something went wrong.");
+      toast.error("Delete failed", err instanceof ApiError ? err.message : "Could not delete store.");
     }
   }
 
@@ -84,7 +89,13 @@ export default function StoresTab() {
           <div>
             <h2>Stores</h2>
             <div className="card-sub">
-              {stores ? `${filtered.length} store${filtered.length !== 1 ? "s" : ""} registered` : "Loading…"}
+              {!stores
+                ? loadError
+                  ? "Could not load stores"
+                  : "Loading…"
+                : search
+                  ? `${filtered.length} of ${stores.length} store${stores.length !== 1 ? "s" : ""} matching`
+                  : `${stores.length} store${stores.length !== 1 ? "s" : ""} registered`}
             </div>
           </div>
           <input
@@ -92,7 +103,8 @@ export default function StoresTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email…"
-            style={{ width: 220 }}
+            aria-label="Search stores by name or email"
+            style={{ width: 220, maxWidth: "100%" }}
           />
         </div>
         <div style={{ overflowX: "auto" }}>
@@ -109,14 +121,28 @@ export default function StoresTab() {
               </tr>
             </thead>
             <tbody>
-              {!stores && (
+              {!stores && !loadError && (
                 <tr>
                   <td colSpan={7}>Loading stores…</td>
                 </tr>
               )}
+              {!stores && loadError && (
+                <tr>
+                  <td colSpan={7} style={{ color: "var(--danger)" }}>
+                    {loadError}{" "}
+                    <button
+                      type="button"
+                      onClick={load}
+                      style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
+                    >
+                      Retry
+                    </button>
+                  </td>
+                </tr>
+              )}
               {stores && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7}>No stores registered yet.</td>
+                  <td colSpan={7}>{search ? "No stores match your search." : "No stores registered yet."}</td>
                 </tr>
               )}
               {filtered.map((s) => (
@@ -135,32 +161,39 @@ export default function StoresTab() {
                     <StatusBadge store={s} />
                   </td>
                   <td>
-                    <a
-                      href="javascript:void(0)"
-                      style={{ color: "var(--accent)", textDecoration: "underline" }}
+                    <button
+                      type="button"
+                      title={`View ${s.name}'s product catalog`}
+                      style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
                       onClick={() => setProductsStore({ storeId: s.store_id, name: s.name })}
                     >
                       {s.product_count || 0}
-                    </a>
+                    </button>
                   </td>
                   <td>{s.rec_count || 0}</td>
                   <td>{s.created_at ? new Date(s.created_at).toLocaleDateString() : ""}</td>
                   <td style={{ minWidth: 160, whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap" }}>
-                      <button className="action-btn act-activate" style={{ height: 28 }} onClick={() => setActivateStore(s)}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
-                        </svg>
-                        <span className="ab-text">Activate</span>
-                      </button>
-                      <button className="action-btn act-disable" style={{ height: 28 }} onClick={() => setDisableStore(s)}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                        </svg>
-                        <span className="ab-text">Disable</span>
-                      </button>
+                      {/* Only the applicable transition is offered: re-running
+                          /admin/disable-store on an already-disabled store
+                          re-sends the "store disabled" email to its owner. */}
+                      {s.effectiveStatus === "disabled" ? (
+                        <button className="action-btn act-activate" style={{ height: 28 }} onClick={() => setActivateStore(s)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+                          </svg>
+                          <span className="ab-text">Activate</span>
+                        </button>
+                      ) : (
+                        <button className="action-btn act-disable" style={{ height: 28 }} onClick={() => setDisableStore(s)}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                          </svg>
+                          <span className="ab-text">Disable</span>
+                        </button>
+                      )}
                       <button className="action-btn act-delete" style={{ height: 28 }} onClick={() => setDeleteStore(s)}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6" />
@@ -203,6 +236,7 @@ export default function StoresTab() {
         desc="This will deactivate the store's widget. Their customers will see an error. You can re-enable at any time."
         detail={disableStore && <><strong>Store:</strong> {disableStore.name}<br /><strong>Store ID:</strong> {disableStore.store_id}</>}
         confirmLabel="Disable Store"
+        busyLabel="Disabling…"
         confirmClass="btn btn-warning"
       />
 
@@ -222,6 +256,7 @@ export default function StoresTab() {
         desc="This will re-enable the store's widget. Their customers will be able to get recommendations again."
         detail={activateStore && <><strong>Store:</strong> {activateStore.name}<br /><strong>Store ID:</strong> {activateStore.store_id}</>}
         confirmLabel="Activate Store"
+        busyLabel="Activating…"
         confirmClass="btn btn-primary"
       />
 
@@ -244,6 +279,7 @@ export default function StoresTab() {
         desc="This will permanently delete the store and ALL their products, recommendations and data. This cannot be undone."
         detail={deleteStore && <><strong>Store:</strong> {deleteStore.name}<br /><strong>Store ID:</strong> {deleteStore.store_id}</>}
         confirmLabel="Delete Permanently"
+        busyLabel="Deleting…"
         confirmClass="btn btn-danger"
       />
 

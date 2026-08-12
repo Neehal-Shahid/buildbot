@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { adminApi } from "../../lib/adminApi";
 import { ApiError } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
@@ -24,17 +25,40 @@ const EyeIcon = () => (
   </svg>
 );
 
+// Enter/Space activation for the span-based controls. Propagation is
+// stopped because each login box submits on Enter — without it, hitting
+// Enter on "Forgot password?" would both switch view and fire a sign-in.
+function activateOnKey(fn: () => void) {
+  return (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      fn();
+    }
+  };
+}
+
 export default function AdminLogin() {
-  const resetToken = new URLSearchParams(window.location.search).get("reset_token");
+  const [resetToken] = useState(() => new URLSearchParams(window.location.search).get("reset_token"));
   const [view, setView] = useState<View>(resetToken ? "reset" : "signin");
   const { login } = useAdminAuth();
+
+  // Once the token has been spent, drop it from the address bar so a
+  // refresh lands on the sign-in form instead of re-opening the reset
+  // view with a token the server has already marked used.
+  function finishReset() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("reset_token");
+    window.history.replaceState({}, "", url.toString());
+    setView("signin");
+  }
 
   return (
     <div id="admin-login">
       <div className="login-wrap">
         {view === "signin" && <SignInBox onForgot={() => setView("forgot")} onLogin={login} />}
         {view === "forgot" && <ForgotBox onBack={() => setView("signin")} />}
-        {view === "reset" && resetToken && <ResetBox token={resetToken} onDone={() => setView("signin")} />}
+        {view === "reset" && resetToken && <ResetBox token={resetToken} onDone={finishReset} />}
       </div>
     </div>
   );
@@ -71,14 +95,19 @@ function SignInBox({ onForgot, onLogin }: { onForgot: () => void; onLogin: (toke
       <h2>Admin Sign In</h2>
       <p>Restricted access. Authorised personnel only.</p>
       <div className="form-group" style={{ marginTop: 20 }}>
-        <label className="form-label">Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
+        <label className="form-label" htmlFor="admin-email">
+          Email
+        </label>
+        <input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
       </div>
       <div className="form-group">
-        <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <label className="form-label" htmlFor="admin-password" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Password
           <span
+            role="button"
+            tabIndex={0}
             onClick={onForgot}
+            onKeyDown={activateOnKey(onForgot)}
             style={{ fontSize: 12, color: "var(--accent)", cursor: "pointer", textTransform: "none", letterSpacing: 0, fontWeight: 500 }}
           >
             Forgot password?
@@ -86,6 +115,7 @@ function SignInBox({ onForgot, onLogin }: { onForgot: () => void; onLogin: (toke
         </label>
         <div className="pwd-wrap">
           <input
+            id="admin-password"
             type={showPwd ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -93,13 +123,20 @@ function SignInBox({ onForgot, onLogin }: { onForgot: () => void; onLogin: (toke
             autoComplete="current-password"
             style={{ paddingRight: 38 }}
           />
-          <span className="pwd-toggle" onClick={() => setShowPwd((s) => !s)}>
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showPwd ? "Hide password" : "Show password"}
+            onClick={() => setShowPwd((s) => !s)}
+            onKeyDown={activateOnKey(() => setShowPwd((s) => !s))}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
-        Sign in to Admin Panel
+        {busy ? "Signing in…" : "Sign in to Admin Panel"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -130,14 +167,22 @@ function ForgotBox({ onBack }: { onBack: () => void }) {
       <h2>Reset Password</h2>
       <p>Enter your admin email and we'll send a reset link.</p>
       <div className="form-group" style={{ marginTop: 20 }}>
-        <label className="form-label">Admin Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
+        <label className="form-label" htmlFor="admin-forgot-email">
+          Admin Email
+        </label>
+        <input id="admin-forgot-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@buildvolt.pk" autoComplete="email" />
       </div>
       <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
-        Send Reset Link
+        {busy ? "Sending…" : "Send Reset Link"}
       </button>
       <div style={{ textAlign: "center", marginTop: 16 }}>
-        <span onClick={onBack} style={{ fontSize: 13, color: "var(--accent)", cursor: "pointer", fontWeight: 500 }}>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={onBack}
+          onKeyDown={activateOnKey(onBack)}
+          style={{ fontSize: 13, color: "var(--accent)", cursor: "pointer", fontWeight: 500 }}
+        >
           ← Back to sign in
         </span>
       </div>
@@ -156,13 +201,12 @@ function ResetBox({ token, onDone }: { token: string; onDone: () => void }) {
     if (!password) return setAlert({ msg: "Please fill in the password.", type: "error" });
     setBusy(true);
     try {
-      const data = await adminApi.resetPassword(token, password);
-      if (data.success) {
-        setAlert({ msg: "Password reset! Redirecting to sign in…", type: "success" });
-        setTimeout(onDone, 1500);
-      } else {
-        setAlert({ msg: data.error || "Something went wrong.", type: "error" });
-      }
+      // apiFetch throws ApiError on any non-2xx, so reaching this line
+      // already means the reset succeeded — there is no failure branch to
+      // read data.error from.
+      await adminApi.resetPassword(token, password);
+      setAlert({ msg: "Password reset! Redirecting to sign in…", type: "success" });
+      setTimeout(onDone, 1500);
     } catch (err) {
       setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
@@ -176,22 +220,33 @@ function ResetBox({ token, onDone }: { token: string; onDone: () => void }) {
       <h2>Set New Password</h2>
       <p>Enter your new admin password below.</p>
       <div className="form-group" style={{ marginTop: 20 }}>
-        <label className="form-label">New Password</label>
+        <label className="form-label" htmlFor="admin-new-password">
+          New Password
+        </label>
         <div className="pwd-wrap">
           <input
+            id="admin-new-password"
             type={showPwd ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Min 8 chars, uppercase, number, symbol"
+            autoComplete="new-password"
             style={{ paddingRight: 38 }}
           />
-          <span className="pwd-toggle" onClick={() => setShowPwd((s) => !s)}>
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showPwd ? "Hide password" : "Show password"}
+            onClick={() => setShowPwd((s) => !s)}
+            onKeyDown={activateOnKey(() => setShowPwd((s) => !s))}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <button className="btn btn-primary btn-full" onClick={submit} disabled={busy}>
-        Update Password
+        {busy ? "Updating…" : "Update Password"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>

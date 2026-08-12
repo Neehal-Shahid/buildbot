@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminApi } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { ApiError } from "../../../lib/api";
 
 interface Product {
   sku?: string;
@@ -18,16 +19,18 @@ export function ProductsModal({
 }) {
   const { token } = useAdminAuth();
   const [products, setProducts] = useState<Product[] | null>(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!store || !token) return;
     setProducts(null);
-    setError(false);
+    setError(null);
     adminApi
       .storeProducts(token, store.storeId)
       .then((data) => setProducts(data.products as Product[]))
-      .catch(() => setError(true));
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Failed to load products."),
+      );
   }, [store, token]);
 
   return (
@@ -51,12 +54,12 @@ export function ProductsModal({
             {products === null && !error && (
               <div style={{ textAlign: "center", padding: 24, color: "var(--dim)", fontSize: 13 }}>Loading products…</div>
             )}
-            {error && <div style={{ textAlign: "center", padding: 24, color: "var(--danger)", fontSize: 13 }}>Failed to load products.</div>}
+            {error && <div style={{ textAlign: "center", padding: 24, color: "var(--danger)", fontSize: 13 }}>{error}</div>}
             {products && products.length === 0 && (
               <div style={{ textAlign: "center", padding: 24, color: "var(--dim)", fontSize: 13 }}>No products found for this store.</div>
             )}
             {products && products.length > 0 && (
-              <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, marginTop: 8 }}>
+              <div style={{ maxHeight: 300, overflowY: "auto", overflowX: "auto", border: "1px solid var(--border)", borderRadius: 8, marginTop: 8 }}>
                 <table style={{ width: "100%" }}>
                   <thead>
                     <tr>
@@ -71,7 +74,11 @@ export function ProductsModal({
                       <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
                         <td style={{ padding: "8px 10px", fontSize: 12, fontFamily: "monospace" }}>{p.sku || ""}</td>
                         <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.name || ""}</td>
-                        <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.price ? `Rs ${Number(p.price).toLocaleString()}` : ""}</td>
+                        {/* A genuinely free/zero-priced item must still
+                            render as "Rs 0" rather than a blank cell. */}
+                        <td style={{ padding: "8px 10px", fontSize: 12 }}>
+                          {p.price == null ? "" : `Rs ${Number(p.price).toLocaleString()}`}
+                        </td>
                         <td style={{ padding: "8px 10px", fontSize: 12 }}>{p.category || ""}</td>
                       </tr>
                     ))}

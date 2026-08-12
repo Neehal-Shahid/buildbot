@@ -1,8 +1,16 @@
 import { useState } from "react";
 import { clearActivityLog, getActivityLog } from "../../../lib/activityLog";
+import { ConfirmActionModal } from "./ConfirmActionModal";
 
 export default function ActivityTab() {
   const [log, setLog] = useState(getActivityLog());
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  async function doClear() {
+    clearActivityLog();
+    setLog([]);
+    setConfirmClear(false);
+  }
 
   return (
     <div>
@@ -12,14 +20,14 @@ export default function ActivityTab() {
         <div className="card-head">
           <div>
             <h2>Recent Actions</h2>
-            <div className="card-sub">{log.length} entries</div>
+            <div className="card-sub">
+              {log.length} {log.length === 1 ? "entry" : "entries"}
+            </div>
           </div>
           <button
             className="btn btn-sm btn-danger"
-            onClick={() => {
-              clearActivityLog();
-              setLog([]);
-            }}
+            onClick={() => setConfirmClear(true)}
+            disabled={log.length === 0}
             style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,6 +61,33 @@ export default function ActivityTab() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmActionModal
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={doClear}
+        iconBg="var(--danger-bg)"
+        iconColor="var(--danger)"
+        icon={
+          <svg viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4" />
+          </svg>
+        }
+        title="Clear Activity Log"
+        desc="This erases the locally stored record of admin actions in this browser. It cannot be undone."
+        detail={
+          <>
+            <strong>Entries to remove:</strong> {log.length}
+          </>
+        }
+        confirmLabel="Clear Log"
+        busyLabel="Clearing…"
+        confirmClass="btn btn-danger"
+      />
     </div>
   );
 }

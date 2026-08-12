@@ -216,9 +216,9 @@ export const dashboardApi = {
     },
     // One-click OSPOS import (server/routes/ospos.js) — connects directly
     // to the store's OSPOS MySQL database with the credentials given here,
-    // imports, and disconnects, all in this one request. Nothing is saved
-    // on BuildVolt's side except the resulting products, same as upload()
-    // above; there's no separate "connect" step or persisted connection.
+    // imports, and disconnects, all in this one request. On success the
+    // (encrypted) credentials are saved server-side so BuildVolt can keep
+    // pulling automatically afterwards — see osposAutoSyncStatus below.
     importFromOspos: (
       token: string,
       creds: { host: string; port?: string; database: string; username: string; password?: string },
@@ -227,10 +227,24 @@ export const dashboardApi = {
         success: boolean;
         message?: string;
         error?: string;
+        autoSyncEnabled?: boolean;
         synced?: number;
         skipped?: number;
         skippedCategory?: number;
       }>("/ospos/import", { method: "POST", body: creds, ...auth(token) }),
+    osposAutoSyncStatus: (token: string) =>
+      apiFetch<{
+        success: boolean;
+        enabled: boolean;
+        lastSync: string | null;
+        productCount: number;
+        host: string;
+      }>("/ospos/auto-sync-status", auth(token)),
+    disableOsposAutoSync: (token: string) =>
+      apiFetch<{ success: boolean; message: string }>("/ospos/auto-sync-disable", {
+        method: "POST",
+        ...auth(token),
+      }),
   },
 
   plugin: {

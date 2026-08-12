@@ -42,6 +42,29 @@ export default function ProductsTab() {
   const [osposUsername, setOsposUsername] = useState("");
   const [osposPassword, setOsposPassword] = useState("");
   const [osposImporting, setOsposImporting] = useState(false);
+  const [osposAutoSync, setOsposAutoSync] = useState<{ enabled: boolean; lastSync: string | null; productCount: number; host: string } | null>(null);
+  const [osposDisabling, setOsposDisabling] = useState(false);
+
+  function loadOsposStatus() {
+    if (!token) return;
+    dashboardApi.products.osposAutoSyncStatus(token).then(setOsposAutoSync).catch(() => {});
+  }
+
+  useEffect(loadOsposStatus, [token]);
+
+  async function stopOsposAutoSync() {
+    if (!token) return;
+    setOsposDisabling(true);
+    try {
+      await dashboardApi.products.disableOsposAutoSync(token);
+      toast.success("Auto-sync stopped", "BuildVolt will no longer pull from OSPOS automatically.");
+      loadOsposStatus();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not stop auto-sync.");
+    } finally {
+      setOsposDisabling(false);
+    }
+  }
 
   function load() {
     if (!token || !store) return;
@@ -151,6 +174,7 @@ export default function ProductsTab() {
         setOsposOpen(false);
         setOsposPassword("");
         load();
+        loadOsposStatus();
       } else {
         toast.error("Import failed", data.error || "Could not import from OSPOS.");
       }
@@ -207,59 +231,116 @@ export default function ProductsTab() {
           <div>
             <h2 style={{ margin: 0 }}>Import from OSPOS</h2>
             <p style={{ margin: "4px 0 0" }}>
-              Pull your catalog directly from Open Source Point of Sale — one click, nothing to install.
+              {osposAutoSync?.enabled
+                ? "Connected — BuildVolt keeps this catalog in sync with OSPOS automatically."
+                : "Pull your catalog directly from Open Source Point of Sale — one click, nothing to install."}
             </p>
           </div>
-          <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
-            {osposOpen ? "Cancel" : "Import from OSPOS"}
-          </button>
+          {!osposAutoSync?.enabled && (
+            <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
+              {osposOpen ? "Cancel" : "Import from OSPOS"}
+            </button>
+          )}
         </div>
 
-        {osposOpen && (
+        {osposAutoSync?.enabled ? (
           <div style={{ marginTop: 16 }}>
-            <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
-              Enter your OSPOS database's connection details below. BuildVolt connects, reads your items, imports
-              them, and disconnects — nothing is saved except the resulting product list. Your host or whoever set
-              up OSPOS can give you these details; on shared hosting (cPanel), check for a{" "}
-              <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to allow the connection.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
-              <div>
-                <label className="form-label" htmlFor="ospos-host">Database Host</label>
-                <input
-                  id="ospos-host"
-                  type="text"
-                  placeholder="e.g. localhost or db.hostingsite.com"
-                  value={osposHost}
-                  onChange={(e) => setOsposHost(e.target.value)}
-                />
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "5px 14px",
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                display: "inline-block",
+                background: "rgba(5,150,105,0.12)",
+                color: "var(--success)",
+                border: "1px solid rgba(5,150,105,0.3)",
+              }}
+            >
+              ● Auto-sync ON
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))", gap: 12, marginBottom: 16 }}>
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Database Host</div>
+                <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500, wordBreak: "break-all" }}>{osposAutoSync.host || "—"}</div>
               </div>
-              <div>
-                <label className="form-label" htmlFor="ospos-port">Port</label>
-                <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Products Synced</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success)" }}>{osposAutoSync.productCount}</div>
               </div>
-              <div>
-                <label className="form-label" htmlFor="ospos-db">Database Name</label>
-                <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="ospos-user">Username</label>
-                <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="ospos-pass">Password</label>
-                <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
+              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Last Synced</div>
+                <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>
+                  {osposAutoSync.lastSync ? new Date(osposAutoSync.lastSync).toLocaleString() : "Never"}
+                </div>
               </div>
             </div>
+            <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+              Runs automatically every few hours — no need to re-import when your OSPOS listing changes.
+            </p>
             <button
               type="button"
-              className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
-              onClick={handleOsposImport}
-              disabled={osposImporting}
+              className={`btn btn-sm${osposDisabling ? " is-loading" : ""}`}
+              onClick={stopOsposAutoSync}
+              disabled={osposDisabling}
+              style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}
             >
-              {osposImporting ? "Importing…" : "Import now"}
+              {osposDisabling ? "Stopping…" : "Stop auto-sync"}
             </button>
           </div>
+        ) : (
+          osposOpen && (
+            <div style={{ marginTop: 16 }}>
+              <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
+                Enter your OSPOS database's connection details below. BuildVolt connects, reads your items, and
+                imports them. Your host or whoever set up OSPOS can give you these details; on shared hosting
+                (cPanel), check for a <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to
+                allow the connection.{" "}
+                <strong style={{ color: "var(--text)" }}>
+                  After this first import, BuildVolt securely stores these details (encrypted) and keeps your
+                  catalog in sync with OSPOS automatically
+                </strong>{" "}
+                — you can turn that off any time below.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
+                <div>
+                  <label className="form-label" htmlFor="ospos-host">Database Host</label>
+                  <input
+                    id="ospos-host"
+                    type="text"
+                    placeholder="e.g. localhost or db.hostingsite.com"
+                    value={osposHost}
+                    onChange={(e) => setOsposHost(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="ospos-port">Port</label>
+                  <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="ospos-db">Database Name</label>
+                  <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="ospos-user">Username</label>
+                  <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="ospos-pass">Password</label>
+                  <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
+                onClick={handleOsposImport}
+                disabled={osposImporting}
+              >
+                {osposImporting ? "Importing…" : "Import now"}
+              </button>
+            </div>
+          )
         )}
       </div>
 

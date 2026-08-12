@@ -144,7 +144,35 @@ initDB().then(async () => {
       },
       60 * 60 * 1000,
     );
+
+    // ─── SCHEDULED OSPOS AUTO-SYNC JOB ─────────────────────────
+    // Keeps every store that has completed at least one manual OSPOS
+    // import (Products tab) current automatically from then on — see
+    // server/routes/ospos.js. Same six-hour cadence as the WooCommerce
+    // plugin's own auto-sync.
+    const { pullAllAutoSyncStores } = require("./routes/ospos");
+
+    setTimeout(async () => {
+      try {
+        const results = await pullAllAutoSyncStores();
+        if (results.length > 0) console.log("OSPOS auto-sync (startup):", results);
+      } catch (e) {
+        console.error("Startup OSPOS auto-sync error:", e.message);
+      }
+    }, 45 * 1000);
+
+    setInterval(
+      async () => {
+        try {
+          const results = await pullAllAutoSyncStores();
+          if (results.length > 0) console.log("OSPOS auto-sync (scheduled):", results);
+        } catch (e) {
+          console.error("Scheduled OSPOS auto-sync error:", e.message);
+        }
+      },
+      6 * 60 * 60 * 1000,
+    );
   } else {
-    console.log("Email cron disabled (CRON_ENABLED=false)");
+    console.log("Email + OSPOS auto-sync cron disabled (CRON_ENABLED=false)");
   }
 });

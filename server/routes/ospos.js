@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const mysql = require("mysql2/promise");
 const { storeDB, client } = require("../database");
 const { normalizeCategory } = require("../lib/categories");
+const { encrypt, decrypt } = require("../lib/crypto");
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
@@ -141,14 +142,37 @@ const ITEMS_QUERY = `
   GROUP BY i.item_id
 `;
 
+// Shared by the interactive import and the scheduled auto-sync job: open a
+// connection, read every item, close the connection — always, even on
+// failure, so a bad password never leaks a lingering open connection to a
+// third party's database.
+async function connectReadAndClose({ host, port, database, username, password }) {
+  const connection = await mysql.createConnection({
+    host,
+    port: port ? Number(port) : 3306,
+    database,
+    user: username,
+    password: password || "",
+    connectTimeout: 10000,
+    // OSPOS itself connects over plain MySQL by default; not forcing SSL
+    // here matches that, and most small shared-hosting MySQL instances
+    // don't have a certificate configured for it anyway.
+  });
+  try {
+    const [rows] = await connection.query(ITEMS_QUERY);
+    return rows;
+  } finally {
+    await connection.end().catch(() => {});
+  }
+}
+
 // ─── ONE-CLICK IMPORT (dashboard-authenticated) ────────────
-// Everything happens in this single request, exactly like POST /upload
-// for a CSV file: connect, read, map, save, respond with a result — no
-// separate "connect" step, nothing to configure beforehand, nothing
-// persisted afterwards. The store owner enters their OSPOS database's
-// connection details directly in the Products tab; BuildVolt never
-// stores that password anywhere — the connection exists only for the
-// duration of this request, then is always closed.
+// Connect, read, map, save, respond — all in this one request, exactly
+// like POST /upload for a CSV file. On success this ALSO saves the
+// (encrypted) credentials so BuildVolt can reconnect on its own later —
+// see pullAllAutoSyncStores() below — so the store owner only ever does
+// this once; every later OSPOS change reaches the dashboard automatically
+// without them repeating the import.
 router.post("/ospos/import", osposLimiter, async (req, res) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token" });
@@ -168,19 +192,9 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
     });
   }
 
-  let connection;
+  let rows;
   try {
-    connection = await mysql.createConnection({
-      host,
-      port: port ? Number(port) : 3306,
-      database,
-      user: username,
-      password: password || "",
-      connectTimeout: 10000,
-      // OSPOS itself connects over plain MySQL by default; not forcing
-      // SSL here matches that, and most small shared-hosting MySQL
-      // instances don't have a certificate configured for it anyway.
-    });
+    rows = await connectReadAndClose({ host, port, database, username, password });
   } catch (err) {
     return res.status(200).json({
       success: false,
@@ -188,19 +202,26 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
     });
   }
 
-  try {
-    const [rows] = await connection.query(ITEMS_QUERY);
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return res.status(200).json({
-        success: false,
-        error: "Connected successfully, but found no active items in ospos_items. Is this the right database?",
-      });
-    }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(200).json({
+      success: false,
+      error: "Connected successfully, but found no active items in ospos_items. Is this the right database?",
+    });
+  }
 
+  try {
     const result = await syncItemsForStore(decoded.storeId, rows);
+    await storeDB.saveOsposCredentials(decoded.storeId, {
+      host,
+      port,
+      database,
+      username,
+      encryptedPassword: encrypt(password || ""),
+    });
     res.json({
       success: true,
-      message: `${result.synced} product${result.synced === 1 ? "" : "s"} imported from OSPOS.`,
+      message: `${result.synced} product${result.synced === 1 ? "" : "s"} imported from OSPOS. BuildVolt will keep this in sync automatically from now on.`,
+      autoSyncEnabled: true,
       ...result,
     });
   } catch (err) {
@@ -209,9 +230,77 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
       success: false,
       error: `Connected, but the import failed: ${err.message}`,
     });
-  } finally {
-    await connection.end().catch(() => {});
   }
 });
 
+// ─── AUTO-SYNC STATUS (dashboard-authenticated) ────────────
+// Never returns the stored password — only enough to show a status line
+// ("Auto-sync ON, last synced 2 hours ago, host db.example.com").
+router.get("/ospos/auto-sync-status", async (req, res) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token" });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const info = await storeDB.getOsposAutoSyncStatus(decoded.storeId);
+    if (!info) return res.status(404).json({ error: "Store not found" });
+
+    res.json({
+      success: true,
+      enabled: info.ospos_auto_sync === 1,
+      lastSync: info.ospos_last_sync || null,
+      productCount: info.ospos_product_count || 0,
+      host: info.ospos_db_host || "",
+    });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+// ─── STOP AUTO-SYNC (dashboard-authenticated) ──────────────
+// Forgets the stored credentials entirely (not just a flag flip) — the
+// store owner has to re-import to turn it back on, which is deliberate:
+// there's no reason for BuildVolt to keep holding a database password it
+// isn't allowed to use anymore.
+router.post("/ospos/auto-sync-disable", async (req, res) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token" });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    await storeDB.disableOsposAutoSync(decoded.storeId);
+    res.json({ success: true, message: "OSPOS auto-sync turned off." });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+// ─── SCHEDULED AUTO-SYNC (called from server/index.js) ─────
+// Runs for every store that has ever completed a manual import (and not
+// since turned auto-sync off). One store's failure — wrong password since
+// changed, host unreachable, OSPOS database moved — is logged and
+// skipped, never blocks the others.
+async function pullAllAutoSyncStores() {
+  const stores = await storeDB.getAllOsposAutoSyncStores();
+  const results = [];
+  for (const store of stores) {
+    try {
+      const rows = await connectReadAndClose({
+        host: store.ospos_db_host,
+        port: store.ospos_db_port,
+        database: store.ospos_db_name,
+        username: store.ospos_db_user,
+        password: decrypt(store.ospos_db_password),
+      });
+      const result = await syncItemsForStore(store.store_id, rows);
+      results.push({ storeId: store.store_id, ok: true, ...result });
+    } catch (err) {
+      console.error(`OSPOS auto-sync failed for store ${store.store_id}:`, err.message);
+      results.push({ storeId: store.store_id, ok: false, error: err.message });
+    }
+  }
+  return results;
+}
+
 module.exports = router;
+module.exports.pullAllAutoSyncStores = pullAllAutoSyncStores;

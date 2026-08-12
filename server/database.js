@@ -180,12 +180,24 @@ async function initDB() {
 )`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES ('budget_presets', '50000,80000,120000,200000')`,
     // OSPOS (Open Source Point of Sale) catalog import — a one-click,
-    // Products-tab action (server/routes/ospos.js POST /ospos/import), not
-    // a persistent connection like WooCommerce, so there's no connected/
-    // disconnected state to track — only when the last import happened.
+    // Products-tab action (server/routes/ospos.js POST /ospos/import).
     `ALTER TABLE stores ADD COLUMN ospos_last_sync TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_product_count INTEGER DEFAULT 0`,
     `ALTER TABLE products ADD COLUMN ospos_item_id INTEGER DEFAULT NULL`,
+    // Saved automatically after a successful manual import so BuildVolt can
+    // reconnect on its own later and keep the catalog current whenever the
+    // store owner changes something in OSPOS — the store owner never has
+    // to re-enter these or repeat the import by hand. ospos_db_password is
+    // encrypted at rest (server/lib/crypto.js), never stored in plain
+    // text. ospos_auto_sync is the on/off switch: set to 1 on a successful
+    // import, cleared (along with the credential columns) if the store
+    // owner turns auto-sync off.
+    `ALTER TABLE stores ADD COLUMN ospos_auto_sync INTEGER DEFAULT 0`,
+    `ALTER TABLE stores ADD COLUMN ospos_db_host TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN ospos_db_port TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN ospos_db_name TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN ospos_db_user TEXT DEFAULT ''`,
+    `ALTER TABLE stores ADD COLUMN ospos_db_password TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try {
@@ -416,17 +428,60 @@ const storeDB = {
     });
   },
 
-  // Records the result of a one-click OSPOS import (server/routes/ospos.js
-  // POST /ospos/import). There's no persistent "connection" the way
-  // WooCommerce has — a store owner re-enters their database details each
-  // time — so this just timestamps the most recent import, the same way a
-  // CSV upload doesn't remember the file, only its result.
+  // Records the result of every OSPOS import — manual (Products tab) or
+  // scheduled (auto-sync) alike.
   updateOsposLastImport: async (storeId, productCount) => {
     const now = new Date().toISOString();
     return await client.execute({
       sql: `UPDATE stores SET ospos_last_sync = ?, ospos_product_count = ?
              WHERE store_id = ?`,
       args: [now, productCount, storeId],
+    });
+  },
+
+  // Called once, right after a manual import succeeds, so BuildVolt can
+  // reconnect on its own from then on. ospos_db_password is expected to
+  // already be encrypted (server/lib/crypto.js) by the caller.
+  saveOsposCredentials: async (storeId, { host, port, database, username, encryptedPassword }) => {
+    return await client.execute({
+      sql: `UPDATE stores SET
+              ospos_auto_sync = 1,
+              ospos_db_host = ?, ospos_db_port = ?, ospos_db_name = ?,
+              ospos_db_user = ?, ospos_db_password = ?
+            WHERE store_id = ?`,
+      args: [host, String(port || ""), database, username, encryptedPassword, storeId],
+    });
+  },
+
+  getOsposAutoSyncStatus: async (storeId) => {
+    const res = await client.execute({
+      sql: `SELECT ospos_auto_sync, ospos_last_sync, ospos_product_count, ospos_db_host
+             FROM stores WHERE store_id = ?`,
+      args: [storeId],
+    });
+    return res.rows[0] || null;
+  },
+
+  // Every store with auto-sync on, for the scheduled job — includes the
+  // encrypted password so the job can decrypt-and-reconnect per store.
+  getAllOsposAutoSyncStores: async () => {
+    const res = await client.execute(
+      `SELECT store_id, ospos_db_host, ospos_db_port, ospos_db_name,
+              ospos_db_user, ospos_db_password
+       FROM stores
+       WHERE ospos_auto_sync = 1 AND plan_status != 'disabled'`,
+    );
+    return res.rows;
+  },
+
+  disableOsposAutoSync: async (storeId) => {
+    return await client.execute({
+      sql: `UPDATE stores SET
+              ospos_auto_sync = 0,
+              ospos_db_host = '', ospos_db_port = '', ospos_db_name = '',
+              ospos_db_user = '', ospos_db_password = ''
+            WHERE store_id = ?`,
+      args: [storeId],
     });
   },
 

@@ -40,14 +40,15 @@ export function GoogleSignInButton({
 
   useEffect(() => {
     let cancelled = false;
+    let pollId: ReturnType<typeof setInterval> | undefined;
+    let resizeObserver: ResizeObserver | undefined;
 
-    function render() {
+    // Google's button width is a fixed pixel value (200-400px, no % support),
+    // so we measure the actual available space instead of hardcoding one —
+    // otherwise a wide fixed width overflows the auth box on small phones.
+    function renderButton() {
       if (cancelled || !ref.current || !window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: CLIENT_ID,
-        callback: (response) => onCredential(response.credential),
-        use_fedcm_for_prompt: true,
-      });
+      const width = Math.max(200, Math.min(400, ref.current.offsetWidth || 368));
       ref.current.innerHTML = "";
       window.google.accounts.id.renderButton(ref.current, {
         type: "standard",
@@ -56,24 +57,38 @@ export function GoogleSignInButton({
         text: context === "signup" ? "signup_with" : "signin_with",
         size: "large",
         logo_alignment: "left",
-        width: 368,
+        width,
       });
     }
 
+    function initAndRender() {
+      if (cancelled || !ref.current || !window.google) return;
+      window.google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: (response) => onCredential(response.credential),
+        use_fedcm_for_prompt: true,
+      });
+      renderButton();
+      resizeObserver = new ResizeObserver(() => renderButton());
+      resizeObserver.observe(ref.current);
+    }
+
     if (window.google) {
-      render();
+      initAndRender();
     } else {
-      const interval = setInterval(() => {
+      pollId = setInterval(() => {
         if (window.google) {
-          clearInterval(interval);
-          render();
+          clearInterval(pollId);
+          initAndRender();
         }
       }, 100);
-      return () => {
-        cancelled = true;
-        clearInterval(interval);
-      };
     }
+
+    return () => {
+      cancelled = true;
+      if (pollId) clearInterval(pollId);
+      resizeObserver?.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [context]);
 

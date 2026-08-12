@@ -292,11 +292,12 @@ function SignupPage({
     let s = 0;
     if (password.length >= 8) s++;
     if (/[A-Z]/.test(password)) s++;
+    if (/[a-z]/.test(password)) s++;
     if (/[0-9]/.test(password)) s++;
     if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) s++;
     return s;
   })();
-  const strengthColors = ["#e74c3c", "#f39c12", "#f39c12", "#2ecc71", "#2ecc71"];
+  const strengthColors = ["#e74c3c", "#e74c3c", "#f39c12", "#f39c12", "#2ecc71", "#2ecc71"];
 
   async function submit() {
     if (!email || !password) return setAlert({ msg: "Please fill all fields.", type: "error" });
@@ -347,13 +348,14 @@ function SignupPage({
           <div className="divider">or continue with email</div>
 
           <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+            <label className="form-label" htmlFor="signup-email">Email Address</label>
+            <input id="signup-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
           </div>
           <div className="form-group">
-            <label className="form-label">Password</label>
+            <label className="form-label" htmlFor="signup-password">Password</label>
             <div className="pwd-wrap">
               <input
+                id="signup-password"
                 type={showPwd ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -363,7 +365,7 @@ function SignupPage({
               <PwdToggle shown={showPwd} onToggle={() => setShowPwd((s) => !s)} />
             </div>
             <div style={{ height: 3, borderRadius: 2, background: "#e5e7eb", margin: "8px 0 5px", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 2, transition: "all 0.3s", width: `${(score / 4) * 100}%`, background: strengthColors[score] }} />
+              <div style={{ height: "100%", borderRadius: 2, transition: "all 0.3s", width: `${(score / 5) * 100}%`, background: strengthColors[score] }} />
             </div>
             <div style={{ fontSize: 11, color: "#9ca3af", lineHeight: 1.5 }}>
               Use uppercase, lowercase, number and special character.
@@ -455,8 +457,9 @@ function VerifyPendingPage({
           </p>
 
           <div className="form-group" style={{ marginTop: 8 }}>
-            <label className="form-label">Verification code</label>
+            <label className="form-label" htmlFor="verify-code">Verification code</label>
             <input
+              id="verify-code"
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -568,11 +571,11 @@ function LoginPage({
           <div className="divider">or continue with email</div>
 
           <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+            <label className="form-label" htmlFor="login-email">Email Address</label>
+            <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
           </div>
           <div className="form-group">
-            <label className="form-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label className="form-label" htmlFor="login-password" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               Password
               <span onClick={onForgot} style={{ fontSize: 12, color: "#4f46e5", cursor: "pointer", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
                 Forgot password?
@@ -580,6 +583,7 @@ function LoginPage({
             </label>
             <div className="pwd-wrap">
               <input
+                id="login-password"
                 type={showPwd ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -630,12 +634,13 @@ function ForgotPage({ onBack }: { onBack: () => void }) {
       <AuthBack onClick={onBack} label="Back to sign in" />
       <div className="auth-wrap">
         <div className="auth-box">
+          <AuthLogo />
           <h2>Reset your password</h2>
           <p>Enter your registered email and we'll send a reset link.</p>
 
           <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
+            <label className="form-label" htmlFor="forgot-email">Email Address</label>
+            <input id="forgot-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourstore.com" autoComplete="email" />
           </div>
 
           <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} onClick={submit} disabled={busy}>

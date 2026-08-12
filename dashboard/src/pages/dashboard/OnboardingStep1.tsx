@@ -43,7 +43,9 @@ export default function OnboardingStep1() {
   return (
     <div
       className="page"
-      style={{ display: "flex", minHeight: "calc(100vh - 52px)", alignItems: "center", justifyContent: "center", background: "#f7f8fa", padding: "24px 20px" }}
+      // dvh, not vh: mobile browsers compute 100vh against the viewport with
+      // the address bar collapsed, which pushes this card below the fold.
+      style={{ display: "flex", minHeight: "calc(100dvh - 52px)", alignItems: "center", justifyContent: "center", background: "#f7f8fa", padding: "24px 20px" }}
     >
       <div style={{ background: "#ffffff", border: "1px solid #e4e7ed", borderRadius: 18, padding: 40, width: "100%", maxWidth: 420, textAlign: "left", boxShadow: "0 4px 12px rgba(17,24,39,0.05)" }}>
         <h2 style={{ fontSize: 22, color: "#111827", marginBottom: 6, fontFamily: '"DM Sans", system-ui, sans-serif', fontWeight: 700 }}>
@@ -52,11 +54,14 @@ export default function OnboardingStep1() {
         <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 28 }}>Let's get your store set up and ready for customers.</p>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
+          <label htmlFor="onboarding-store-name" style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 6 }}>
             Store Name <span style={{ color: "#dc2626" }}>*</span>
           </label>
           <input
+            id="onboarding-store-name"
             type="text"
+            autoComplete="organization"
+            autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -66,9 +71,12 @@ export default function OnboardingStep1() {
         </div>
 
         <button
+          type="button"
           onClick={submit}
           disabled={busy}
-          style={{ width: "100%", padding: 12, background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          // These buttons are styled inline rather than with .btn, so the
+          // .btn:disabled dimming never applied to them.
+          style={{ width: "100%", padding: 12, background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
         >
           {busy ? "Saving…" : "Continue"}
         </button>

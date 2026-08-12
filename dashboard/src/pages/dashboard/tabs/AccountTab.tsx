@@ -22,59 +22,28 @@ const EyeIcon = () => (
   </svg>
 );
 
+// Mirrors isStrongPassword() in server/routes/auth.js exactly — including
+// the lowercase rule, which the old placeholder text left out entirely.
+function passwordProblem(pw: string): string | null {
+  if (pw.length < 8) return "New password must be at least 8 characters.";
+  if (!/[A-Z]/.test(pw)) return "New password needs at least one uppercase letter.";
+  if (!/[a-z]/.test(pw)) return "New password needs at least one lowercase letter.";
+  if (!/[0-9]/.test(pw)) return "New password needs at least one number.";
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw))
+    return "New password needs at least one special character (e.g. Test@123).";
+  return null;
+}
+
 export default function AccountTab() {
   return (
     <div>
       <div className="section-title">Account</div>
       <div className="section-sub">Manage your password, security, &amp; account settings.</div>
 
-      <SupportCard />
       <SecurityCard />
       <ForgotPasswordCard />
       <EmailPreferencesCard />
       <DangerZoneCard />
-    </div>
-  );
-}
-
-function SupportCard() {
-  const { token } = useStoreAuth();
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-
-  async function submit() {
-    if (!token || !subject || !message) return setAlert({ msg: "Fill in both fields.", type: "error" });
-    setBusy(true);
-    try {
-      const data = await dashboardApi.support.submit(token, subject, message);
-      setAlert({ msg: data.message, type: "success" });
-      setSubject("");
-      setMessage("");
-    } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Could not submit ticket.", type: "error" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: 16, borderColor: "var(--accent-border)" }}>
-      <h2>Contact Support</h2>
-      <p style={{ marginBottom: 16 }}>Have a problem, complaint, or question? Send a message to the BuildVolt team.</p>
-      <div className="form-group">
-        <label className="form-label">Subject</label>
-        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Brief summary of your issue" maxLength={150} />
-      </div>
-      <div className="form-group">
-        <label className="form-label">Message</label>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={2000} placeholder="Describe your issue in detail…" />
-      </div>
-      <button className="btn btn-primary btn-sm" onClick={submit} disabled={busy}>
-        Submit support request
-      </button>
-      <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} style={{ marginTop: 12 }} />
     </div>
   );
 }
@@ -93,7 +62,12 @@ function SecurityCard() {
   async function save() {
     if (!token || !current || !next || !confirm) return setAlert({ msg: "All fields are required.", type: "error" });
     if (next !== confirm) return setAlert({ msg: "New passwords do not match.", type: "error" });
+    // Check the same rule the server enforces before spending a round-trip.
+    const problem = passwordProblem(next);
+    if (problem) return setAlert({ msg: problem, type: "error" });
+    if (next === current) return setAlert({ msg: "New password must be different from your current one.", type: "error" });
     setBusy(true);
+    setAlert(null);
     try {
       const data = await dashboardApi.changePassword(token, current, next);
       if (data.success) {
@@ -102,10 +76,13 @@ function SecurityCard() {
         setNext("");
         setConfirm("");
       } else {
-        setAlert({ msg: data.error || "Something went wrong.", type: "error" });
+        setAlert({ msg: data.error || "Could not change your password.", type: "error" });
       }
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Something went wrong.", type: "error" });
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not change your password.",
+        type: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -116,34 +93,90 @@ function SecurityCard() {
       <h2>Security</h2>
       <p style={{ marginBottom: 20 }}>Change your account password.</p>
       <div className="form-group">
-        <label className="form-label">Current Password</label>
+        <label className="form-label" htmlFor="acct-current-pwd">
+          Current Password
+        </label>
         <div className="pwd-wrap">
-          <input type={showCurrent ? "text" : "password"} value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" style={{ maxWidth: 320 }} />
-          <span className="pwd-toggle" onClick={() => setShowCurrent((s) => !s)}>
+          <input
+            id="acct-current-pwd"
+            type={showCurrent ? "text" : "password"}
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="Current password"
+            style={{ maxWidth: 320 }}
+          />
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showCurrent ? "Hide current password" : "Show current password"}
+            onClick={() => setShowCurrent((s) => !s)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setShowCurrent((s) => !s)}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">New Password</label>
+        <label className="form-label" htmlFor="acct-new-pwd">
+          New Password
+        </label>
         <div className="pwd-wrap">
-          <input type={showNext ? "text" : "password"} value={next} onChange={(e) => setNext(e.target.value)} placeholder="Min 8 chars, uppercase, number, symbol" style={{ maxWidth: 320 }} />
-          <span className="pwd-toggle" onClick={() => setShowNext((s) => !s)}>
+          <input
+            id="acct-new-pwd"
+            type={showNext ? "text" : "password"}
+            autoComplete="new-password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            placeholder="Min 8 chars, upper + lowercase, number, symbol"
+            style={{ maxWidth: 320 }}
+          />
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showNext ? "Hide new password" : "Show new password"}
+            onClick={() => setShowNext((s) => !s)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setShowNext((s) => !s)}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Confirm New Password</label>
+        <label className="form-label" htmlFor="acct-confirm-pwd">
+          Confirm New Password
+        </label>
         <div className="pwd-wrap">
-          <input type={showConfirm ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat new password" style={{ maxWidth: 320 }} />
-          <span className="pwd-toggle" onClick={() => setShowConfirm((s) => !s)}>
+          <input
+            id="acct-confirm-pwd"
+            type={showConfirm ? "text" : "password"}
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Repeat new password"
+            style={{ maxWidth: 320 }}
+          />
+          <span
+            className="pwd-toggle"
+            role="button"
+            tabIndex={0}
+            aria-label={showConfirm ? "Hide confirmed password" : "Show confirmed password"}
+            onClick={() => setShowConfirm((s) => !s)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setShowConfirm((s) => !s)}
+          >
             <EyeIcon />
           </span>
         </div>
       </div>
-      <button className="btn btn-primary" onClick={save} disabled={busy}>
-        Change Password
+      <button
+        type="button"
+        className={`btn btn-primary${busy ? " is-loading" : ""}`}
+        onClick={save}
+        disabled={busy}
+      >
+        {busy ? "Changing…" : "Change Password"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} style={{ maxWidth: 320 }} />
     </div>
@@ -157,13 +190,20 @@ function ForgotPasswordCard() {
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function submit() {
-    if (!email) return setAlert({ msg: "Email required.", type: "error" });
+    if (!email.trim()) return setAlert({ msg: "Enter the email to send the reset link to.", type: "error" });
     setBusy(true);
+    setAlert(null);
     try {
-      const data = await authApi.forgotPassword(email);
-      setAlert({ msg: data.message || data.error || "", type: data.success ? "success" : "error" });
+      const data = await authApi.forgotPassword(email.trim());
+      setAlert({
+        msg: data.message || "If that email is registered, a reset link is on its way.",
+        type: data.success ? "success" : "error",
+      });
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not send the reset email.",
+        type: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -176,11 +216,21 @@ function ForgotPasswordCard() {
         Same reset flow as the login page — we will email you a link to set a new password.
       </p>
       <div className="form-group">
-        <label className="form-label">Email</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ maxWidth: 360 }} />
+        <label className="form-label" htmlFor="acct-reset-email">
+          Email
+        </label>
+        <input
+          id="acct-reset-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          style={{ maxWidth: 360 }}
+        />
       </div>
       <button type="button" className="btn btn-outline btn-sm" onClick={submit} disabled={busy}>
-        Email reset link
+        {busy ? "Sending…" : "Email reset link"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} style={{ maxWidth: 420 }} />
     </div>
@@ -190,17 +240,28 @@ function ForgotPasswordCard() {
 function EmailPreferencesCard() {
   const { token, store, refresh } = useStoreAuth();
   const [checked, setChecked] = useState(store?.marketingEmailsEnabled ?? true);
+  const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   async function toggle(next: boolean) {
     if (!token) return;
+    const previous = checked;
     setChecked(next);
+    setBusy(true);
     try {
       const data = await dashboardApi.emailPreferences(token, next);
       setAlert({ msg: data.message, type: "success" });
       refresh();
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Could not update preference.", type: "error" });
+      // Put the checkbox back — leaving it flipped told the owner their
+      // preference had been saved when it hadn't.
+      setChecked(previous);
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not update your email preference.",
+        type: "error",
+      });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -208,8 +269,8 @@ function EmailPreferencesCard() {
     <div className="card" style={{ marginBottom: 16 }}>
       <h2>Email Preferences</h2>
       <p style={{ marginBottom: 16 }}>Control onboarding tips and promotional emails. Account and security emails are always sent.</p>
-      <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
-        <input type="checkbox" checked={checked} onChange={(e) => toggle(e.target.checked)} />
+      <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: busy ? "wait" : "pointer", fontSize: 13, color: "var(--text)" }}>
+        <input type="checkbox" checked={checked} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
         Receive onboarding tips and product updates
       </label>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} style={{ marginTop: 12 }} />
@@ -222,41 +283,70 @@ function DangerZoneCard() {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function deleteAccount() {
-    if (confirmText !== store?.storeId) {
-      toast.error("Store ID didn't match", "Account was not deleted.");
+    if (confirmText.trim() !== store?.storeId) {
+      toast.error("Store ID didn't match", "Your account was not deleted.");
       return;
     }
-    if (!token) return;
+    if (!token || busy) return;
+    setBusy(true);
     try {
       await dashboardApi.deleteAccount(token);
-      toast.success("Account deleted", "");
+      toast.success("Account deleted", "Your store and all its data have been removed.");
       logout();
     } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not delete account.");
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not delete your account.");
+      setBusy(false);
     }
   }
 
   return (
     <div className="card" style={{ borderColor: "var(--danger-border)" }}>
       <h2 style={{ color: "var(--danger)" }}>Danger Zone</h2>
-      <p style={{ marginBottom: 20 }}>Permanently delete your account and all associated data. This action cannot be undone.</p>
+      <p style={{ marginBottom: 20 }}>
+        Permanently delete your account, your product catalog, and every order request and recommendation
+        recorded for your store. This action cannot be undone.
+      </p>
       {!confirming ? (
-        <button className="btn btn-danger" onClick={() => setConfirming(true)}>
+        <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)}>
           Delete Account
         </button>
       ) : (
         <div>
           <div className="form-group">
-            <label className="form-label">Type your Store ID to confirm: {store?.storeId}</label>
-            <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} style={{ maxWidth: 320 }} />
+            <label className="form-label" htmlFor="acct-delete-confirm">
+              Type your Store ID to confirm: {store?.storeId}
+            </label>
+            <input
+              id="acct-delete-confirm"
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={store?.storeId}
+              autoComplete="off"
+              style={{ maxWidth: 320 }}
+            />
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn-danger" onClick={deleteAccount}>
-              Confirm delete
+            <button
+              type="button"
+              className={`btn btn-danger${busy ? " is-loading" : ""}`}
+              onClick={deleteAccount}
+              disabled={busy}
+            >
+              {busy ? "Deleting…" : "Confirm delete"}
             </button>
-            <button className="btn" onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setConfirming(false);
+                setConfirmText("");
+              }}
+              disabled={busy}
+            >
               Cancel
             </button>
           </div>

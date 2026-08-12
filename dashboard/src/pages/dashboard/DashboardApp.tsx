@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { useStoreAuth } from "../../context/StoreAuthContext";
 import { TopNav } from "./TopNav";
 import HomeTab from "./tabs/HomeTab";
@@ -116,12 +117,41 @@ const ACCOUNT_TABS = [
 
 type TabId = (typeof WORKSPACE_TABS)[number]["id"] | (typeof ACCOUNT_TABS)[number]["id"];
 
+// .sidebar-item is a <div> to preserve the ported stylesheet's layout
+// (a <button> would drag in UA border/background/width defaults that
+// dashboard.css never overrides). Give it the keyboard behaviour a real
+// button would have instead, so the nav isn't mouse-only.
+function activate(e: KeyboardEvent<HTMLDivElement>, fn: () => void) {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
+}
+
 export default function DashboardApp() {
   const { store, logout } = useStoreAuth();
   const [tab, setTab] = useState<TabId>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const initials = ((store?.email || "").trim().charAt(0) || "U").toUpperCase();
+
+  // dashboard.css defines `body.sidebar-open { overflow: hidden }` for the
+  // mobile drawer but nothing was ever applying the class, so the page
+  // behind the open drawer still scrolled under your finger.
+  useEffect(() => {
+    document.body.classList.toggle("sidebar-open", sidebarOpen);
+    return () => document.body.classList.remove("sidebar-open");
+  }, [sidebarOpen]);
+
+  // Escape closes the drawer, matching every other dismissible overlay.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebarOpen]);
 
   return (
     <div className="page" id="page-app">
@@ -145,42 +175,62 @@ export default function DashboardApp() {
           </div>
           <nav className="sidebar-nav">
             <span className="sidebar-section-label">Workspace</span>
-            {WORKSPACE_TABS.map((t) => (
-              <div
-                key={t.id}
-                className={`sidebar-item${tab === t.id ? " active" : ""}`}
-                onClick={() => {
-                  setTab(t.id);
-                  setSidebarOpen(false);
-                }}
-              >
-                {t.icon}
-                {t.label}
-              </div>
-            ))}
+            {WORKSPACE_TABS.map((t) => {
+              const go = () => {
+                setTab(t.id);
+                setSidebarOpen(false);
+              };
+              return (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={tab === t.id ? "page" : undefined}
+                  className={`sidebar-item${tab === t.id ? " active" : ""}`}
+                  onClick={go}
+                  onKeyDown={(e) => activate(e, go)}
+                >
+                  {t.icon}
+                  {t.label}
+                </div>
+              );
+            })}
 
             <div className="sidebar-divider" />
             <span className="sidebar-section-label">Your account</span>
-            {ACCOUNT_TABS.map((t) => (
-              <div
-                key={t.id}
-                className={`sidebar-item${tab === t.id ? " active" : ""}`}
-                onClick={() => {
-                  setTab(t.id);
-                  setSidebarOpen(false);
-                }}
-              >
-                {t.icon}
-                {t.label}
-              </div>
-            ))}
+            {ACCOUNT_TABS.map((t) => {
+              const go = () => {
+                setTab(t.id);
+                setSidebarOpen(false);
+              };
+              return (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={tab === t.id ? "page" : undefined}
+                  className={`sidebar-item${tab === t.id ? " active" : ""}`}
+                  onClick={go}
+                  onKeyDown={(e) => activate(e, go)}
+                >
+                  {t.icon}
+                  {t.label}
+                </div>
+              );
+            })}
           </nav>
           <div className="sidebar-footer">
             <div className="sidebar-user">
               <div className="sidebar-avatar">{initials}</div>
               <span className="sidebar-user-email">{store?.email}</span>
             </div>
-            <div className="sidebar-item" onClick={logout}>
+            <div
+              className="sidebar-item"
+              role="button"
+              tabIndex={0}
+              onClick={logout}
+              onKeyDown={(e) => activate(e, logout)}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />

@@ -2,17 +2,50 @@ import { useState } from "react";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { getWidgetScriptUrl } from "../../../lib/config";
+import { dashboardApi } from "../../../lib/dashboardApi";
+import { ApiError } from "../../../lib/api";
 
 export default function EmbedTab() {
-  const { store } = useStoreAuth();
+  const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
-  const [live, setLive] = useState(localStorage.getItem("bb_widget_live") === "1");
+  const [busy, setBusy] = useState(false);
   const snippet = store ? getWidgetScriptUrl(store.storeId) : "";
 
-  function copy() {
-    navigator.clipboard.writeText(snippet);
-    localStorage.setItem("bb_embed_copied", "1");
-    toast.success("Copied", "Embed code copied to clipboard.");
+  // The real signal, not a local flag: the widget only serves customers
+  // when widget_enabled is on AND there's a way to actually order
+  // (see /widget-toggle and /store-config in server/routes/auth.js).
+  const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
+  const enabled = store?.widgetEnabled !== false;
+  const live = enabled && hasOrderMethod;
+
+  async function copy() {
+    if (!snippet) return;
+    try {
+      if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(snippet);
+      toast.success("Copied", "Embed code copied to clipboard.");
+    } catch {
+      // Happens on non-HTTPS origins and older mobile browsers, where the
+      // old code silently claimed success.
+      toast.error("Couldn't copy automatically", "Select the snippet above and copy it manually.");
+    }
+  }
+
+  async function setWidget(next: boolean) {
+    if (!token) return;
+    setBusy(true);
+    try {
+      await dashboardApi.settings.toggleWidget(token, next);
+      toast.success(next ? "Widget enabled" : "Widget disabled", next ? "Customers can now use it on your storefront." : "It no longer shows on your storefront.");
+      await refresh();
+    } catch (err) {
+      toast.error(
+        "Error",
+        err instanceof ApiError ? err.message : "Could not update your widget status.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -41,8 +74,8 @@ export default function EmbedTab() {
         <div className="embed-step">
           <div className="embed-step-num">3</div>
           <div>
-            <h3>Verify &amp; mark live</h3>
-            <p>Open your site, confirm the widget opens, then mark live here so onboarding stays accurate.</p>
+            <h3>Turn the widget on</h3>
+            <p>Open your site, confirm the widget opens, and keep it enabled below so customers can use it.</p>
           </div>
         </div>
       </div>
@@ -57,32 +90,36 @@ export default function EmbedTab() {
           {snippet}
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="btn btn-primary btn-sm" onClick={copy}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={copy}>
             Copy embed code
           </button>
-          <button
-            className="btn btn-sm"
-            onClick={() => {
-              localStorage.setItem("bb_widget_live", "1");
-              setLive(true);
-            }}
-            style={{ background: "var(--success-bg)", color: "var(--success)", border: "1px solid rgba(5,150,105,0.3)" }}
-          >
-            Mark as Live
-          </button>
-          <button
-            className="btn btn-sm"
-            onClick={() => {
-              localStorage.removeItem("bb_widget_live");
-              setLive(false);
-            }}
-            style={{ background: "transparent", color: "var(--muted)", border: "1px solid var(--border)" }}
-          >
-            Reset
-          </button>
         </div>
-        <div style={{ marginTop: 12, fontSize: 12, color: live ? "var(--success)" : "var(--muted)" }}>
-          {live ? "Marked as live." : "Not marked as live yet."}
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2>Widget status</h2>
+        <p style={{ marginBottom: 14 }}>
+          {live
+            ? "Your widget is enabled and serving build recommendations to customers."
+            : enabled
+              ? "Your widget is enabled, but customers have no way to place an order yet — connect WooCommerce or add a WhatsApp number in Widget Settings."
+              : "Your widget is turned off, so it will not appear on your storefront."}
+        </p>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div className={`badge ${live ? "badge-success" : enabled ? "badge-warning" : "badge-danger"}`}>
+            {live ? "Live" : enabled ? "Needs an order method" : "Disabled"}
+          </div>
+          {/* No .is-loading here: its spinner is drawn in white, which is
+              invisible on the plain (white) .btn — the changed label plus
+              the .btn:disabled dimming carries the loading state instead. */}
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => setWidget(!enabled)}
+            disabled={busy}
+          >
+            {busy ? "Saving…" : enabled ? "Turn widget off" : "Turn widget on"}
+          </button>
         </div>
       </div>
     </div>

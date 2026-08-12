@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { dashboardApi } from "../../../lib/dashboardApi";
+import { dashboardApi, WIDGET_DEFAULTS } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { isLikelyValidPakistaniMobile } from "../../../lib/phone";
@@ -10,9 +10,9 @@ function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | 
   return <div className={`alert alert-${type} show`}>{msg}</div>;
 }
 
-export default function WidgetSettingsTab() {
-  const { store, refresh } = useStoreAuth();
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
+export default function WidgetSettingsTab() {
   return (
     <div>
       <div className="section-title">Widget Settings</div>
@@ -25,7 +25,7 @@ export default function WidgetSettingsTab() {
       </div>
 
       <WidgetTextCard />
-      <WidgetToggleCard enabled={!!(store?.wooConnected || store?.whatsappVerified)} onChanged={refresh} />
+      <WidgetToggleCard />
     </div>
   );
 }
@@ -39,13 +39,24 @@ function BrandingCard() {
 
   async function save() {
     if (!token) return;
+    // The server stores brand_color verbatim and the widget drops it
+    // straight into CSS, so a malformed value silently breaks the widget's
+    // colours rather than erroring anywhere.
+    if (!HEX_RE.test(color.trim())) {
+      setAlert({ msg: "Brand colour must be a 6-digit hex value, e.g. #4f46e5.", type: "error" });
+      return;
+    }
     setBusy(true);
+    setAlert(null);
     try {
-      const data = await dashboardApi.settings.saveBranding(token, color, currency);
+      const data = await dashboardApi.settings.saveBranding(token, color.trim(), currency);
       setAlert({ msg: data.message, type: "success" });
       refresh();
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Could not save settings.", type: "error" });
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not save your branding settings.",
+        type: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -53,25 +64,43 @@ function BrandingCard() {
 
   return (
     <div className="card">
-      <h2>Brand Colors & Currency</h2>
+      <h2>Brand Colors &amp; Currency</h2>
       <p style={{ marginBottom: 20 }}>Match the widget to your store's look.</p>
       <div className="form-group">
-        <label className="form-label">Brand Color</label>
+        <label className="form-label" htmlFor="brand-color-text">
+          Brand Color
+        </label>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 50, height: 40, border: "none", background: "none", cursor: "pointer", padding: 0 }} />
-          <input type="text" value={color} onChange={(e) => setColor(e.target.value)} style={{ flex: 1 }} placeholder="#4f46e5" />
+          <input
+            type="color"
+            aria-label="Pick a brand colour"
+            value={HEX_RE.test(color) ? color : "#4f46e5"}
+            onChange={(e) => setColor(e.target.value)}
+            style={{ width: 50, height: 40, border: "none", background: "none", cursor: "pointer", padding: 0 }}
+          />
+          <input
+            id="brand-color-text"
+            type="text"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            style={{ flex: 1 }}
+            placeholder="#4f46e5"
+            maxLength={7}
+          />
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Currency</label>
-        <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+        <label className="form-label" htmlFor="brand-currency">
+          Currency
+        </label>
+        <select id="brand-currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
           <option value="PKR">PKR – Pakistani Rupee</option>
           <option value="USD">USD – US Dollar</option>
           <option value="AED">AED – UAE Dirham</option>
         </select>
       </div>
-      <button className="btn btn-primary" onClick={save} disabled={busy}>
-        Save Branding
+      <button type="button" className={`btn btn-primary${busy ? " is-loading" : ""}`} onClick={save} disabled={busy}>
+        {busy ? "Saving…" : "Save Branding"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
@@ -84,6 +113,9 @@ function WhatsappCard() {
   const [savingNumber, setSavingNumber] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  const saved = !!(store?.whatsappVerified && store?.whatsappNumber);
+  const clearing = !number.trim() && !!store?.whatsappNumber;
+
   async function saveNumber() {
     if (!token) return;
     if (number.trim() && !isLikelyValidPakistaniMobile(number)) {
@@ -94,12 +126,16 @@ function WhatsappCard() {
       return;
     }
     setSavingNumber(true);
+    setAlert(null);
     try {
       const data = await dashboardApi.whatsapp.save(token, number.trim());
-      setAlert({ msg: data.message || data.error || "", type: data.success ? "success" : "error" });
+      setAlert({ msg: data.message || "Saved.", type: data.success ? "success" : "error" });
       refresh();
     } catch (err) {
-      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
+      setAlert({
+        msg: err instanceof ApiError ? err.message : "Could not save your WhatsApp number.",
+        type: "error",
+      });
     } finally {
       setSavingNumber(false);
     }
@@ -112,14 +148,40 @@ function WhatsappCard() {
         Lets customers send a build straight to your WhatsApp when they don't check out through WooCommerce.
       </p>
       <div className="form-group">
-        <label className="form-label">WhatsApp Number</label>
-        <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="03001234567" />
+        <label className="form-label" htmlFor="whatsapp-number">
+          WhatsApp Number
+        </label>
+        {/* type stays "text": dashboard.css only styles input[type=text|
+            email|password|number], so type="tel" would render unstyled.
+            inputMode still gives phones the numeric keypad. */}
+        <input
+          id="whatsapp-number"
+          type="text"
+          inputMode="tel"
+          autoComplete="tel"
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+          placeholder="03001234567"
+        />
       </div>
-      <button className="btn btn-primary" onClick={saveNumber} disabled={savingNumber}>
-        Save WhatsApp Number
+      <button
+        type="button"
+        className={`btn btn-primary${savingNumber ? " is-loading" : ""}`}
+        onClick={saveNumber}
+        disabled={savingNumber}
+      >
+        {savingNumber ? "Saving…" : clearing ? "Remove WhatsApp Number" : "Save WhatsApp Number"}
       </button>
 
-      {store?.whatsappVerified && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Saved</div>}
+      {clearing && (
+        <div style={{ marginTop: 12, fontSize: 12, color: "var(--warning)", lineHeight: 1.5 }}>
+          Clearing this removes your only WhatsApp ordering method. If WooCommerce isn't connected, your widget
+          can no longer take orders and you'll be asked to add a number again.
+        </div>
+      )}
+      {saved && !clearing && (
+        <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: "var(--success)" }}>Saved</div>
+      )}
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
   );
@@ -128,6 +190,7 @@ function WhatsappCard() {
 function PreviewCard() {
   const { store } = useStoreAuth();
   const color = store?.brandColor || "#4f46e5";
+  const title = store?.widgetTitle || WIDGET_DEFAULTS.widgetTitle;
   return (
     <div className="card">
       <h2>Widget Preview</h2>
@@ -152,8 +215,10 @@ function PreviewCard() {
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
         </div>
-        <div style={{ position: "absolute", bottom: 82, right: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
-          <span style={{ fontWeight: 700, color: "var(--text)" }}>BuildVolt</span>
+        <div style={{ position: "absolute", bottom: 82, right: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap", maxWidth: "calc(100% - 32px)", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {/* Was hardcoded to "BuildVolt" even though the title is editable
+              directly below — the preview contradicted the form. */}
+          <span style={{ fontWeight: 700, color: "var(--text)" }}>{title}</span>
           <br />
           PC Build Recommender
         </div>
@@ -163,36 +228,55 @@ function PreviewCard() {
 }
 
 function WidgetTextCard() {
-  const { token, refresh } = useStoreAuth();
+  const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
-  const [title, setTitle] = useState("BuildVolt");
-  const [welcome, setWelcome] = useState("");
-  const [buttonText, setButtonText] = useState("Get Started");
+  // /me already returns widget_title / welcome_msg / button_text / widget_bg
+  // (they live on the stores row — see widgetDB.getSettings), so read them
+  // off the session instead of firing a second /me on mount.
+  const [title, setTitle] = useState(store?.widgetTitle || WIDGET_DEFAULTS.widgetTitle);
+  const [welcome, setWelcome] = useState(store?.welcomeMsg || WIDGET_DEFAULTS.welcomeMsg);
+  const [buttonText, setButtonText] = useState(store?.buttonText || WIDGET_DEFAULTS.buttonText);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
-    dashboardApi.me(token).then((data) => {
-      const s = data.store as unknown as Record<string, unknown>;
-      setTitle((s.widget_title as string) || "BuildVolt");
-      setWelcome((s.welcome_msg as string) || "");
-      setButtonText((s.button_text as string) || "Get Started");
-    });
-  }, [token]);
+    if (!store) return;
+    setTitle(store.widgetTitle || WIDGET_DEFAULTS.widgetTitle);
+    setWelcome(store.welcomeMsg || WIDGET_DEFAULTS.welcomeMsg);
+    setButtonText(store.buttonText || WIDGET_DEFAULTS.buttonText);
+  }, [store]);
 
   async function save() {
     if (!token) return;
+    // PUT /widget-settings rejects any blank field with "All fields are
+    // required" — the old form started `welcome` as "" and offered no way
+    // to discover why saving failed.
+    const cleanTitle = title.trim();
+    const cleanWelcome = welcome.trim();
+    const cleanButton = buttonText.trim();
+    if (!cleanTitle || !cleanWelcome || !cleanButton) {
+      toast.error("Missing fields", "Widget title, welcome message and button text are all required.");
+      return;
+    }
     setBusy(true);
     try {
-      const data = await dashboardApi.settings.saveWidgetText(token, title, welcome, buttonText);
+      const data = await dashboardApi.settings.saveWidgetText(
+        token,
+        cleanTitle,
+        cleanWelcome,
+        cleanButton,
+        // Pass the stored background through: the server defaults a missing
+        // widgetBg back to #1a1d27, so omitting it reset the widget
+        // background every time the text was saved.
+        store?.widgetBg || WIDGET_DEFAULTS.widgetBg,
+      );
       if (data.success) {
         toast.success("Saved", data.message);
         refresh();
       } else {
-        toast.error("Error", data.error || "");
+        toast.error("Error", data.error || "Could not save your widget text.");
       }
     } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not save widget text.");
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not save your widget text.");
     } finally {
       setBusy(false);
     }
@@ -202,38 +286,48 @@ function WidgetTextCard() {
     <div className="card">
       <h2>Widget Text &amp; Content</h2>
       <p style={{ marginBottom: 24 }}>Customize what your customers see inside the widget.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))", gap: 24 }}>
         <div>
           <div className="form-group">
-            <label className="form-label">Widget Title</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={30} />
+            <label className="form-label" htmlFor="widget-title">
+              Widget Title
+            </label>
+            <input id="widget-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={30} />
           </div>
           <div className="form-group">
-            <label className="form-label">Button Text</label>
-            <input value={buttonText} onChange={(e) => setButtonText(e.target.value)} maxLength={20} />
+            <label className="form-label" htmlFor="widget-button-text">
+              Button Text
+            </label>
+            <input id="widget-button-text" type="text" value={buttonText} onChange={(e) => setButtonText(e.target.value)} maxLength={20} />
           </div>
         </div>
         <div>
           <div className="form-group">
-            <label className="form-label">Welcome Message</label>
-            <textarea value={welcome} onChange={(e) => setWelcome(e.target.value)} maxLength={200} rows={4} />
+            <label className="form-label" htmlFor="widget-welcome">
+              Welcome Message
+            </label>
+            <textarea id="widget-welcome" value={welcome} onChange={(e) => setWelcome(e.target.value)} maxLength={200} rows={4} />
           </div>
         </div>
       </div>
-      <button className="btn btn-primary" onClick={save} disabled={busy}>
-        Save Widget Text
+      <button type="button" className={`btn btn-primary${busy ? " is-loading" : ""}`} onClick={save} disabled={busy}>
+        {busy ? "Saving…" : "Save Widget Text"}
       </button>
     </div>
   );
 }
 
-function WidgetToggleCard({ enabled, onChanged }: { enabled: boolean; onChanged: () => void }) {
-  const { token } = useStoreAuth();
+function WidgetToggleCard() {
+  const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
-  const [checked, setChecked] = useState(enabled);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => setChecked(enabled), [enabled]);
+  // This used to be handed `wooConnected || whatsappVerified` — i.e. whether
+  // the store *could* enable the widget, not whether it actually was
+  // enabled. A store that had turned its widget off still saw the box
+  // ticked. stores.widget_enabled is the real flag.
+  const enabled = store?.widgetEnabled !== false;
+  const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
 
   async function toggle(next: boolean) {
     if (!token) return;
@@ -241,14 +335,15 @@ function WidgetToggleCard({ enabled, onChanged }: { enabled: boolean; onChanged:
     try {
       const data = await dashboardApi.settings.toggleWidget(token, next);
       if (data.success) {
-        setChecked(next);
         toast.success("Saved", data.message);
-        onChanged();
+        await refresh();
       } else {
-        toast.error("Could not enable widget", data.error || "");
+        toast.error("Could not update widget", data.error || "Please try again.");
       }
     } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not update widget status.");
+      // The server refuses to enable a widget with no ordering method and
+      // explains why — surface that message rather than a generic one.
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not update your widget status.");
     } finally {
       setBusy(false);
     }
@@ -257,10 +352,21 @@ function WidgetToggleCard({ enabled, onChanged }: { enabled: boolean; onChanged:
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <h2>Widget Status</h2>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", marginTop: 10 }}>
-        <input type="checkbox" checked={checked} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
+      <p style={{ marginBottom: 8 }}>
+        {enabled
+          ? "Your widget is on and will show on any page where you've installed the embed snippet."
+          : "Your widget is off and will not appear on your storefront."}
+      </p>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", marginTop: 10, cursor: busy ? "wait" : "pointer" }}>
+        <input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
         Widget enabled
       </label>
+      {!hasOrderMethod && (
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+          Connect WooCommerce or save a WhatsApp number above before turning the widget on — customers need a way
+          to actually place their order.
+        </div>
+      )}
     </div>
   );
 }

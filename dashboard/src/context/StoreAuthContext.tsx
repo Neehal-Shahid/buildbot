@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { dashboardApi } from "../lib/dashboardApi";
+import { dashboardApi, WIDGET_DEFAULTS } from "../lib/dashboardApi";
+import { ApiError } from "../lib/api";
 import {
   clearStoreSession,
   getStoreSession,
@@ -37,6 +38,13 @@ function normalizeStore(raw: Record<string, unknown>): StoreSession {
     whatsappNumber: String(raw.whatsapp_number ?? ""),
     whatsappVerified: !!raw.whatsapp_verified,
     wooConnected: !!raw.woo_connected,
+    // widget_enabled defaults to 1 server-side, so treat "column absent"
+    // as enabled — same rule the backend uses (`widget_enabled !== 0`).
+    widgetEnabled: raw.widget_enabled !== 0,
+    widgetTitle: String(raw.widget_title || WIDGET_DEFAULTS.widgetTitle),
+    welcomeMsg: String(raw.welcome_msg || WIDGET_DEFAULTS.welcomeMsg),
+    buttonText: String(raw.button_text || WIDGET_DEFAULTS.buttonText),
+    widgetBg: String(raw.widget_bg || WIDGET_DEFAULTS.widgetBg),
   };
 }
 
@@ -61,10 +69,23 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
       setStoreSession(t, normalized);
       setToken(t);
       setStore(normalized);
-    } catch {
-      clearStoreSession();
-      setToken(null);
-      setStore(null);
+    } catch (err) {
+      // Only a real rejection of the session (bad/expired token, deleted
+      // store) should sign the owner out. A network blip or a 500 from
+      // Railway used to clear localStorage and force a fresh login, which
+      // is both alarming and unnecessary — fall back to the cached
+      // session in that case and let the next refresh() try again.
+      const sessionRejected =
+        err instanceof ApiError && [401, 403, 404].includes(err.status);
+      const cached = getStoreSession();
+      if (sessionRejected || !cached) {
+        clearStoreSession();
+        setToken(null);
+        setStore(null);
+      } else {
+        setToken(t);
+        setStore(cached);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,13 +119,4 @@ export function useStoreAuth(): StoreAuthApi {
   const ctx = useContext(StoreAuthContext);
   if (!ctx) throw new Error("useStoreAuth must be used within StoreAuthProvider");
   return ctx;
-}
-
-// Falls back to the cached session (from localStorage, already read once
-// at bootstrap) if the initial /me hasn't resolved yet, so the very first
-// render after a hard refresh doesn't flash a logged-out state — same
-// intent as the original's `currentStore = readStoreFromStorage()` at
-// script top-level, before enterApp() ever runs.
-export function initialStoreFromStorage(): StoreSession | null {
-  return getStoreSession();
 }

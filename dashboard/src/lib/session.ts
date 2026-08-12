@@ -14,6 +14,15 @@ export interface StoreSession {
   whatsappNumber?: string;
   whatsappVerified?: boolean;
   wooConnected?: boolean;
+  /** stores.widget_enabled — whether the widget actually renders on the
+   *  storefront. Distinct from "has an order method configured". */
+  widgetEnabled?: boolean;
+  // Widget copy lives on the stores row too (see widgetDB.getSettings in
+  // server/database.js), so /me already returns it — no second fetch needed.
+  widgetTitle?: string;
+  welcomeMsg?: string;
+  buttonText?: string;
+  widgetBg?: string;
   [key: string]: unknown;
 }
 

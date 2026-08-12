@@ -16,13 +16,44 @@ export interface Product {
   [key: string]: unknown;
 }
 
+/** One line item inside an order request's `parts` array — built by
+ *  partEntry() in server/routes/recommend.js. */
+export interface OrderPart {
+  category: string;
+  name: string;
+  price: number;
+  quantity: number;
+  totalPrice: number;
+  reason?: string;
+  wooId?: number | null;
+}
+
+// Mirrors the order_requests table (server/database.js). Note the money
+// column is `total_price`, NOT `total`, and orderRequestDB.getByStore()
+// JSON.parses `parts` before sending, so it arrives as a real array.
 export interface OrderRequest {
   id: number | string;
-  parts?: unknown;
-  total?: number;
+  build_name?: string;
+  tier?: string;
+  parts?: OrderPart[];
+  total_price?: number;
+  currency?: string;
+  order_method?: string;
   created_at?: string;
   [key: string]: unknown;
 }
+
+// Defaults the server falls back to when a store has never saved widget
+// copy (widgetDB.getSettings in server/database.js). Kept in sync here so
+// the settings form never posts an empty string — PUT /widget-settings
+// rejects blank title/welcome/button with "All fields are required".
+export const WIDGET_DEFAULTS = {
+  widgetTitle: "BuildVolt",
+  welcomeMsg:
+    "Tell me your budget and what you need — I will find the best parts from this store for you.",
+  buttonText: "Get Started",
+  widgetBg: "#1a1d27",
+} as const;
 
 export interface SupportTicket {
   id: number | string;
@@ -39,6 +70,17 @@ export interface AnalyticsStats {
   avgBudget: { avg: number | null };
   recent: { budget: number; purpose: string; extras?: string; created_at: string }[];
   daily: { day: string; count: number }[];
+}
+
+// stats.daily is grouped by SQLite `date(created_at)`, which is UTC, so
+// today's bucket has to be looked up with a UTC key. Derived from `daily`
+// rather than by filtering `recent`, because `recent` is capped at 10 rows
+// server-side — any store doing more than 10 builds a day would have seen
+// its "today" figure silently stick at 10.
+export function todayCount(stats: AnalyticsStats | null): number {
+  if (!stats) return 0;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  return stats.daily.find((d) => d.day === todayKey)?.count ?? 0;
 }
 
 const auth = (token: string) => ({ token });
@@ -71,12 +113,6 @@ export const dashboardApi = {
       method: "DELETE",
       ...auth(token),
     }),
-
-  forgotPassword: (email: string) =>
-    apiFetch<{ success: boolean; message?: string; error?: string }>(
-      "/forgot-password",
-      { method: "POST", body: { email } },
-    ),
 
   support: {
     submit: (token: string, subject: string, message: string) =>

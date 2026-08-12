@@ -18,7 +18,7 @@ export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
       <div className="nav-right">
         <span className="nav-user-email">{store?.email || ""}</span>
-        <button className="btn btn-sm" onClick={logout}>
+        <button type="button" className="btn btn-sm" onClick={logout}>
           Logout
         </button>
       </div>

@@ -1,30 +1,64 @@
 import { useEffect, useState } from "react";
-import { dashboardApi, type AnalyticsStats } from "../../../lib/dashboardApi";
+import { dashboardApi, todayCount, type AnalyticsStats } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
+import { ApiError } from "../../../lib/api";
 
 export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "store" | "embed") => void }) {
   const { token, store } = useStoreAuth();
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [productCount, setProductCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    dashboardApi.analytics(token, 0).then((data) => {
-      setStats(data.stats);
-      setProductCount(data.productCount.count);
-    });
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    dashboardApi
+      .analytics(token, 0)
+      .then((data) => {
+        if (cancelled) return;
+        setStats(data.stats);
+        // productCount is the raw DB row `{ count }` — see productDB.getCount().
+        setProductCount(data.productCount?.count ?? 0);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(
+          err instanceof ApiError ? err.message : "Could not load your dashboard stats.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
-  const isLive = store?.wooConnected || store?.whatsappVerified;
+  const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
+  // "Live" means the widget actually renders for customers: it needs an
+  // order method AND widget_enabled — /store-config returns active:false
+  // when widget_enabled is 0, no matter how the store is set up.
+  const isLive = hasOrderMethod && store?.widgetEnabled !== false;
   const hasProducts = productCount > 0;
+  const launched = hasProducts && isLive;
 
-  const today = new Date().toDateString();
-  const todayCount = stats?.recent.filter((r) => new Date(r.created_at).toDateString() === today).length ?? 0;
+  const today = todayCount(stats);
+  // Don't render a confident "0" while the request is still in flight.
+  const show = (value: number | string) => (loading ? "—" : value);
 
   return (
     <div>
       <div className="section-title">Dashboard</div>
       <div className="section-sub">Welcome back, {store?.name}! Here's what's happening with your store.</div>
+
+      {error && (
+        <div className="alert alert-error show" style={{ marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
       <div
         className="card"
@@ -37,17 +71,24 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
               Contact our team directly from your dashboard — we typically respond within 24 hours.
             </p>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => onNavigate("help")} style={{ whiteSpace: "nowrap" }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("help")} style={{ whiteSpace: "nowrap" }}>
             Contact Support
           </button>
         </div>
       </div>
 
-      {!hasProducts && (
+      {/* Shown until the store is actually launched. Previously this whole
+          block was hidden as soon as a product existed, which made step 3
+          ("Publish widget") impossible to reach from here. */}
+      {!loading && !launched && (
         <div>
           <div className="card" style={{ marginBottom: 16, background: "var(--accent-bg)", borderColor: "var(--accent)" }}>
             <h2 style={{ marginBottom: 8 }}>Welcome to BuildVolt</h2>
-            <p>You are one step away from activating your widget. Follow the journey below to go live.</p>
+            <p>
+              {hasProducts
+                ? "Your catalog is ready — publish your widget to start getting build requests."
+                : "You are a couple of steps away from activating your widget. Follow the journey below to go live."}
+            </p>
           </div>
 
           <div className="journey-card" style={{ marginBottom: 16 }}>
@@ -58,7 +99,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
                 <div className="journey-num done">1</div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>Step 1</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Store type selected</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Store created</div>
                   <div style={{ fontSize: 11 }}>Done</div>
                 </div>
               </div>
@@ -69,7 +110,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Add product source</div>
                   <div style={{ fontSize: 11 }}>{hasProducts ? "Done" : "Pending"}</div>
                   {!hasProducts && (
-                    <button className="btn btn-sm" onClick={() => onNavigate("store")} style={{ marginTop: 8 }}>
+                    <button type="button" className="btn btn-sm" onClick={() => onNavigate("store")} style={{ marginTop: 8 }}>
                       Continue
                     </button>
                   )}
@@ -82,7 +123,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Publish widget</div>
                   <div style={{ fontSize: 11 }}>{isLive ? "Done" : "Pending"}</div>
                   {!isLive && (
-                    <button className="btn btn-sm" onClick={() => onNavigate("embed")} style={{ marginTop: 8 }}>
+                    <button type="button" className="btn btn-sm" onClick={() => onNavigate("embed")} style={{ marginTop: 8 }}>
                       Go Live
                     </button>
                   )}
@@ -101,7 +142,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
               <polyline points="17 6 23 6 23 12" />
             </svg>
           </div>
-          <div className="stat-value">{stats ? stats.total.count : 0}</div>
+          <div className="stat-value">{show(stats?.total.count ?? 0)}</div>
           <div className="stat-label">Total Recommendations</div>
         </div>
         <div className="stat-card">
@@ -112,7 +153,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
               <line x1="12" y1="22.08" x2="12" y2="12" />
             </svg>
           </div>
-          <div className="stat-value">{productCount}</div>
+          <div className="stat-value">{show(productCount)}</div>
           <div className="stat-label">Products in Catalog</div>
         </div>
         <div className="stat-card">
@@ -122,7 +163,9 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           </div>
-          <div className="stat-value">{stats?.avgBudget.avg ? Math.round(stats.avgBudget.avg).toLocaleString() : 0}</div>
+          <div className="stat-value">
+            {show(stats?.avgBudget.avg ? Math.round(stats.avgBudget.avg).toLocaleString() : 0)}
+          </div>
           <div className="stat-label">Avg Customer Budget</div>
         </div>
         <div className="stat-card">
@@ -131,15 +174,15 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </div>
-          <div className="stat-value">{todayCount}</div>
+          <div className="stat-value">{show(today)}</div>
           <div className="stat-label">Recommendations Today</div>
         </div>
       </div>
 
-      {isLive && hasProducts && (
+      {launched && (
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--success-bg)", border: "1px solid rgba(5,150,105,0.25)", borderRadius: 12, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--success)", marginBottom: 2 }}>Live widget detected</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--success)", marginBottom: 2 }}>Your widget is live</div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>BuildVolt is active on your storefront.</div>
           </div>
           <div className="badge badge-success">Live</div>
@@ -159,21 +202,29 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
             </tr>
           </thead>
           <tbody>
-            {(!stats || stats.recent.length === 0) && (
+            {loading && (
               <tr>
                 <td colSpan={4} style={{ color: "var(--muted)", textAlign: "center" }}>
-                  No recommendations yet
+                  Loading…
                 </td>
               </tr>
             )}
-            {stats?.recent.map((r, i) => (
-              <tr key={i}>
-                <td>{r.purpose}</td>
-                <td>{Number(r.budget).toLocaleString()}</td>
-                <td>{r.extras || "—"}</td>
-                <td>{new Date(r.created_at).toLocaleDateString()}</td>
+            {!loading && (!stats || stats.recent.length === 0) && (
+              <tr>
+                <td colSpan={4} style={{ color: "var(--muted)", textAlign: "center" }}>
+                  {error ? "Could not load recent activity." : "No recommendations yet"}
+                </td>
               </tr>
-            ))}
+            )}
+            {!loading &&
+              stats?.recent.map((r, i) => (
+                <tr key={`${r.created_at}-${i}`}>
+                  <td>{r.purpose}</td>
+                  <td>{Number(r.budget).toLocaleString()}</td>
+                  <td>{r.extras || "—"}</td>
+                  <td>{new Date(r.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

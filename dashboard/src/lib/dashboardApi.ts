@@ -55,12 +55,20 @@ export const WIDGET_DEFAULTS = {
   widgetBg: "#1a1d27",
 } as const;
 
+export interface SupportTicketReply {
+  id: number | string;
+  sender: "store" | "admin";
+  message: string;
+  created_at?: string;
+}
+
 export interface SupportTicket {
   id: number | string;
   subject: string;
   message: string;
   status: string;
   created_at?: string;
+  replies?: SupportTicketReply[];
   [key: string]: unknown;
 }
 
@@ -123,6 +131,12 @@ export const dashboardApi = {
       }),
     list: (token: string) =>
       apiFetch<{ success: boolean; tickets: SupportTicket[] }>("/support", auth(token)),
+    reply: (token: string, ticketId: number | string, message: string) =>
+      apiFetch<{ success: boolean; message: string; error?: string }>(`/support/${ticketId}/reply`, {
+        method: "POST",
+        body: { message },
+        ...auth(token),
+      }),
   },
 
   orderRequests: (token: string) =>

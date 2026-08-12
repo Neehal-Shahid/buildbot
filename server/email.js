@@ -427,6 +427,76 @@ function supportTicketConfirmationEmail(storeName, email, subject, ticketId) {
   };
 }
 
+// Sent to the store owner whenever the admin replies inside a ticket's
+// thread (dashboard "Contact Support" tab) — this is the actual
+// notification that was missing before: submitting a ticket confirmed
+// receipt, but nothing ever told the store owner someone had responded.
+function supportTicketReplyToStoreEmail(storeName, email, subject, replyMessage, ticketId) {
+  return {
+    to: email,
+    subject: `New reply on your support request — #${ticketId}`,
+    html: emailBase({
+      preheader: "The BuildVolt team replied to your support request.",
+      content: `
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+      <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
+        <span style="font-size:12px;font-weight:700;color:#4f46e5;letter-spacing:0.05em;text-transform:uppercase;">Support Request #${ticketId}</span>
+      </td>
+    </tr></table>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${subject}</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">Hi ${storeName}, the BuildVolt team replied to your support request:</p>
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+      <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
+        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${replyMessage}</div>
+      </td></tr>
+    </table>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="background:#4f46e5;border-radius:8px;">
+        <a href="${APP_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Reply in your dashboard</a>
+      </td>
+    </tr></table>
+  `,
+    }),
+  };
+}
+
+// Sent to the admin whenever a store owner follows up on an existing
+// ticket (rather than opening a new one) — same shape as
+// supportTicketAdminEmail, framed as a follow-up so it isn't mistaken for
+// a brand-new request.
+function supportTicketFollowUpAdminEmail(storeName, storeEmail, storeId, subject, replyMessage, ticketId) {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "workwithneehal@gmail.com";
+  return {
+    to: ADMIN_EMAIL,
+    subject: `[Support #${ticketId}] Follow-up: ${subject}`,
+    html: emailBase({
+      preheader: `${storeName} replied on support request #${ticketId}.`,
+      content: `
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+      <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
+        <span style="font-size:12px;font-weight:700;color:#4f46e5;letter-spacing:0.05em;text-transform:uppercase;">Follow-up on #${ticketId}</span>
+      </td>
+    </tr></table>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${subject}</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
+      <strong style="color:#111827;">${storeName}</strong><br/>
+      ${storeEmail} · Store ID: ${storeId}
+    </p>
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+      <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
+        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${replyMessage}</div>
+      </td></tr>
+    </table>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="background:#4f46e5;border-radius:8px;">
+        <a href="${APP_URL}/admin.html" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">Open Admin Panel</a>
+      </td>
+    </tr></table>
+  `,
+    }),
+  };
+}
+
 module.exports = {
   sendEmail,
   welcomeEmail,
@@ -438,6 +508,8 @@ module.exports = {
   adminManualEmail,
   supportTicketAdminEmail,
   supportTicketConfirmationEmail,
+  supportTicketReplyToStoreEmail,
+  supportTicketFollowUpAdminEmail,
   storeDisabledEmail,
   storeDeletedEmail,
 };

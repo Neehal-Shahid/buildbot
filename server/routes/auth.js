@@ -711,6 +711,50 @@ router.get("/support", authMiddleware, async (req, res) => {
   }
 });
 
+// ─── FOLLOW UP ON A SUPPORT TICKET (store owner) ──────────
+// Lets a store owner continue the conversation on their own ticket
+// instead of only ever sending the one opening message — the actual gap
+// behind "I submitted a ticket and can't message them again."
+router.post("/support/:id/reply", authMiddleware, async (req, res) => {
+  const { message } = req.body;
+  if (!message || !message.trim())
+    return res.status(400).json({ error: "Message is required" });
+  if (message.length > 2000)
+    return res.status(400).json({ error: "Message too long (max 2000 chars)" });
+
+  try {
+    const { supportTicketDB, supportTicketRepliesDB } = require("../database");
+    const ticket = await supportTicketDB.getById(req.params.id);
+    if (!ticket || ticket.store_id !== req.store.storeId) {
+      return res.status(404).json({ error: "Support ticket not found" });
+    }
+
+    await supportTicketRepliesDB.create(ticket.id, "store", message.trim());
+    // A follow-up means the conversation isn't actually resolved/closed
+    // anymore, even if an admin had marked it so — reopen it rather than
+    // leaving a "closed" ticket with a new unanswered message sitting in it.
+    if (ticket.status === "resolved" || ticket.status === "closed") {
+      await supportTicketDB.updateStatus(ticket.id, "open");
+    }
+
+    const { sendEmail, supportTicketFollowUpAdminEmail } = require("../email");
+    await sendEmail(
+      supportTicketFollowUpAdminEmail(
+        ticket.store_name,
+        ticket.store_email,
+        ticket.store_id,
+        ticket.subject,
+        message.trim(),
+        ticket.id,
+      ),
+    );
+
+    res.json({ success: true, message: "Reply sent." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── ORDER REQUESTS ────────────────────────────────────────
 // The ground-truth record of what customers actually clicked "Order" on —
 // written server-side at order time (see /order-request in recommend.js),

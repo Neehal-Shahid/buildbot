@@ -35,13 +35,13 @@ export default function StoreSyncTab() {
     }
   }
 
+  // No toast here — the "Selected" badge on the card itself (below) is
+  // already the confirmation. A toast was firing on every click, including
+  // re-clicking the option already selected, stacking up and covering the
+  // page instead of confirming anything meaningful.
   function choose(next: WebsiteMode) {
     setMode(next);
     setStoredMode(next);
-    toast.success(
-      next === "woo" ? "WordPress selected" : "Custom website selected",
-      "Head to Install Widget once your products are ready — that's where you'll finish setup.",
-    );
   }
 
   const OptionCard = ({

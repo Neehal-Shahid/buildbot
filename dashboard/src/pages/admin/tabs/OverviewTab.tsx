@@ -23,6 +23,20 @@ export default function OverviewTab() {
       );
   }, [token]);
 
+  // Stores that signed up but never actually added a product — the
+  // clearest "stuck in onboarding" signal available, and it costs nothing
+  // extra to compute: product_count already comes back on every store row
+  // from the same /admin/overview call.
+  const zeroProductStores = (stores || [])
+    .filter((s) => (s.product_count ?? 0) === 0)
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+
+  function daysAgo(dateStr?: string) {
+    if (!dateStr) return null;
+    const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    return days;
+  }
+
   return (
     <div>
       <div className="section-title">Platform Overview</div>
@@ -50,6 +64,17 @@ export default function OverviewTab() {
           </div>
           <div className="stat-val">{stores ? totalRecs : "—"}</div>
           <div className="stat-lbl">Total Recommendations</div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="stat-val">{stores ? zeroProductStores.length : "—"}</div>
+          <div className="stat-lbl">Stuck With No Products</div>
         </div>
       </div>
 
@@ -97,6 +122,47 @@ export default function OverviewTab() {
           </tbody>
         </table>
       </div>
+
+      {stores && zeroProductStores.length > 0 && (
+        <div className="card" style={{ marginTop: 20 }}>
+          <div className="card-head">
+            <div>
+              <h2>Stuck in Onboarding</h2>
+              <div className="card-sub">Signed up but never added a product — the widget can't work for these yet</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Store</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Signed Up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {zeroProductStores.map((s) => {
+                const d = daysAgo(s.created_at);
+                return (
+                  <tr key={s.store_id}>
+                    <td>
+                      <strong>{s.name}</strong>
+                    </td>
+                    <td>{s.email}</td>
+                    <td>
+                      <StatusBadge store={s} />
+                    </td>
+                    <td>
+                      {s.created_at ? new Date(s.created_at).toLocaleDateString() : ""}
+                      {d !== null && <span style={{ color: "var(--muted)" }}> ({d}d ago)</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

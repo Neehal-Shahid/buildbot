@@ -25,14 +25,33 @@ export interface AdminInfo {
   recoveryEmail: string;
 }
 
+export interface SupportTicketReply {
+  id: number | string;
+  sender: "store" | "admin";
+  message: string;
+  created_at?: string;
+}
+
 export interface SupportTicket {
   id: number | string;
   store_id?: string;
+  store_name?: string;
+  store_email?: string;
   subject: string;
   message: string;
   status: "open" | "in_progress" | "resolved" | "closed";
   created_at?: string;
+  replies?: SupportTicketReply[];
   [key: string]: unknown;
+}
+
+export interface AuditLogEntry {
+  id: number | string;
+  admin_email: string;
+  action: string;
+  target?: string;
+  details?: string;
+  created_at?: string;
 }
 
 export interface EmailLog {
@@ -198,6 +217,12 @@ export const adminApi = {
       { method: "POST", body: { status }, ...adminAuth(token) },
     ),
 
+  replyToTicket: (token: string, id: string | number, message: string) =>
+    apiFetch<{ success: boolean; message: string; error?: string }>(
+      `/admin/support-tickets/${id}/reply`,
+      { method: "POST", body: { message }, ...adminAuth(token) },
+    ),
+
   // `results` mirrors the accumulator built by runScheduledEmails() in
   // server/routes/admin.js.
   runDrip: (token: string) =>
@@ -221,4 +246,10 @@ export const adminApi = {
       body: { config },
       ...adminAuth(token),
     }),
+
+  auditLog: (token: string, limit = 100) =>
+    apiFetch<{ success: boolean; entries: AuditLogEntry[] }>(
+      `/admin/audit-log?limit=${limit}`,
+      adminAuth(token),
+    ),
 };

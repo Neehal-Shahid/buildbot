@@ -303,7 +303,7 @@ function SupportTicketsCard() {
       <div className="card-head">
         <div>
           <h2>Support Tickets</h2>
-          <div className="card-sub">Messages from store owners</div>
+          <div className="card-sub">Messages from store owners — reply here to email them back</div>
         </div>
         <button className="btn btn-sm" onClick={load} disabled={busy}>
           {busy ? "Loading…" : "Refresh"}
@@ -314,31 +314,119 @@ function SupportTicketsCard() {
         {!tickets && !error && !busy && "Click Refresh to load tickets."}
         {tickets?.length === 0 && !error && "No support tickets."}
         {tickets?.map((t) => (
-          <div key={t.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <strong style={{ color: "var(--text)" }}>{t.subject}</strong>
-              <select
-                value={t.status}
-                aria-label={`Status for ticket: ${t.subject}`}
-                onChange={(e) => updateStatus(t.id, e.target.value as SupportTicket["status"])}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Without the sender and date an admin can't tell who raised
-                the ticket, though the API returns both. */}
-            <div style={{ marginTop: 2, color: "var(--dim)" }}>
-              {t.store_id ? `Store ${t.store_id}` : "Unknown store"}
-              {t.created_at ? ` — ${new Date(t.created_at).toLocaleString()}` : ""}
-            </div>
-            <p style={{ marginTop: 4 }}>{t.message}</p>
-          </div>
+          <AdminTicketThread key={t.id} ticket={t} onUpdateStatus={updateStatus} onReplied={load} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function AdminTicketThread({
+  ticket,
+  onUpdateStatus,
+  onReplied,
+}: {
+  ticket: SupportTicket;
+  onUpdateStatus: (id: string | number, status: SupportTicket["status"]) => void;
+  onReplied: () => void;
+}) {
+  const { token } = useAdminAuth();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const replies = ticket.replies || [];
+
+  async function sendReply() {
+    if (!token || !reply.trim()) return;
+    setSending(true);
+    try {
+      const data = await adminApi.replyToTicket(token, ticket.id, reply.trim());
+      if (data.success) {
+        toast.success("Sent", "The store owner has been emailed your reply.");
+        setReply("");
+        onReplied();
+      } else {
+        toast.error("Could not send", data.error || "Please try again.");
+      }
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not send the reply.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <strong style={{ color: "var(--text)" }}>{ticket.subject}</strong>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {replies.length > 0 && (
+            <span style={{ fontSize: 11 }}>
+              {replies.length} repl{replies.length === 1 ? "y" : "ies"}
+            </span>
+          )}
+          <select
+            value={ticket.status}
+            aria-label={`Status for ticket: ${ticket.subject}`}
+            onChange={(e) => onUpdateStatus(ticket.id, e.target.value as SupportTicket["status"])}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-sm" onClick={() => setOpen((v) => !v)}>
+            {open ? "Hide" : "View & reply"}
+          </button>
+        </div>
+      </div>
+      {/* Without the sender and date an admin can't tell who raised
+          the ticket, though the API returns both. */}
+      <div style={{ marginTop: 2, color: "var(--dim)" }}>
+        {ticket.store_name || ticket.store_id ? `${ticket.store_name || "Store"} (${ticket.store_id})` : "Unknown store"}
+        {ticket.store_email ? ` — ${ticket.store_email}` : ""}
+        {ticket.created_at ? ` — ${new Date(ticket.created_at).toLocaleString()}` : ""}
+      </div>
+      <p style={{ marginTop: 4 }}>{ticket.message}</p>
+
+      {open && (
+        <div style={{ marginTop: 10, paddingLeft: 12, borderLeft: "2px solid var(--border)" }}>
+          {replies.map((r) => (
+            <div key={r.id} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: r.sender === "admin" ? "var(--accent)" : "var(--text-2)" }}>
+                {r.sender === "admin" ? "You (BuildVolt Team)" : ticket.store_name || "Store owner"}
+                {r.created_at && (
+                  <span style={{ fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>
+                    {new Date(r.created_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap", marginTop: 2 }}>{r.message}</div>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              rows={2}
+              maxLength={MESSAGE_MAX}
+              placeholder="Reply to this store owner…"
+              style={{ ...textareaStyle, flex: 1, minWidth: 220 }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={sendReply}
+              disabled={sending || !reply.trim()}
+              style={{ alignSelf: "flex-start" }}
+            >
+              {sending ? "Sending…" : "Reply"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { adminApi, type AdminStore } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { StatusBadge } from "../../../components/StatusBadge";
-import { logActivity } from "../../../lib/activityLog";
 import { ManageStoreModal } from "./ManageStoreModal";
 import { ProductsModal } from "./ProductsModal";
 import { ConfirmActionModal } from "./ConfirmActionModal";
@@ -16,6 +15,8 @@ export default function StoresTab() {
   const [stores, setStores] = useState<AdminStore[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"joined" | "products" | "recs" | "name">("joined");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [manageStore, setManageStore] = useState<AdminStore | null>(null);
   const [productsStore, setProductsStore] = useState<{ storeId: string; name: string } | null>(null);
   const [disableStore, setDisableStore] = useState<AdminStore | null>(null);
@@ -38,14 +39,44 @@ export default function StoresTab() {
   const filtered = useMemo(() => {
     if (!stores) return [];
     const q = search.toLowerCase();
-    return stores.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
-  }, [stores, search]);
+    const matched = stores.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...matched].sort((a, b) => {
+      switch (sortBy) {
+        case "products":
+          return dir * ((a.product_count || 0) - (b.product_count || 0));
+        case "recs":
+          return dir * ((a.rec_count || 0) - (b.rec_count || 0));
+        case "name":
+          return dir * a.name.localeCompare(b.name);
+        case "joined":
+        default:
+          return dir * (a.created_at || "").localeCompare(b.created_at || "");
+      }
+    });
+  }, [stores, search, sortBy, sortDir]);
+
+  function toggleSort(col: "joined" | "products" | "recs" | "name") {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      // Joining/counts read most usefully high-to-low by default; name
+      // reads most usefully A-to-Z.
+      setSortDir(col === "name" ? "asc" : "desc");
+    }
+  }
+
+  function sortIndicator(col: "joined" | "products" | "recs" | "name") {
+    if (sortBy !== col) return "";
+    return sortDir === "asc" ? " ▲" : " ▼";
+  }
 
   async function confirmDisable() {
     if (!disableStore || !token) return;
     try {
+      // Server-side now logs this to the real audit log itself.
       await adminApi.disableStore(token, disableStore.store_id);
-      logActivity("Store disabled", disableStore.store_id);
       toast.success("Store disabled", "The store widget has been deactivated.");
       setDisableStore(null);
       load();
@@ -58,7 +89,6 @@ export default function StoresTab() {
     if (!activateStore || !token) return;
     try {
       await adminApi.activateStore(token, activateStore.store_id);
-      logActivity("Store activated", activateStore.store_id);
       toast.success("Store activated", "The store widget has been re-enabled.");
       setActivateStore(null);
       load();
@@ -72,7 +102,6 @@ export default function StoresTab() {
     try {
       await adminApi.deleteStore(token, deleteStore.store_id);
       toast.success("Store deleted", "All store data has been permanently removed.");
-      logActivity("Store deleted", deleteStore.store_id);
       setDeleteStore(null);
       load();
     } catch (err) {
@@ -111,12 +140,44 @@ export default function StoresTab() {
           <table>
             <thead>
               <tr>
-                <th>Store</th>
+                <th
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => toggleSort("name")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleSort("name")}
+                >
+                  Store{sortIndicator("name")}
+                </th>
                 <th>Email</th>
                 <th>Status</th>
-                <th>Products</th>
-                <th>Recs</th>
-                <th>Joined</th>
+                <th
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => toggleSort("products")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleSort("products")}
+                >
+                  Products{sortIndicator("products")}
+                </th>
+                <th
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => toggleSort("recs")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleSort("recs")}
+                >
+                  Recs{sortIndicator("recs")}
+                </th>
+                <th
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => toggleSort("joined")}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleSort("joined")}
+                >
+                  Joined{sortIndicator("joined")}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

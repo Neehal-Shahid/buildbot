@@ -1,93 +1,80 @@
-import { useState } from "react";
-import { clearActivityLog, getActivityLog } from "../../../lib/activityLog";
-import { ConfirmActionModal } from "./ConfirmActionModal";
+import { useEffect, useState } from "react";
+import { adminApi, type AuditLogEntry } from "../../../lib/adminApi";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { ApiError } from "../../../lib/api";
 
 export default function ActivityTab() {
-  const [log, setLog] = useState(getActivityLog());
-  const [confirmClear, setConfirmClear] = useState(false);
+  const { token } = useAdminAuth();
+  const [entries, setEntries] = useState<AuditLogEntry[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function doClear() {
-    clearActivityLog();
-    setLog([]);
-    setConfirmClear(false);
+  function load() {
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    adminApi
+      .auditLog(token, 200)
+      .then((data) => setEntries(data.entries))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Could not load the activity log."))
+      .finally(() => setBusy(false));
   }
+
+  useEffect(load, [token]);
 
   return (
     <div>
       <div className="section-title">Activity Log</div>
-      <div className="section-sub">A local record of admin actions taken in this browser. Stored in localStorage — not sent to the server.</div>
+      <div className="section-sub">
+        A real, server-side record of admin actions — store enable/disable/delete, platform config changes, and
+        database cleanups. Shared across every admin and every device, and can't be cleared from here.
+      </div>
       <div className="card">
         <div className="card-head">
           <div>
             <h2>Recent Actions</h2>
             <div className="card-sub">
-              {log.length} {log.length === 1 ? "entry" : "entries"}
+              {entries ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}` : "Loading…"}
             </div>
           </div>
-          <button
-            className="btn btn-sm btn-danger"
-            onClick={() => setConfirmClear(true)}
-            disabled={log.length === 0}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            </svg>
-            Clear Log
+          <button className="btn btn-sm" onClick={load} disabled={busy}>
+            {busy ? "Loading…" : "Refresh"}
           </button>
         </div>
+        {error && <div className="alert alert-error show">{error}</div>}
         <table>
           <thead>
             <tr>
               <th>Time</th>
+              <th>Admin</th>
               <th>Action</th>
-              <th>Detail</th>
+              <th>Target</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
-            {log.length === 0 && (
+            {!entries && !error && (
               <tr>
-                <td colSpan={3}>No activity recorded yet.</td>
+                <td colSpan={5}>Loading…</td>
               </tr>
             )}
-            {log.map((e, i) => (
-              <tr key={i}>
-                <td>{new Date(e.at).toLocaleString()}</td>
+            {entries?.length === 0 && (
+              <tr>
+                <td colSpan={5}>No activity recorded yet.</td>
+              </tr>
+            )}
+            {entries?.map((e) => (
+              <tr key={e.id}>
+                <td style={{ whiteSpace: "nowrap" }}>{e.created_at ? new Date(e.created_at).toLocaleString() : ""}</td>
+                <td>{e.admin_email}</td>
                 <td>{e.action}</td>
-                <td>{e.detail}</td>
+                <td>{e.target || "—"}</td>
+                <td>{e.details || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      <ConfirmActionModal
-        open={confirmClear}
-        onClose={() => setConfirmClear(false)}
-        onConfirm={doClear}
-        iconBg="var(--danger-bg)"
-        iconColor="var(--danger)"
-        icon={
-          <svg viewBox="0 0 24 24">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-            <path d="M9 6V4" />
-          </svg>
-        }
-        title="Clear Activity Log"
-        desc="This erases the locally stored record of admin actions in this browser. It cannot be undone."
-        detail={
-          <>
-            <strong>Entries to remove:</strong> {log.length}
-          </>
-        }
-        confirmLabel="Clear Log"
-        busyLabel="Clearing…"
-        confirmClass="btn btn-danger"
-      />
     </div>
   );
 }

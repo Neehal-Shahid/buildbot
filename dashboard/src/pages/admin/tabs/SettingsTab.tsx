@@ -31,6 +31,7 @@ export default function SettingsTab() {
   const [email, setEmail] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [budgetPresets, setBudgetPresets] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function SettingsTab() {
       .platformConfig(token)
       .then((data) => {
         setMaintenanceMode(isConfigTrue(data.config.maintenance_mode));
+        setBudgetPresets(String(data.config.budget_presets ?? "50000,80000,120000,200000"));
       })
       .catch((err) =>
         setLoadError(err instanceof ApiError ? err.message : "Could not load platform configuration."),
@@ -65,7 +67,12 @@ export default function SettingsTab() {
         <RecoveryEmailCard recoveryEmail={recoveryEmail} setRecoveryEmail={setRecoveryEmail} />
         <ChangePasswordCard />
       </div>
-      <PlatformConfigCard maintenanceMode={maintenanceMode} setMaintenanceMode={setMaintenanceMode} />
+      <PlatformConfigCard
+        maintenanceMode={maintenanceMode}
+        setMaintenanceMode={setMaintenanceMode}
+        budgetPresets={budgetPresets}
+        setBudgetPresets={setBudgetPresets}
+      />
     </div>
   );
 }
@@ -286,22 +293,44 @@ function ChangePasswordCard() {
 function PlatformConfigCard({
   maintenanceMode,
   setMaintenanceMode,
+  budgetPresets,
+  setBudgetPresets,
 }: {
   maintenanceMode: boolean;
   setMaintenanceMode: (v: boolean) => void;
+  budgetPresets: string;
+  setBudgetPresets: (v: string) => void;
 }) {
   const { token } = useAdminAuth();
   const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  // Mirrors the exact parsing rule server/routes/auth.js applies to
+  // GET /store-config (comma-separated positive integers, at least 2, or
+  // the request silently falls back to the hardcoded defaults) — checked
+  // here too so a bad value gets caught before saving instead of being
+  // saved and quietly ignored everywhere it's used.
+  function parsedPresets(): number[] {
+    return budgetPresets
+      .split(",")
+      .map((v) => parseInt(v.trim(), 10))
+      .filter((v) => Number.isFinite(v) && v > 0);
+  }
+
   async function save() {
     if (!token) return;
+    const presets = parsedPresets();
+    if (presets.length < 2) {
+      setAlert({ msg: "Enter at least 2 valid budget amounts, comma-separated (e.g. 50000,80000,120000,200000).", type: "error" });
+      return;
+    }
     setBusy(true);
     try {
       // Persist the exact string form the rest of the backend compares
       // against (recommend.js: `maintenanceMode === "true"`).
       const data = await adminApi.savePlatformConfig(token, {
         maintenance_mode: maintenanceMode ? "true" : "false",
+        budget_presets: presets.join(","),
       });
       setAlert({ msg: data.message, type: "success" });
     } catch (err) {
@@ -363,6 +392,24 @@ function PlatformConfigCard({
           />
         </label>
       </div>
+
+      <div className="form-group" style={{ marginTop: 16 }}>
+        <label className="form-label" htmlFor="cfg-budget-presets">
+          Budget Preset Amounts (PKR)
+        </label>
+        <input
+          id="cfg-budget-presets"
+          type="text"
+          value={budgetPresets}
+          onChange={(e) => setBudgetPresets(e.target.value)}
+          placeholder="50000,80000,120000,200000"
+        />
+        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+          Comma-separated amounts — these are the quick-select budget buttons every store's customer-facing widget
+          shows. At least two values required, or the widget falls back to its built-in defaults.
+        </div>
+      </div>
+
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
     </div>
   );

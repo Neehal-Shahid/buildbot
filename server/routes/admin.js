@@ -13,6 +13,8 @@ const {
   configDB,
   emailLogDB,
   supportTicketDB,
+  supportTicketRepliesDB,
+  adminAuditDB,
 } = require("../database");
 
 const router = express.Router();
@@ -82,6 +84,9 @@ function adminAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded.isAdmin) return res.status(403).json({ error: "Not admin" });
+    // Lets any route handler attribute an action to the admin who took it
+    // (see adminAuditDB.log calls below) without re-decoding the token itself.
+    req.admin = decoded;
     next();
   } catch {
     res.status(401).json({ error: "Invalid token" });
@@ -134,6 +139,7 @@ router.post("/admin/disable-store", adminAuth, async (req, res) => {
 
     await storeDB.disableStore(storeId);
     await storeDB.disconnectWoo(storeId);
+    await adminAuditDB.log(req.admin.email, "Disabled store", storeId, store.name);
 
     const { sendEmail, storeDisabledEmail } = require("../email");
     if (store.email) {
@@ -162,6 +168,7 @@ router.post("/admin/delete-store", adminAuth, async (req, res) => {
     }
 
     await storeDB.deleteStoreAndData(storeId);
+    await adminAuditDB.log(req.admin.email, "Deleted store", storeId, `${store.name} (${store.email})`);
 
     res.json({ success: true, message: "Store and all related data deleted." });
   } catch (err) {
@@ -173,7 +180,9 @@ router.post("/admin/activate-store", adminAuth, async (req, res) => {
   const storeId = String(req.body.storeId || "").trim();
   if (!storeId) return res.status(400).json({ error: "storeId required" });
   try {
+    const store = await storeDB.findById(storeId);
     await storeDB.activateStore(storeId);
+    await adminAuditDB.log(req.admin.email, "Activated store", storeId, store?.name || "");
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -580,6 +589,65 @@ router.post(
   },
 );
 
+// POST /admin/support-tickets/:id/reply
+// The piece that was actually missing before: a way for the admin to
+// message the store owner back, rather than only changing a status label.
+// Emails the store owner immediately so they don't have to keep checking
+// the dashboard for a reply.
+router.post(
+  "/admin/support-tickets/:id/reply",
+  adminAuth,
+  async (req, res) => {
+    const { message } = req.body;
+    if (!message || !message.trim())
+      return res.status(400).json({ error: "Message is required" });
+    if (message.length > 2000)
+      return res.status(400).json({ error: "Message too long (max 2000 chars)" });
+
+    try {
+      const ticket = await supportTicketDB.getById(req.params.id);
+      if (!ticket) return res.status(404).json({ error: "Support ticket not found" });
+
+      await supportTicketRepliesDB.create(ticket.id, "admin", message.trim());
+      // Only ever bumps a fresh "open" ticket forward — never overrides a
+      // status the admin has deliberately set (e.g. replying once more on
+      // an already "resolved" ticket shouldn't silently flip it back).
+      if (ticket.status === "open") {
+        await supportTicketDB.updateStatus(ticket.id, "in_progress");
+      }
+
+      const { sendEmail, supportTicketReplyToStoreEmail } = require("../email");
+      await sendEmail(
+        supportTicketReplyToStoreEmail(
+          ticket.store_name,
+          ticket.store_email,
+          ticket.subject,
+          message.trim(),
+          ticket.id,
+        ),
+      );
+
+      res.json({ success: true, message: "Reply sent." });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// ─── AUDIT LOG ──────────────────────────────────────────────
+// GET /admin/audit-log — the real, shared record behind the "Activity
+// Log" tab, replacing what used to be a per-browser localStorage list
+// (see admin_audit_log's comment in server/database.js initDB()).
+router.get("/admin/audit-log", adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const entries = await adminAuditDB.getRecent(limit);
+    res.json({ success: true, entries });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── PLATFORM CONFIG ──────────────────────────────────────────
 
 // GET /admin/platform-config — return all config key/value pairs
@@ -607,6 +675,14 @@ router.post("/admin/platform-config", adminAuth, async (req, res) => {
       if (config[key] !== undefined) filtered[key] = config[key];
     }
     await configDB.setMany(filtered);
+    // Platform config affects every store at once, so it gets logged even
+    // though per-store actions above are the more common audit entry.
+    await adminAuditDB.log(
+      req.admin.email,
+      "Changed platform configuration",
+      "",
+      Object.entries(filtered).map(([k, v]) => `${k}=${v}`).join(", "),
+    );
 
     res.json({ success: true, message: "Configuration saved" });
   } catch (err) {
@@ -629,6 +705,7 @@ router.post("/admin/db-cleanup", adminAuth, async (req, res) => {
         "DELETE FROM tokens WHERE expires_at <= datetime('now') OR used = 1",
       );
       const deleted = expiredRes.rowsAffected || 0;
+      await adminAuditDB.log(req.admin.email, "Ran DB cleanup: tokens", "", `${deleted} removed`);
       res.json({
         success: true,
         message: `Cleaned up ${deleted} expired/used token${deleted !== 1 ? "s" : ""}`,
@@ -642,6 +719,12 @@ router.post("/admin/db-cleanup", adminAuth, async (req, res) => {
         DELETE FROM recommendations WHERE store_id NOT IN (SELECT store_id FROM stores)
       `);
       const total = (r1.rowsAffected || 0) + (r2.rowsAffected || 0);
+      await adminAuditDB.log(
+        req.admin.email,
+        "Ran DB cleanup: orphans",
+        "",
+        `${total} removed (products: ${r1.rowsAffected || 0}, recommendations: ${r2.rowsAffected || 0})`,
+      );
       res.json({
         success: true,
         message: `Removed ${total} orphaned record${total !== 1 ? "s" : ""} (products: ${r1.rowsAffected || 0}, recommendations: ${r2.rowsAffected || 0})`,

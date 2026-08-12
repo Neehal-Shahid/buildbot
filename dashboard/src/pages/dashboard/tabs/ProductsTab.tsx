@@ -269,7 +269,7 @@ export default function ProductsTab() {
 
   return (
     <div>
-      <div className="section-title">Product Catalog</div>
+      <div className="section-title">Product Catalog — Step 2</div>
       <div className="section-sub">
         Build your catalog with any combination of the three methods below — add products one at a time, upload a
         file, or import from OSPOS. If you're on WordPress with the BuildVolt plugin connected, that catalog syncs
@@ -454,6 +454,23 @@ export default function ProductsTab() {
               </button>
             </div>
           )
+        )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: "var(--muted)" }}>
+        {products === null ? (
+          "Loading catalog…"
+        ) : (
+          <>
+            <strong style={{ color: "var(--text)" }}>{products.length}</strong>
+            {products.length === 1 ? " product" : " products"} total
+            {hasFilters && filtered.length !== products.length && (
+              <span>
+                {" "}
+                — <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> matching filters
+              </span>
+            )}
+          </>
         )}
       </div>
 

@@ -207,6 +207,34 @@ async function initDB() {
     // since neither of those two sources runs as a background job that
     // could accidentally delete the other's rows.
     `ALTER TABLE products ADD COLUMN source TEXT DEFAULT 'manual'`,
+    // Threaded follow-ups on a support ticket — the original ticket
+    // (support_tickets.message) is the first message; every reply after
+    // it, from either side, lives here so both the store owner and the
+    // admin see one continuous conversation instead of only the opening
+    // message.
+    `CREATE TABLE IF NOT EXISTS support_ticket_replies (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id  INTEGER NOT NULL,
+      sender     TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE
+    )`,
+    // Real, server-side record of admin actions — replaces the previous
+    // "Activity Log" tab, which only ever wrote to that one admin's own
+    // browser localStorage: it vanished on another device, wasn't shared
+    // between admins, and could be silently cleared by whoever performed
+    // the action it was supposed to be a record of. No FK to `admins`
+    // deliberately — the log must stay readable even if an admin account
+    // is later removed.
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      admin_email TEXT NOT NULL,
+      action      TEXT NOT NULL,
+      target      TEXT DEFAULT '',
+      details     TEXT DEFAULT '',
+      created_at  TEXT DEFAULT (datetime('now'))
+    )`,
   ];
   for (const sql of migrations) {
     try {
@@ -593,6 +621,28 @@ const adminDB = {
       sql: "UPDATE admins SET recovery_email = ? WHERE id = ?",
       args: [recoveryEmail, id],
     });
+  },
+};
+
+// ─── ADMIN AUDIT LOG ──────────────────────────────────────
+// The real, shared, server-side "who did what and when" — see
+// admin_audit_log's table comment in initDB() for why this replaced the
+// old localStorage-only Activity Log tab.
+const adminAuditDB = {
+  log: async (adminEmail, action, target = "", details = "") => {
+    return await client.execute({
+      sql: `INSERT INTO admin_audit_log (admin_email, action, target, details)
+             VALUES (?, ?, ?, ?)`,
+      args: [adminEmail, action, target, details],
+    });
+  },
+
+  getRecent: async (limit = 100) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM admin_audit_log ORDER BY created_at DESC LIMIT ?",
+      args: [limit],
+    });
+    return res.rows;
   },
 };
 
@@ -1010,6 +1060,25 @@ const emailLogDB = {
   },
 };
 
+// Attaches a `replies` array (oldest first) to each ticket row in one
+// extra query (WHERE ticket_id IN (...)) instead of one query per ticket —
+// both the store owner's ticket list and the admin's need the full thread,
+// not just the opening message.
+async function attachReplies(tickets) {
+  if (!tickets.length) return tickets;
+  const ids = tickets.map((t) => t.id);
+  const placeholders = ids.map(() => "?").join(",");
+  const res = await client.execute({
+    sql: `SELECT * FROM support_ticket_replies WHERE ticket_id IN (${placeholders}) ORDER BY created_at ASC`,
+    args: ids,
+  });
+  const byTicket = {};
+  for (const r of res.rows) {
+    (byTicket[r.ticket_id] ||= []).push(r);
+  }
+  return tickets.map((t) => ({ ...t, replies: byTicket[t.id] || [] }));
+}
+
 // ─── SUPPORT TICKETS ──────────────────────────────────────
 const supportTicketDB = {
   create: async (storeId, storeName, storeEmail, subject, message) => {
@@ -1021,18 +1090,22 @@ const supportTicketDB = {
     return Number(res.lastInsertRowid);
   },
 
+  getById: async (id) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM support_tickets WHERE id = ?",
+      args: [id],
+    });
+    return res.rows[0] || null;
+  },
+
   getAll: async (status = null) => {
-    if (status) {
-      const res = await client.execute({
-        sql: "SELECT * FROM support_tickets WHERE status = ? ORDER BY created_at DESC",
-        args: [status],
-      });
-      return res.rows;
-    }
-    const res = await client.execute(
-      "SELECT * FROM support_tickets ORDER BY created_at DESC",
-    );
-    return res.rows;
+    const res = status
+      ? await client.execute({
+          sql: "SELECT * FROM support_tickets WHERE status = ? ORDER BY created_at DESC",
+          args: [status],
+        })
+      : await client.execute("SELECT * FROM support_tickets ORDER BY created_at DESC");
+    return attachReplies(res.rows);
   },
 
   getByStore: async (storeId) => {
@@ -1040,7 +1113,7 @@ const supportTicketDB = {
       sql: "SELECT * FROM support_tickets WHERE store_id = ? ORDER BY created_at DESC",
       args: [storeId],
     });
-    return res.rows;
+    return attachReplies(res.rows);
   },
 
   updateStatus: async (id, status) => {
@@ -1048,6 +1121,29 @@ const supportTicketDB = {
       sql: "UPDATE support_tickets SET status = ? WHERE id = ?",
       args: [status, id],
     });
+  },
+};
+
+// ─── SUPPORT TICKET REPLIES ───────────────────────────────
+// sender is 'store' (the store owner following up) or 'admin' (the
+// platform operator responding) — that's the only distinction either
+// dashboard needs to render "You" vs "BuildVolt Team" in the thread.
+const supportTicketRepliesDB = {
+  create: async (ticketId, sender, message) => {
+    const res = await client.execute({
+      sql: `INSERT INTO support_ticket_replies (ticket_id, sender, message)
+             VALUES (?, ?, ?)`,
+      args: [ticketId, sender, message],
+    });
+    return Number(res.lastInsertRowid);
+  },
+
+  getByTicket: async (ticketId) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM support_ticket_replies WHERE ticket_id = ? ORDER BY created_at ASC",
+      args: [ticketId],
+    });
+    return res.rows;
   },
 };
 
@@ -1160,6 +1256,8 @@ module.exports = {
   configDB,
   emailLogDB,
   supportTicketDB,
+  supportTicketRepliesDB,
+  adminAuditDB,
   orderRequestDB,
   pendingSignupDB,
 };

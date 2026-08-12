@@ -2,7 +2,6 @@ import { useState } from "react";
 import { adminApi, type AdminStore } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
-import { logActivity } from "../../../lib/activityLog";
 import { ApiError } from "../../../lib/api";
 
 export function ManageStoreModal({
@@ -36,8 +35,10 @@ export function ManageStoreModal({
       // on every save meant editing notes on an already-disabled store
       // re-sent that email each time.
       if (status !== initialStatus) {
+        // Server-side now logs this to the real audit log itself (see
+        // adminAuditDB.log calls in server/routes/admin.js) — no
+        // client-side logging needed.
         await adminApi[status === "disabled" ? "disableStore" : "activateStore"](token, store.store_id);
-        logActivity("Store status updated", `${store.store_id} → ${status}`);
       }
       await adminApi.saveNotes(token, store.store_id, notes.trim());
       await adminApi.setDripPaused(token, store.store_id, dripPaused);

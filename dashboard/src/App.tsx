@@ -22,6 +22,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/index.html" element={<LandingPage />} />
+            <Route path="/login" element={<LandingPage />} />
+            <Route path="/signup" element={<LandingPage />} />
+            <Route path="/forgot-password" element={<LandingPage />} />
+            <Route path="/verify-email" element={<LandingPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard.html" element={<DashboardPage />} />
             <Route path="/admin" element={<AdminPage />} />

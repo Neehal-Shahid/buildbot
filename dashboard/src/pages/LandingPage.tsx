@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
 import { ApiError } from "../lib/api";
 import {
@@ -16,16 +16,36 @@ import landingCss from "./landing.css?raw";
 
 type View = "landing" | "login" | "signup" | "forgot" | "verify-pending";
 
+// Real URLs for the auth sub-views (see matching routes in App.tsx) so the
+// browser back/forward buttons and refresh behave normally instead of
+// everything living silently under "/".
+const VIEW_PATHS: Record<View, string> = {
+  landing: "/",
+  login: "/login",
+  signup: "/signup",
+  forgot: "/forgot-password",
+  "verify-pending": "/verify-email",
+};
+const PATH_TO_VIEW: Record<string, View> = {
+  "/login": "login",
+  "/signup": "signup",
+  "/forgot-password": "forgot",
+  "/verify-email": "verify-pending",
+};
+
 // This page is a 1:1 port of the original dashboard/index.html — same CSS
 // (imported verbatim as landing.css) and same markup/class structure, so
 // the JS logic below just swaps out the vanilla DOM manipulation for React
 // state while keeping pixel-identical output.
 export default function LandingPage() {
   const navigate = useNavigate();
-  const forceDashboard =
-    new URLSearchParams(window.location.search).get("dashboard") === "1";
+  const location = useLocation();
+  const forceDashboard = new URLSearchParams(location.search).get("dashboard") === "1";
 
-  const [view, setView] = useState<View>(forceDashboard ? "login" : "landing");
+  const [view, setView] = useState<View>(() => {
+    const initial = forceDashboard ? "login" : PATH_TO_VIEW[location.pathname] ?? "landing";
+    return initial === "verify-pending" ? "login" : initial;
+  });
   const [loggedIn, setLoggedIn] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingPassword, setPendingPassword] = useState("");
@@ -47,6 +67,19 @@ export default function LandingPage() {
     document.body.classList.toggle("nav-open", mobileNavOpen);
   }, [mobileNavOpen]);
 
+  // Keeps `view` in sync with the URL for browser back/forward navigation
+  // and direct links (e.g. someone opening /signup straight from a bookmark).
+  // Navigations we trigger ourselves (via showPage -> navigate) just cause
+  // this to re-set the same value, which is a harmless no-op.
+  useEffect(() => {
+    const target = forceDashboard ? "login" : PATH_TO_VIEW[location.pathname] ?? "landing";
+    // /verify-email only makes sense once we actually know which email is
+    // pending (set via signup/login) — a cold direct visit has nothing to
+    // show, so send it to login instead of a blank "check your email" box.
+    setView(target === "verify-pending" && !pendingEmail ? "login" : target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, forceDashboard, pendingEmail]);
+
   useEffect(() => {
     async function boot() {
       if (isStoreTokenExpired()) clearStoreSession();
@@ -65,10 +98,13 @@ export default function LandingPage() {
             setLoggedIn(false);
             setPendingEmail(store.email || "");
             setView("verify-pending");
+            navigate(VIEW_PATHS["verify-pending"], { replace: true });
           } else {
             clearStoreSession();
             setLoggedIn(false);
-            setView(forceDashboard ? "login" : "landing");
+            const fallback: View = forceDashboard ? "login" : "landing";
+            setView(fallback);
+            navigate(VIEW_PATHS[fallback], { replace: true });
           }
         } catch {
           if (forceDashboard) navigate("/dashboard.html");
@@ -78,9 +114,12 @@ export default function LandingPage() {
         if (verifyParam === "required") {
           setView("login");
           setLoginAlert("Please verify your email before accessing the dashboard.");
-        } else {
-          setView(forceDashboard ? "login" : "landing");
+          navigate(VIEW_PATHS.login, { replace: true });
+        } else if (forceDashboard) {
+          setView("login");
         }
+        // Otherwise leave `view` exactly as already derived from the URL
+        // (landing, or a directly-visited /login, /signup, etc.) — no reset.
       }
       setChecked(true);
     }
@@ -90,7 +129,9 @@ export default function LandingPage() {
 
   function showPage(name: View) {
     setMobileNavOpen(false);
-    setView(forceDashboard && name === "landing" ? "login" : name);
+    const target: View = forceDashboard && name === "landing" ? "login" : name;
+    setView(target);
+    if (location.pathname !== VIEW_PATHS[target]) navigate(VIEW_PATHS[target]);
   }
 
   function scrollToLandingSection(id: string) {

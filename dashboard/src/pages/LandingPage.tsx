@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
 import { ApiError } from "../lib/api";
@@ -42,6 +42,10 @@ export default function LandingPage() {
       view === "signup" || view === "login" || view === "forgot" || view === "verify-pending",
     );
   }, [view]);
+
+  useEffect(() => {
+    document.body.classList.toggle("nav-open", mobileNavOpen);
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     async function boot() {
@@ -667,10 +671,30 @@ function LandingSections({
   onShowPage: (name: View) => void;
   onScrollTo: (id: string) => void;
 }) {
+  const progressFillRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onScroll() {
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - doc.clientHeight;
+      const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+      if (progressFillRef.current) {
+        progressFillRef.current.style.height = `${Math.min(100, Math.max(0, pct))}%`;
+      }
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
   return (
     <div className="page active" id="page-landing">
       <div className="landing-progress" aria-hidden="true">
-        <div className="landing-progress-fill" />
+        <div className="landing-progress-fill" ref={progressFillRef} />
       </div>
       <div className="landing-wrap">
         <section className="hero-section">
@@ -979,7 +1003,7 @@ function LandingSections({
               <a onClick={() => onShowPage("signup")}>Get Started Free</a>
             </div>
           </div>
-          <div className="footer-bottom">© 2025 BuildVolt · All rights reserved</div>
+          <div className="footer-bottom">© {new Date().getFullYear()} BuildVolt · All rights reserved</div>
         </footer>
       </div>
     </div>

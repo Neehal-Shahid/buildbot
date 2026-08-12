@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { dashboardApi, WIDGET_DEFAULTS } from "../lib/dashboardApi";
-import { ApiError } from "../lib/api";
+import { ApiError, AUTH_EXPIRED_EVENT } from "../lib/api";
 import {
   clearStoreSession,
   getStoreSession,
@@ -52,6 +52,27 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [store, setStore] = useState<StoreSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+
+  // A dead session (expired/revoked token) previously just left every tab
+  // showing whatever "Invalid token" error its own API call happened to
+  // hit, with no sign-out. apiFetch fires AUTH_EXPIRED_EVENT whenever an
+  // authenticated request 401s; only act on it if the rejected token is
+  // still this store's current one (an unrelated admin session 401ing in
+  // the same browser must not log the store owner out).
+  useEffect(() => {
+    function onAuthExpired(e: Event) {
+      const detail = (e as CustomEvent<{ token: string }>).detail;
+      if (detail?.token && detail.token === tokenRef.current) {
+        clearStoreSession();
+        setToken(null);
+        setStore(null);
+      }
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onAuthExpired);
+  }, []);
 
   async function refresh() {
     if (isStoreTokenExpired()) clearStoreSession();

@@ -100,6 +100,12 @@ export default function LandingPage() {
     });
   }
 
+  function goHome() {
+    if (view !== "landing") showPage("landing");
+    else setMobileNavOpen(false);
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
+  }
+
   function onAuthed(token: string, store: StoreSession) {
     setStoreSession(token, store);
     setLoggedIn(true);
@@ -119,7 +125,7 @@ export default function LandingPage() {
       <div className="nav-overlay" style={mobileNavOpen ? { display: "block", opacity: 1 } : undefined} onClick={() => setMobileNavOpen(false)} />
       {view === "landing" && (
         <nav id="main-nav">
-          <div className="nav-logo" onClick={() => showPage("landing")}>
+          <div className="nav-logo" onClick={goHome}>
             ⚡ BuildVolt
           </div>
           <button
@@ -135,7 +141,7 @@ export default function LandingPage() {
             </svg>
           </button>
           <div className={`nav-links${mobileNavOpen ? " open" : ""}`}>
-            <div className="nav-link" onClick={() => showPage("landing")}>
+            <div className="nav-link" onClick={goHome}>
               Home
             </div>
             <div className="nav-link" onClick={() => scrollToLandingSection("how-it-works")}>

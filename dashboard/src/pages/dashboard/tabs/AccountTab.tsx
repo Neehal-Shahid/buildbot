@@ -52,8 +52,8 @@ function SupportCard() {
       setAlert({ msg: data.message, type: "success" });
       setSubject("");
       setMessage("");
-    } catch {
-      setAlert({ msg: "Could not submit ticket.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not submit ticket.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -162,8 +162,8 @@ function ForgotPasswordCard() {
     try {
       const data = await authApi.forgotPassword(email);
       setAlert({ msg: data.message || data.error || "", type: data.success ? "success" : "error" });
-    } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -199,8 +199,8 @@ function EmailPreferencesCard() {
       const data = await dashboardApi.emailPreferences(token, next);
       setAlert({ msg: data.message, type: "success" });
       refresh();
-    } catch {
-      setAlert({ msg: "Could not update preference.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not update preference.", type: "error" });
     }
   }
 
@@ -233,8 +233,8 @@ function DangerZoneCard() {
       await dashboardApi.deleteAccount(token);
       toast.success("Account deleted", "");
       logout();
-    } catch {
-      toast.error("Error", "Could not delete account.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not delete account.");
     }
   }
 

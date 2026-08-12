@@ -3,6 +3,7 @@ import { adminApi, type AdminStore } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { logActivity } from "../../../lib/activityLog";
+import { ApiError } from "../../../lib/api";
 
 export function ManageStoreModal({
   store,
@@ -32,8 +33,8 @@ export function ManageStoreModal({
       toast.success("Store updated", "Changes saved successfully.");
       onSaved();
       onClose();
-    } catch {
-      toast.error("Error", "Could not update store.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not update store.");
     } finally {
       setSaving(false);
     }

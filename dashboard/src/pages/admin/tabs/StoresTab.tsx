@@ -7,6 +7,7 @@ import { logActivity } from "../../../lib/activityLog";
 import { ManageStoreModal } from "./ManageStoreModal";
 import { ProductsModal } from "./ProductsModal";
 import { ConfirmActionModal } from "./ConfirmActionModal";
+import { ApiError } from "../../../lib/api";
 
 export default function StoresTab() {
   const { token } = useAdminAuth();
@@ -35,20 +36,28 @@ export default function StoresTab() {
 
   async function confirmDisable() {
     if (!disableStore || !token) return;
-    await adminApi.disableStore(token, disableStore.store_id);
-    logActivity("Store disabled", disableStore.store_id);
-    toast.success("Store disabled", "The store widget has been deactivated.", );
-    setDisableStore(null);
-    load();
+    try {
+      await adminApi.disableStore(token, disableStore.store_id);
+      logActivity("Store disabled", disableStore.store_id);
+      toast.success("Store disabled", "The store widget has been deactivated.");
+      setDisableStore(null);
+      load();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not disable store.");
+    }
   }
 
   async function confirmActivate() {
     if (!activateStore || !token) return;
-    await adminApi.activateStore(token, activateStore.store_id);
-    logActivity("Store activated", activateStore.store_id);
-    toast.success("Store activated", "The store widget has been re-enabled.");
-    setActivateStore(null);
-    load();
+    try {
+      await adminApi.activateStore(token, activateStore.store_id);
+      logActivity("Store activated", activateStore.store_id);
+      toast.success("Store activated", "The store widget has been re-enabled.");
+      setActivateStore(null);
+      load();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not activate store.");
+    }
   }
 
   async function confirmDelete() {
@@ -61,8 +70,8 @@ export default function StoresTab() {
         setDeleteStore(null);
         load();
       }
-    } catch {
-      toast.error("Delete failed", "Something went wrong.");
+    } catch (err) {
+      toast.error("Delete failed", err instanceof ApiError ? err.message : "Something went wrong.");
     }
   }
 

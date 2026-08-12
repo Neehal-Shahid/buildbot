@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { adminApi, type AdminStore, type EmailLog, type SupportTicket } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
+import { ApiError } from "../../../lib/api";
 
 const textareaStyle: CSSProperties = {
   width: "100%",
@@ -64,8 +65,8 @@ function BroadcastCard() {
       setAlert({ msg: data.message, type: "success" });
       setSubject("");
       setMessage("");
-    } catch {
-      setAlert({ msg: "Broadcast failed.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Broadcast failed.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -116,8 +117,8 @@ function DripCard() {
     try {
       await adminApi.runDrip(token);
       setAlert({ msg: "Automated onboarding emails processed.", type: "success" });
-    } catch {
-      setAlert({ msg: "Drip run failed.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Drip run failed.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -220,8 +221,8 @@ function SupportTicketsCard() {
       await adminApi.updateTicketStatus(token, id, status);
       toast.success("Ticket updated", "Status saved.");
       load();
-    } catch {
-      toast.error("Error", "Could not update ticket.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not update ticket.");
     }
   }
 
@@ -275,8 +276,8 @@ function SendToStoreCard({ stores }: { stores: AdminStore[] }) {
       setAlert({ msg: data.message, type: "success" });
       setSubject("");
       setMessage("");
-    } catch {
-      setAlert({ msg: "Could not send email.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not send email.", type: "error" });
     } finally {
       setBusy(false);
     }

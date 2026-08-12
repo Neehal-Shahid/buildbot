@@ -2,6 +2,7 @@ import { useState } from "react";
 import { adminApi } from "../../../lib/adminApi";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
+import { ApiError } from "../../../lib/api";
 
 type AuditResult = Awaited<ReturnType<typeof adminApi.dbAudit>>;
 
@@ -16,8 +17,8 @@ export default function DbHealthTab() {
     try {
       const data = await adminApi.dbAudit(token);
       setAudit(data);
-    } catch {
-      toast.error("Error", "Could not run DB audit.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not run DB audit.");
     }
   }
 
@@ -27,8 +28,8 @@ export default function DbHealthTab() {
       const data = await adminApi.dbCleanup(token, action);
       setCleanupAlert({ msg: data.message, type: "success" });
       if (audit) runAudit();
-    } catch {
-      setCleanupAlert({ msg: "Cleanup failed.", type: "error" });
+    } catch (err) {
+      setCleanupAlert({ msg: err instanceof ApiError ? err.message : "Cleanup failed.", type: "error" });
     }
   }
 

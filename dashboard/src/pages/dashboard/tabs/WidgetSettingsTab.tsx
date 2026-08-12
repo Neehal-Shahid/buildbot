@@ -3,6 +3,7 @@ import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { isLikelyValidPakistaniMobile } from "../../../lib/phone";
+import { ApiError } from "../../../lib/api";
 
 function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | null }) {
   if (!msg) return <div className="alert" />;
@@ -43,8 +44,8 @@ function BrandingCard() {
       const data = await dashboardApi.settings.saveBranding(token, color, currency);
       setAlert({ msg: data.message, type: "success" });
       refresh();
-    } catch {
-      setAlert({ msg: "Could not save settings.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not save settings.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -97,8 +98,8 @@ function WhatsappCard() {
       const data = await dashboardApi.whatsapp.save(token, number.trim());
       setAlert({ msg: data.message || data.error || "", type: data.success ? "success" : "error" });
       refresh();
-    } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
     } finally {
       setSavingNumber(false);
     }
@@ -190,8 +191,8 @@ function WidgetTextCard() {
       } else {
         toast.error("Error", data.error || "");
       }
-    } catch {
-      toast.error("Error", "Could not save widget text.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not save widget text.");
     } finally {
       setBusy(false);
     }
@@ -246,8 +247,8 @@ function WidgetToggleCard({ enabled, onChanged }: { enabled: boolean; onChanged:
       } else {
         toast.error("Could not enable widget", data.error || "");
       }
-    } catch {
-      toast.error("Error", "Could not update widget status.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not update widget status.");
     } finally {
       setBusy(false);
     }

@@ -3,6 +3,7 @@ import { dashboardApi } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { API_ORIGIN } from "../../../lib/config";
+import { ApiError } from "../../../lib/api";
 
 type Mode = "custom" | "woo";
 
@@ -53,8 +54,8 @@ export default function StoreSyncTab() {
       } else {
         toast.error("Could not generate key", data.error || "");
       }
-    } catch {
-      toast.error("Error", "Could not generate key.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not generate key.");
     } finally {
       setGenerating(false);
     }
@@ -67,8 +68,8 @@ export default function StoreSyncTab() {
       await dashboardApi.plugin.disconnect(token);
       toast.success("Disconnected", "WooCommerce has been disconnected.");
       load();
-    } catch {
-      toast.error("Error", "Could not disconnect.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not disconnect.");
     } finally {
       setDisconnecting(false);
     }

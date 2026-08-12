@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { dashboardApi, type SupportTicket } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
+import { ApiError } from "../../../lib/api";
 
 export default function HelpTab() {
   const { token } = useStoreAuth();
@@ -26,8 +27,8 @@ export default function HelpTab() {
       setSubject("");
       setMessage("");
       loadTickets();
-    } catch {
-      setAlert({ msg: "Could not submit ticket.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Could not submit ticket.", type: "error" });
     } finally {
       setBusy(false);
     }

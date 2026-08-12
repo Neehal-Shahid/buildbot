@@ -61,8 +61,8 @@ export default function ProductsTab() {
       toast.success("Product deleted", "");
       setDeleting(null);
       load();
-    } catch {
-      toast.error("Error", "Could not delete product.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not delete product.");
     }
   }
 
@@ -234,8 +234,8 @@ function ProductModal({
       } else {
         toast.error("Error", data.error || "Something went wrong.");
       }
-    } catch {
-      toast.error("Error", "Could not save product.");
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not save product.");
     } finally {
       setSaving(false);
     }

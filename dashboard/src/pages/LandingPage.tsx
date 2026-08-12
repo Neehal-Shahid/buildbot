@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
+import { ApiError } from "../lib/api";
 import {
   clearStoreSession,
   getStoreSession,
@@ -305,8 +306,8 @@ function SignupPage({
       } else {
         setAlert({ msg: data.error || "Signup failed.", type: "error" });
       }
-    } catch {
-      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -322,8 +323,8 @@ function SignupPage({
       } else {
         setAlert({ msg: data.error || "Google Login failed.", type: "error" });
       }
-    } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -411,8 +412,8 @@ function VerifyPendingPage({
       } else {
         setAlert({ msg: data.error || "Verification failed.", type: "error" });
       }
-    } catch {
-      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -424,8 +425,8 @@ function VerifyPendingPage({
     try {
       const data = await authApi.resendVerification(email, password);
       setAlert({ msg: data.message || data.error || "Could not resend email.", type: data.success ? "success" : "error" });
-    } catch {
-      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
       setResending(false);
     }
@@ -526,8 +527,8 @@ function LoginPage({
       } else {
         setAlert({ msg: data.error || "Login failed.", type: "error" });
       }
-    } catch {
-      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -543,8 +544,8 @@ function LoginPage({
       } else {
         setAlert({ msg: data.error || "Google Login failed.", type: "error" });
       }
-    } catch {
-      setAlert({ msg: "Connection error.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Connection error.", type: "error" });
     } finally {
       setBusy(false);
     }
@@ -613,8 +614,8 @@ function ForgotPage({ onBack }: { onBack: () => void }) {
       const data = await authApi.forgotPassword(email);
       if (data.success) setAlert({ msg: data.message || "Check your email.", type: "success" });
       else setAlert({ msg: data.error || "Something went wrong.", type: "error" });
-    } catch {
-      setAlert({ msg: "Cannot connect to server.", type: "error" });
+    } catch (err) {
+      setAlert({ msg: err instanceof ApiError ? err.message : "Cannot connect to server.", type: "error" });
     } finally {
       setBusy(false);
     }

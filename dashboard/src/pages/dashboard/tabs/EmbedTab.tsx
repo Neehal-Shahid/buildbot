@@ -58,6 +58,13 @@ export default function EmbedTab() {
 
   const snippet = store ? getWidgetScriptUrl(store.storeId) : "";
   const hasProducts = (productCount ?? 0) > 0;
+  // "Add products first" makes sense when the catalog is something the
+  // owner fills in via Products (manual/file/OSPOS) — but when WooCommerce
+  // IS the data source, connecting the plugin below is exactly how
+  // products show up in the first place. Gating that connection step on
+  // already having products would be a deadlock: no products without the
+  // plugin, no plugin without products.
+  const pluginBringsOwnData = mode === "woo" && store?.dataSource === "woo";
 
   // The real signal, not a local flag: the widget only serves customers
   // when widget_enabled is on AND there's a way to actually order
@@ -124,7 +131,7 @@ export default function EmbedTab() {
         .
       </div>
 
-      {!hasProducts && productCount !== null && (
+      {!hasProducts && productCount !== null && !pluginBringsOwnData && (
         <div className="alert alert-error show" style={{ marginBottom: 16 }}>
           Your product catalog is empty — the widget can't be installed until it has something to recommend.
           Go to <strong>Products</strong> (Step 2) and add products, upload a file, or import from OSPOS first.
@@ -144,7 +151,17 @@ export default function EmbedTab() {
           onToggle={setWidget}
         />
       ) : (
-        <WooGuide canInstall={hasProducts} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onCopy={copy} onToggle={setWidget} />
+        <WooGuide
+          canInstall={hasProducts}
+          canConnect={hasProducts || pluginBringsOwnData}
+          live={live}
+          enabled={enabled}
+          hasOrderMethod={hasOrderMethod}
+          installed={installed}
+          busy={busy}
+          onCopy={copy}
+          onToggle={setWidget}
+        />
       )}
     </div>
   );
@@ -220,6 +237,7 @@ function ScriptGuide({
 
 function WooGuide({
   canInstall,
+  canConnect,
   live,
   enabled,
   hasOrderMethod,
@@ -229,6 +247,11 @@ function WooGuide({
   onToggle,
 }: {
   canInstall: boolean;
+  // Whether the plugin download/connect steps themselves should be
+  // enabled — true whenever there are already products, OR when
+  // WooCommerce is the data source (in which case connecting the plugin
+  // is how products show up, so it can't wait on products existing first).
+  canConnect: boolean;
   live: boolean;
   enabled: boolean;
   hasOrderMethod: boolean;
@@ -305,7 +328,7 @@ function WooGuide({
         </div>
       )}
 
-      <div className="card" id="woo-section" style={{ opacity: canInstall ? 1 : 0.5 }}>
+      <div className="card" id="woo-section" style={{ opacity: canConnect ? 1 : 0.5 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
           <div>
             <h2 style={{ margin: 0 }}>WooCommerce Plugin</h2>
@@ -392,7 +415,7 @@ function WooGuide({
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={() => window.open(`${API_ORIGIN}/buildvolt-woocommerce.zip`, "_blank", "noopener")}
-                  disabled={!canInstall}
+                  disabled={!canConnect}
                 >
                   Download Plugin (.zip)
                 </button>
@@ -412,7 +435,7 @@ function WooGuide({
                 <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
                   Paste your Store ID and this key into the plugin's settings page.
                 </div>
-                <button type="button" className={`btn btn-primary btn-sm${generating ? " is-loading" : ""}`} onClick={generateKey} disabled={generating || !canInstall}>
+                <button type="button" className={`btn btn-primary btn-sm${generating ? " is-loading" : ""}`} onClick={generateKey} disabled={generating || !canConnect}>
                   {generating ? "Generating…" : status?.hasKey ? "Generate new key" : "Generate key"}
                 </button>
                 {status?.hasKey && !generating && (

@@ -231,9 +231,14 @@ export default function DashboardApp() {
 
   const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
   const stepDone: Record<number, boolean> = {
-    1: hasChosenMode(),
+    1: hasChosenMode(store?.storeId),
     2: (productCount ?? 0) > 0,
-    3: hasOrderMethod && store?.widgetEnabled !== false,
+    // Both halves matter: widgetLastSeen is real evidence the snippet is
+    // pasted and loading (not just "you could technically go live" — see
+    // storeDB.touchWidgetSeen), and hasOrderMethod/widgetEnabled confirm
+    // it's still actually able to take orders right now, in case it was
+    // installed once and then turned off again.
+    3: !!store?.widgetLastSeen && hasOrderMethod && store?.widgetEnabled !== false,
   };
 
   function renderTab(t: (typeof WORKSPACE_TABS)[number] | (typeof ACCOUNT_TABS)[number]) {

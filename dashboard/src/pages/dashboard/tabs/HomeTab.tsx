@@ -39,13 +39,17 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
   }, [token]);
 
   const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
-  // "Live" means the widget actually renders for customers: it needs an
-  // order method AND widget_enabled — /store-config returns active:false
-  // when widget_enabled is 0, no matter how the store is set up.
+  // "Live" means the widget can currently take orders: it needs an order
+  // method AND widget_enabled — /store-config returns active:false when
+  // widget_enabled is 0, no matter how the store is set up. That alone
+  // doesn't mean the snippet was ever actually pasted anywhere though —
+  // installed adds that real signal (see storeDB.touchWidgetSeen).
   const isLive = hasOrderMethod && store?.widgetEnabled !== false;
+  const installed = !!store?.widgetLastSeen;
+  const widgetStepDone = isLive && installed;
   const hasProducts = productCount > 0;
-  const websiteChosen = hasChosenMode();
-  const launched = hasProducts && isLive;
+  const websiteChosen = hasChosenMode(store?.storeId);
+  const launched = hasProducts && widgetStepDone;
 
   const today = todayCount(stats);
   // Don't render a confident "0" while the request is still in flight.
@@ -124,12 +128,12 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
                 </div>
               </div>
               <div className="journey-stepbox">
-                <div className={`journey-num ${isLive ? "done" : "pending"}`}>3</div>
+                <div className={`journey-num ${widgetStepDone ? "done" : "pending"}`}>3</div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>Step 3</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", margin: "2px 0 6px" }}>Install &amp; publish widget</div>
-                  <div style={{ fontSize: 11 }}>{isLive ? "Done" : "Pending"}</div>
-                  {!isLive && (
+                  <div style={{ fontSize: 11 }}>{widgetStepDone ? "Done" : "Pending"}</div>
+                  {!widgetStepDone && (
                     <button type="button" className="btn btn-sm" onClick={() => onNavigate("embed")} style={{ marginTop: 8 }}>
                       Go Live
                     </button>

@@ -235,6 +235,14 @@ async function initDB() {
       details     TEXT DEFAULT '',
       created_at  TEXT DEFAULT (datetime('now'))
     )`,
+    // Real evidence the install snippet is actually live on the store's
+    // site, not just "the owner has some way to take orders" (which was
+    // the old proxy the dashboard's Install Widget step used, and which
+    // was already true for almost every store the moment onboarding
+    // finished — see storeDB.touchWidgetSeen). Stamped every time the
+    // public /store-config/:storeId endpoint is hit, which only happens
+    // when widget.js is actually loaded by a real page.
+    `ALTER TABLE stores ADD COLUMN widget_last_seen TEXT DEFAULT NULL`,
   ];
   for (const sql of migrations) {
     try {
@@ -324,6 +332,19 @@ const storeDB = {
     return await client.execute({
       sql: `UPDATE stores SET whatsapp_verified = 1, whatsapp_verify_code = ''
             WHERE store_id = ?`,
+      args: [storeId],
+    });
+  },
+
+  // Called from the public /store-config/:storeId route, which only a
+  // real, embedded widget.js ever hits — a genuine "the snippet is live
+  // on the site" signal, unlike widget_enabled/order-method which are
+  // true the moment onboarding finishes even if nothing was ever pasted
+  // anywhere. Best-effort: never awaited by the caller, so a slow or
+  // failed write here can't delay or break a customer's widget load.
+  touchWidgetSeen: async (storeId) => {
+    return await client.execute({
+      sql: `UPDATE stores SET widget_last_seen = datetime('now') WHERE store_id = ?`,
       args: [storeId],
     });
   },

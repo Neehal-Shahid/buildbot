@@ -23,7 +23,8 @@ const readonlyInputStyle = {
 export default function StoreSyncTab() {
   const { store } = useStoreAuth();
   const toast = useToast();
-  const [mode, setMode] = useState<WebsiteMode>(getStoredMode());
+  const storeId = store?.storeId || "";
+  const [mode, setMode] = useState<WebsiteMode>(getStoredMode(storeId));
 
   async function copy(value: string, label: string) {
     try {
@@ -40,8 +41,9 @@ export default function StoreSyncTab() {
   // re-clicking the option already selected, stacking up and covering the
   // page instead of confirming anything meaningful.
   function choose(next: WebsiteMode) {
+    if (!storeId) return;
     setMode(next);
-    setStoredMode(next);
+    setStoredMode(storeId, next);
   }
 
   const OptionCard = ({

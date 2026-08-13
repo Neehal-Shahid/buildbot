@@ -41,7 +41,8 @@ export default function EmbedTab() {
   const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<WebsiteMode>(getStoredMode());
+  const storeId = store?.storeId || "";
+  const [mode, setMode] = useState<WebsiteMode>(getStoredMode(storeId));
 
   // How many products exist right now, regardless of which method(s) put
   // them there — the install steps below are gated on this being > 0. Uses
@@ -64,6 +65,11 @@ export default function EmbedTab() {
   const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
   const enabled = store?.widgetEnabled !== false;
   const live = enabled && hasOrderMethod;
+  // Set server-side whenever the public /store-config/:storeId endpoint is
+  // hit — only a real, embedded widget.js ever calls it, so this is actual
+  // evidence the snippet was pasted and loaded, not just "you could
+  // technically go live" like the checks above.
+  const installed = !!store?.widgetLastSeen;
 
   async function copy(value: string, label: string) {
     try {
@@ -93,8 +99,9 @@ export default function EmbedTab() {
   }
 
   function switchMode(next: WebsiteMode) {
+    if (!storeId) return;
     setMode(next);
-    setStoredMode(next);
+    setStoredMode(storeId, next);
   }
 
   return (
@@ -131,12 +138,13 @@ export default function EmbedTab() {
           live={live}
           enabled={enabled}
           hasOrderMethod={hasOrderMethod}
+          installed={installed}
           busy={busy}
           onCopy={copy}
           onToggle={setWidget}
         />
       ) : (
-        <WooGuide canInstall={hasProducts} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} busy={busy} onCopy={copy} onToggle={setWidget} />
+        <WooGuide canInstall={hasProducts} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onCopy={copy} onToggle={setWidget} />
       )}
     </div>
   );
@@ -148,6 +156,7 @@ function ScriptGuide({
   live,
   enabled,
   hasOrderMethod,
+  installed,
   busy,
   onCopy,
   onToggle,
@@ -157,6 +166,7 @@ function ScriptGuide({
   live: boolean;
   enabled: boolean;
   hasOrderMethod: boolean;
+  installed: boolean;
   busy: boolean;
   onCopy: (v: string, label: string) => void;
   onToggle: (next: boolean) => void;
@@ -203,7 +213,7 @@ function ScriptGuide({
         </div>
       </div>
 
-      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} busy={busy} onToggle={onToggle} />
+      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onToggle={onToggle} />
     </div>
   );
 }
@@ -213,6 +223,7 @@ function WooGuide({
   live,
   enabled,
   hasOrderMethod,
+  installed,
   busy,
   onCopy,
   onToggle,
@@ -221,6 +232,7 @@ function WooGuide({
   live: boolean;
   enabled: boolean;
   hasOrderMethod: boolean;
+  installed: boolean;
   busy: boolean;
   onCopy: (v: string, label: string) => void;
   onToggle: (next: boolean) => void;
@@ -404,7 +416,7 @@ function WooGuide({
         )}
       </div>
 
-      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} busy={busy} onToggle={onToggle} />
+      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onToggle={onToggle} />
 
       {/* Disconnecting breaks a live storefront integration — confirm first. */}
       <div className={`modal-bg${confirmDisconnect ? " open" : ""}`}>
@@ -439,6 +451,7 @@ function WidgetStatusCard({
   live,
   enabled,
   hasOrderMethod,
+  installed,
   busy,
   onToggle,
 }: {
@@ -446,6 +459,7 @@ function WidgetStatusCard({
   live: boolean;
   enabled: boolean;
   hasOrderMethod: boolean;
+  installed: boolean;
   busy: boolean;
   onToggle: (next: boolean) => void;
 }) {
@@ -455,15 +469,17 @@ function WidgetStatusCard({
       <p style={{ marginBottom: 14 }}>
         {!canInstall
           ? "Add products first — the toggle below stays off until your catalog has at least one item."
-          : live
-            ? "Your widget is enabled and serving build recommendations to customers."
-            : enabled
-              ? "Your widget is enabled, but customers have no way to place an order yet — connect WooCommerce or add a WhatsApp number in Widget Settings."
-              : "Your widget is turned off, so it will not appear on your storefront."}
+          : !installed
+            ? "We haven't detected the snippet on your site yet — paste it in, then open your site once so we can confirm it's loading."
+            : live
+              ? "Your widget is enabled and serving build recommendations to customers."
+              : enabled
+                ? "Your widget is enabled, but customers have no way to place an order yet — connect WooCommerce or add a WhatsApp number in Widget Settings."
+                : "Your widget is turned off, so it will not appear on your storefront."}
       </p>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <div className={`badge ${live ? "badge-success" : enabled ? "badge-warning" : "badge-danger"}`}>
-          {live ? "Live" : enabled ? "Needs an order method" : "Disabled"}
+        <div className={`badge ${live && installed ? "badge-success" : installed || enabled ? "badge-warning" : "badge-danger"}`}>
+          {!installed ? "Not detected yet" : live ? "Live" : enabled ? "Needs an order method" : "Disabled"}
         </div>
         <button
           type="button"

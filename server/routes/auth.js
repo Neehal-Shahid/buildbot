@@ -883,6 +883,13 @@ router.get("/store-config/:storeId", async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
   if (!store) return res.status(404).json({ error: "Store not found" });
 
+  // Fire-and-forget: this is the one endpoint only a real, embedded
+  // widget.js ever calls, so a successful hit is real evidence the
+  // install snippet is actually live on the store's site (see
+  // storeDB.touchWidgetSeen and DashboardApp's Install Widget step).
+  // Never awaited — a slow/failed write here must not delay the widget.
+  storeDB.touchWidgetSeen(req.params.storeId).catch(() => {});
+
   const active = await storeDB.isActive(req.params.storeId);
   if (!active || store.widget_enabled === 0) {
     return res.json({

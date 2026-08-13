@@ -23,6 +23,13 @@ export interface StoreSession {
   welcomeMsg?: string;
   buttonText?: string;
   widgetBg?: string;
+  // Timestamp of the last time the public /store-config/:storeId endpoint
+  // was hit for this store — that endpoint is only ever called by a real,
+  // embedded widget.js, so a non-null value is real evidence the install
+  // snippet is actually live on the store's site (not just "the owner has
+  // some way to take orders", which used to be treated as "installed").
+  // See DashboardApp.tsx's Install Widget step.
+  widgetLastSeen?: string | null;
   // True for accounts created via "Sign in with Google" — they DO have a
   // password row in the DB (a random one, generated server-side so the
   // schema's NOT NULL constraint is satisfied), but the owner never chose

@@ -45,6 +45,7 @@ function normalizeStore(raw: Record<string, unknown>): StoreSession {
     welcomeMsg: String(raw.welcome_msg || WIDGET_DEFAULTS.welcomeMsg),
     buttonText: String(raw.button_text || WIDGET_DEFAULTS.buttonText),
     widgetBg: String(raw.widget_bg || WIDGET_DEFAULTS.widgetBg),
+    widgetLastSeen: raw.widget_last_seen ? String(raw.widget_last_seen) : null,
     isGoogleAccount: !!raw.google_id,
   };
 }

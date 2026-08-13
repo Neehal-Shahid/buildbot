@@ -1,7 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const mysql = require("mysql2/promise");
-const { storeDB, client } = require("../database");
+const { storeDB, productDB, client } = require("../database");
 const { normalizeCategory } = require("../lib/categories");
 const { encrypt, decrypt } = require("../lib/crypto");
 const rateLimit = require("express-rate-limit");
@@ -84,6 +84,9 @@ function mapOsposItem(item) {
 //               can only add or refresh, never wipe.
 async function syncItemsForStore(storeId, items, mode = "replace") {
   if (mode === "replace") {
+    // Snapshot what's about to be wiped so it stays restorable — see
+    // productDB.saveBackup/restoreBackup.
+    await productDB.saveBackup(storeId, "Before OSPOS import replaced your catalog");
     await client.execute({
       sql: "DELETE FROM products WHERE store_id = ?",
       args: [storeId],

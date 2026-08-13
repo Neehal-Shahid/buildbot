@@ -212,25 +212,32 @@ export const dashboardApi = {
         ...auth(token),
       }),
     // Powers "delete selected" and "delete entire list" alike — the caller
-    // just passes every id it wants gone. The response's `deleted` array
-    // (full rows, not just ids) is what restoreProducts() below needs to
-    // undo this exact delete.
+    // just passes every id it wants gone. Server snapshots the whole
+    // catalog first (see productDB.saveBackup), so this is undoable via
+    // backupStatus/restoreBackup below whenever the owner comes back to
+    // it — not just for a few seconds right after.
     removeBulk: (token: string, ids: number[]) =>
       apiFetch<{ success: boolean; message: string; deleted: Product[] }>("/products/bulk", {
         method: "DELETE",
         body: { ids },
         ...auth(token),
       }),
-    // Undo for removeBulk (or a single remove()) — pass back the exact
-    // rows it returned as `deleted` to recreate them. New ids are
-    // assigned; nothing else references a product by id so that's
-    // invisible to the store owner.
-    restore: (token: string, products: Product[]) =>
-      apiFetch<{ success: boolean; message: string }>("/products/restore", {
+    // Persistent, single-slot "undo my last catalog change" — not
+    // time-limited. A backup is taken right before any delete or
+    // "replace" mode import; it stays restorable until either it's used
+    // or another destructive change overwrites it.
+    backupStatus: (token: string) =>
+      apiFetch<{
+        success: boolean;
+        backup: { id: number; label: string; productCount: number; createdAt: string } | null;
+      }>("/products/backup", auth(token)),
+    restoreBackup: (token: string) =>
+      apiFetch<{ success: boolean; message: string; error?: string }>("/products/backup/restore", {
         method: "POST",
-        body: { products },
         ...auth(token),
       }),
+    discardBackup: (token: string) =>
+      apiFetch<{ success: boolean }>("/products/backup", { method: "DELETE", ...auth(token) }),
     // mode: "replace" (default) wipes the entire catalog first, no matter
     // which method(s) put products there before — "append" adds on top of
     // whatever already exists. ProductsTab asks the store owner which one

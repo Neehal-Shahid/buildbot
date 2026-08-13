@@ -18,9 +18,6 @@ const filterInputStyle = {
   outline: "none",
 } as const;
 
-// How long an "Undo" stays available after a delete, in milliseconds.
-const UNDO_WINDOW_MS = 8000;
-
 export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed") => void }) {
   const { token, store } = useStoreAuth();
   const toast = useToast();
@@ -48,16 +45,19 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   const [bulkConfirmMode, setBulkConfirmMode] = useState<"selected" | "all" | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // The exact rows a delete just removed, kept around for a few seconds so
-  // "Undo" can hand them straight back to POST /products/restore — covers
-  // a single delete, a bulk-selected delete, and "delete all" alike, since
-  // all three now go through the same removeBulk() call.
-  const [undo, setUndo] = useState<{ products: Product[]; label: string } | null>(null);
-  const [undoBusy, setUndoBusy] = useState(false);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-  }, []);
+  // Persistent, single-slot "undo my last catalog change" — not time
+  // limited like a toast. The server snapshots the whole catalog right
+  // before any delete or "replace" mode import; this just reflects
+  // whether that snapshot currently exists.
+  const [backup, setBackup] = useState<{ id: number; label: string; productCount: number; createdAt: string } | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [discardBusy, setDiscardBusy] = useState(false);
+
+  function loadBackupStatus() {
+    if (!token) return;
+    dashboardApi.products.backupStatus(token).then((data) => setBackup(data.backup)).catch(() => {});
+  }
+  useEffect(loadBackupStatus, [token]);
 
   const [osposOpen, setOsposOpen] = useState(false);
   const [osposUseUrl, setOsposUseUrl] = useState(true);
@@ -146,25 +146,31 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
-  function scheduleUndo(deletedRows: Product[], label: string) {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndo({ products: deletedRows, label });
-    undoTimerRef.current = setTimeout(() => setUndo(null), UNDO_WINDOW_MS);
-  }
-
-  async function undoDelete() {
-    if (!undo || !token || undoBusy) return;
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoBusy(true);
+  async function runRestoreBackup() {
+    if (!token || restoreBusy) return;
+    setRestoreBusy(true);
     try {
-      await dashboardApi.products.restore(token, undo.products);
-      toast.success("Restored", `${undo.label} restored.`);
-      setUndo(null);
+      const data = await dashboardApi.products.restoreBackup(token);
+      toast.success("Restored", data.message);
+      setBackup(null);
       load();
     } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not restore. Try again.");
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not restore your catalog.");
     } finally {
-      setUndoBusy(false);
+      setRestoreBusy(false);
+    }
+  }
+
+  async function runDiscardBackup() {
+    if (!token || discardBusy) return;
+    setDiscardBusy(true);
+    try {
+      await dashboardApi.products.discardBackup(token);
+      setBackup(null);
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not discard the backup.");
+    } finally {
+      setDiscardBusy(false);
     }
   }
 
@@ -191,9 +197,9 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     if (!deleting || !token || deleteBusy) return;
     setDeleteBusy(true);
     try {
-      const data = await dashboardApi.products.removeBulk(token, [deleting.id]);
+      await dashboardApi.products.removeBulk(token, [deleting.id]);
       toast.success("Product deleted", `"${deleting.name}" was removed from your catalog.`);
-      scheduleUndo(data.deleted, `"${deleting.name}"`);
+      loadBackupStatus();
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(deleting.id);
@@ -223,9 +229,8 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     setBulkBusy(true);
     try {
       const data = await dashboardApi.products.removeBulk(token, ids);
-      const count = data.deleted.length;
       toast.success("Deleted", data.message);
-      scheduleUndo(data.deleted, `${count} product${count === 1 ? "" : "s"}`);
+      loadBackupStatus();
       setSelectedIds(new Set());
       setBulkConfirmMode(null);
       load();
@@ -246,6 +251,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       if (data.success) {
         toast.success("Upload complete", data.message);
         load();
+        if (mode === "replace") loadBackupStatus();
       } else {
         toast.error("Upload failed", data.error || "The file could not be imported.");
       }
@@ -341,6 +347,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         setOsposConnUrl("");
         load();
         loadOsposStatus();
+        if (mode === "replace") loadBackupStatus();
       } else {
         toast.error("Import failed", data.error || "Could not import from OSPOS.");
       }
@@ -374,27 +381,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         file, or import from OSPOS. If you're on WordPress with the BuildVolt plugin connected, that catalog syncs
         automatically and shows up here too, but is still managed from WooCommerce itself.
       </div>
-
-      {/* Kept near the top rather than after the table — with a large
-          catalog the table can run on for a long while, and a button only
-          reachable after scrolling past hundreds of rows is effectively
-          invisible. */}
-      {products && products.length > 0 && (
-        <div
-          className="card"
-          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
-        >
-          <div>
-            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-              Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
-            </p>
-          </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>
-            Continue to Install Widget →
-          </button>
-        </div>
-      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h2>Bulk upload</h2>
@@ -577,19 +563,42 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: "var(--muted)" }}>
+      {/* Kept here — after the catalog-building methods, before the list
+          itself — rather than after the table, where a large catalog would
+          push it past however many hundred rows had loaded and make it
+          effectively invisible without scrolling. */}
+      {products && products.length > 0 && (
+        <div
+          className="card"
+          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+        >
+          <div>
+            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+              Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>
+            Continue to Install Widget →
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
         {products === null ? (
-          "Loading catalog…"
+          <span style={{ fontSize: 14, color: "var(--muted)" }}>Loading catalog…</span>
         ) : (
           <>
-            <strong style={{ color: "var(--text)" }}>{products.length}</strong>
-            {products.length === 1 ? " product" : " products"} total
-            {hasFilters && filtered.length !== products.length && (
-              <span>
-                {" "}
-                — <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> matching filters
-              </span>
-            )}
+            <span style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", lineHeight: 1 }}>{products.length}</span>
+            <span style={{ fontSize: 14, color: "var(--muted)" }}>
+              {products.length === 1 ? "product" : "products"} total
+              {hasFilters && filtered.length !== products.length && (
+                <>
+                  {" "}
+                  — <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> matching filters
+                </>
+              )}
+            </span>
           </>
         )}
       </div>
@@ -639,26 +648,34 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         </div>
       )}
 
-      {undo && (
+      {backup && (
         <div
-          className="alert alert-success show"
-          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
+          className="card"
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            borderColor: "var(--warning-border)",
+            background: "var(--warning-bg)",
+          }}
         >
-          <span>{undo.label} deleted.</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{backup.label}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>
+              Saved {new Date(backup.createdAt).toLocaleString()} — {backup.productCount} product
+              {backup.productCount === 1 ? "" : "s"}. This stays available until you restore it, or make another
+              change that replaces it.
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-sm" onClick={undoDelete} disabled={undoBusy}>
-              {undoBusy ? "Restoring…" : "Undo"}
+            <button type="button" className="btn btn-primary btn-sm" onClick={runRestoreBackup} disabled={restoreBusy || discardBusy}>
+              {restoreBusy ? "Restoring…" : "Restore this catalog"}
             </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => {
-                if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-                setUndo(null);
-              }}
-              disabled={undoBusy}
-            >
-              Dismiss
+            <button type="button" className="btn btn-sm" onClick={runDiscardBackup} disabled={restoreBusy || discardBusy}>
+              {discardBusy ? "Discarding…" : "Discard"}
             </button>
           </div>
         </div>
@@ -785,7 +802,8 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
           <h2>Add or replace?</h2>
           <p>
             You already have {products?.length ?? 0} product{products?.length === 1 ? "" : "s"} in your catalog.
-            Add these on top of them, or replace the entire list with just this new source?
+            Add these on top of them, or replace the entire list with just this new source? Replacing is restorable
+            afterwards from a "Restore this catalog" card if needed.
           </p>
           <div className="modal-btns" style={{ flexWrap: "wrap" }}>
             <button
@@ -827,7 +845,10 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       <div className={`modal-bg${deleting ? " open" : ""}`}>
         <div className="modal">
           <h2>Delete product?</h2>
-          <p>"{deleting?.name}" will be permanently removed from your catalog.</p>
+          <p>
+            "{deleting?.name}" will be removed from your catalog. You can restore it afterwards from the "Restore
+            this catalog" card if needed.
+          </p>
           <div className="modal-btns">
             <button
               type="button"
@@ -851,7 +872,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
             {bulkConfirmMode === "all"
               ? `This permanently removes all ${products?.length ?? 0} product${(products?.length ?? 0) === 1 ? "" : "s"} in your catalog — not just what's currently showing under your search/filters.`
               : `This permanently removes ${selectedIds.size} product${selectedIds.size === 1 ? "" : "s"} from your catalog.`}{" "}
-            You'll get a short window to undo right after.
+            You can restore this afterwards from the "Restore this catalog" card that appears above the list.
           </p>
           <div className="modal-btns">
             <button

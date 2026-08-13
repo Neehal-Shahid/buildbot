@@ -404,7 +404,11 @@ router.post(
       // products from a different method (manual entry, OSPOS import),
       // so uploading a second file never silently destroys the first.
       const mode = req.body.mode === "append" ? "append" : "replace";
-      const count = await productDB.bulkInsert(storeId, validProducts, { source: "csv", mode });
+      const count = await productDB.bulkInsert(storeId, validProducts, {
+        source: "csv",
+        mode,
+        backupLabel: "Before file upload replaced your catalog",
+      });
       await storeDB.touchCatalog(storeId);
 
       let message = `${count} products ${mode === "append" ? "added" : "uploaded"} successfully!`;
@@ -571,9 +575,10 @@ router.delete("/product/:id", authMiddleware, async (req, res) => {
 
 // ─── BULK DELETE (multi-select, or "delete entire list") ──
 // Same operation either way — the client just sends every currently
-// visible product's id for a "delete all". Returns the full deleted rows
-// so the dashboard can offer an "Undo" (see POST /products/restore) that
-// puts them back exactly as they were, no second lookup needed.
+// visible product's id for a "delete all". Snapshots the whole catalog
+// first (see productDB.saveBackup) so this is undoable via
+// GET/POST /products/backup below whenever the store owner comes back to
+// it — not just for a few seconds right after.
 router.delete("/products/bulk", authMiddleware, async (req, res) => {
   const ids = Array.isArray(req.body.ids)
     ? req.body.ids.map((id) => parseInt(id, 10)).filter(Number.isInteger)
@@ -582,6 +587,10 @@ router.delete("/products/bulk", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: "ids must be a non-empty array" });
   }
   try {
+    await productDB.saveBackup(
+      req.store.storeId,
+      `Before deleting ${ids.length} product${ids.length === 1 ? "" : "s"}`,
+    );
     const deleted = await productDB.deleteByIds(req.store.storeId, ids);
     if (deleted.length) await storeDB.touchCatalog(req.store.storeId);
     res.json({
@@ -594,19 +603,51 @@ router.delete("/products/bulk", authMiddleware, async (req, res) => {
   }
 });
 
-// ─── RESTORE (undo a delete) ───────────────────────────────
-router.post("/products/restore", authMiddleware, async (req, res) => {
-  const products = Array.isArray(req.body.products) ? req.body.products : [];
-  if (!products.length) {
-    return res.status(400).json({ error: "products must be a non-empty array" });
-  }
+// ─── PRODUCT BACKUP (persistent, single-slot undo) ─────────
+// Not time-limited like a toast-style undo — the snapshot taken right
+// before the store's most recent destructive change (a delete, or a
+// "replace" mode CSV/OSPOS import) stays restorable until either it's
+// used or another destructive change replaces it. See
+// productDB.saveBackup/getBackup/restoreBackup/clearBackup.
+router.get("/products/backup", authMiddleware, async (req, res) => {
   try {
-    const count = await productDB.restore(req.store.storeId, products);
+    const backup = await productDB.getBackup(req.store.storeId);
+    res.json({
+      success: true,
+      backup: backup
+        ? {
+            id: backup.id,
+            label: backup.label,
+            productCount: backup.product_count,
+            createdAt: backup.created_at,
+          }
+        : null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/products/backup/restore", authMiddleware, async (req, res) => {
+  try {
+    const count = await productDB.restoreBackup(req.store.storeId);
+    if (count === null) {
+      return res.status(404).json({ error: "No previous catalog state to restore." });
+    }
     await storeDB.touchCatalog(req.store.storeId);
     res.json({
       success: true,
-      message: `${count} product${count === 1 ? "" : "s"} restored.`,
+      message: `Catalog restored — ${count} product${count === 1 ? "" : "s"}.`,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/products/backup", authMiddleware, async (req, res) => {
+  try {
+    await productDB.clearBackup(req.store.storeId);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

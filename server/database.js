@@ -243,6 +243,21 @@ async function initDB() {
     // public /store-config/:storeId endpoint is hit, which only happens
     // when widget.js is actually loaded by a real page.
     `ALTER TABLE stores ADD COLUMN widget_last_seen TEXT DEFAULT NULL`,
+    // Single-slot, persistent "undo my last catalog change" — see
+    // productDB.saveBackup/restoreBackup. Snapshots the store's entire
+    // product list right before anything that could lose data (a delete,
+    // or a "replace" mode CSV/OSPOS import), so it stays restorable
+    // whenever the store owner comes back to it, not just for a few
+    // seconds after the change.
+    `CREATE TABLE IF NOT EXISTS product_backups (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id      TEXT NOT NULL,
+      label         TEXT NOT NULL,
+      products_json TEXT NOT NULL,
+      product_count INTEGER NOT NULL,
+      created_at    TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
+    )`,
   ];
   for (const sql of migrations) {
     try {
@@ -680,8 +695,11 @@ const productDB = {
   // different method — see server/routes/ospos.js and
   // server/routes/plugin.js, which both scope their own deletes to a
   // single source rather than calling this in "replace" mode.
-  bulkInsert: async (storeId, products, { source = "manual", mode = "replace" } = {}) => {
+  bulkInsert: async (storeId, products, { source = "manual", mode = "replace", backupLabel } = {}) => {
     if (mode === "replace") {
+      // Snapshot what's about to be wiped so it stays restorable — see
+      // productDB.saveBackup.
+      await productDB.saveBackup(storeId, backupLabel || "Catalog replaced");
       await client.execute({
         sql: "DELETE FROM products WHERE store_id = ?",
         args: [storeId],
@@ -721,10 +739,7 @@ const productDB = {
 
   // Backs both "delete selected" (multi-select) and "delete entire list"
   // (select-all then delete) in ProductsTab — both are really the same
-  // operation over a set of ids. Reads the full rows before deleting so
-  // the caller can offer an "Undo" that hands them straight to restore()
-  // without needing a second query or the client reconstructing field
-  // values by hand.
+  // operation over a set of ids.
   deleteByIds: async (storeId, ids) => {
     if (!ids || !ids.length) return [];
     const placeholders = ids.map(() => "?").join(",");
@@ -739,31 +754,105 @@ const productDB = {
     return before.rows;
   },
 
-  // Undoes deleteByIds. Recreated as brand-new rows (new ids) rather than
-  // reinserted at their old ids — nothing else in the schema has a foreign
-  // key on products.id, so that's safe, and it avoids fighting SQLite's
-  // autoincrement sequence. Preserves everything about each product
-  // (category, price, stock status, and which source "owns" it) except
-  // the row identity itself.
+  // Reinserts a list of product rows for a store as brand-new rows (new
+  // ids) rather than at their old ids — nothing else in the schema has a
+  // foreign key on products.id, so that's safe, and it avoids fighting
+  // SQLite's autoincrement sequence. Preserves everything about each
+  // product (category, price, stock status, and which source "owns" it)
+  // except the row identity itself. Internal primitive used by
+  // restoreBackup() below.
   restore: async (storeId, products) => {
     if (!products || !products.length) return 0;
-    const stmts = products.map((p) => ({
-      sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, source, woo_id, ospos_item_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        storeId,
-        p.name,
-        p.category,
-        p.price,
-        p.description || "",
-        p.in_stock ?? 1,
-        p.source || "manual",
-        p.woo_id ?? null,
-        p.ospos_item_id ?? null,
-      ],
-    }));
-    await client.batch(stmts, "write");
+    const chunkSize = 500;
+    for (let i = 0; i < products.length; i += chunkSize) {
+      const chunk = products.slice(i, i + chunkSize);
+      const stmts = chunk.map((p) => ({
+        sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, source, woo_id, ospos_item_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          storeId,
+          p.name,
+          p.category,
+          p.price,
+          p.description || "",
+          p.in_stock ?? 1,
+          p.source || "manual",
+          p.woo_id ?? null,
+          p.ospos_item_id ?? null,
+        ],
+      }));
+      await client.batch(stmts, "write");
+    }
     return products.length;
+  },
+
+  // ─── PERSISTENT UNDO (product_backups) ───────────────────
+  // A previous version of "undo" only lived in the browser for a few
+  // seconds after a delete — reasonable for catching a misclick, useless
+  // for "I deleted/replaced my catalog five minutes ago and want it back".
+  // This is a real, server-side, single-slot backup: before ANY operation
+  // that can lose catalog data (deleting products, or a "replace" mode
+  // CSV/OSPOS import wiping the whole catalog first), the store's ENTIRE
+  // current product list is snapshotted here first. Restoring always means
+  // "make my catalog look exactly like it did right before that change" —
+  // a full wipe-and-reinsert of the snapshot, not a partial merge — so the
+  // same restore logic is correct whether the backup was taken before a
+  // delete or before a replace. Single slot per store (saving a new backup
+  // replaces the previous one) rather than a full history: it answers "undo
+  // my last change", not "browse every past version of my catalog".
+  saveBackup: async (storeId, label) => {
+    const current = await client.execute({
+      sql: "SELECT * FROM products WHERE store_id = ?",
+      args: [storeId],
+    });
+    if (!current.rows.length) return; // nothing to lose, nothing to back up
+    await client.execute({
+      sql: "DELETE FROM product_backups WHERE store_id = ?",
+      args: [storeId],
+    });
+    await client.execute({
+      sql: `INSERT INTO product_backups (store_id, label, products_json, product_count)
+             VALUES (?, ?, ?, ?)`,
+      args: [storeId, label, JSON.stringify(current.rows), current.rows.length],
+    });
+  },
+
+  getBackup: async (storeId) => {
+    const res = await client.execute({
+      sql: "SELECT id, label, product_count, created_at FROM product_backups WHERE store_id = ?",
+      args: [storeId],
+    });
+    return res.rows[0] || null;
+  },
+
+  clearBackup: async (storeId) => {
+    await client.execute({
+      sql: "DELETE FROM product_backups WHERE store_id = ?",
+      args: [storeId],
+    });
+  },
+
+  // Returns null if there was nothing to restore, otherwise the restored
+  // product count. Clears the backup slot afterwards — once used, that
+  // snapshot no longer reflects "the state before the most recent change".
+  restoreBackup: async (storeId) => {
+    const res = await client.execute({
+      sql: "SELECT products_json FROM product_backups WHERE store_id = ?",
+      args: [storeId],
+    });
+    const row = res.rows[0];
+    if (!row) return null;
+    const rows = JSON.parse(row.products_json);
+    await client.execute({
+      sql: "DELETE FROM products WHERE store_id = ?",
+      args: [storeId],
+    });
+    await productDB.restore(storeId, rows);
+    await client.execute({
+      sql: "DELETE FROM product_backups WHERE store_id = ?",
+      args: [storeId],
+    });
+    return rows.length;
   },
 
   getCount: async (storeId) => {

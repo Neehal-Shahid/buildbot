@@ -53,36 +53,71 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   // landing.css's :root block. A component with no single page context
   // needs colors that are correct everywhere, not colors that happen to
   // match whichever page's stylesheet is currently injected.
-  const typeClass: Record<ToastType, string> = {
-    success: "border-emerald-600 text-emerald-700",
-    error: "border-red-600 text-red-700",
-    info: "border-sky-600 text-sky-700",
+  const palette: Record<ToastType, { bg: string; ring: string; icon: string }> = {
+    success: { bg: "#ecfdf5", ring: "#a7f3d0", icon: "#059669" },
+    error: { bg: "#fef2f2", ring: "#fecaca", icon: "#dc2626" },
+    info: { bg: "#eff6ff", ring: "#bfdbfe", icon: "#2563eb" },
   };
 
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="fixed top-4 right-4 z-[999999] flex flex-col gap-2 w-80 max-w-[90vw]">
+      <div className="fixed top-4 right-4 z-[999999] flex flex-col gap-2.5 w-[22rem] max-w-[90vw]">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`rounded-lg border bg-white px-4 py-3 shadow-md flex items-start justify-between gap-2 ${typeClass[t.type]}`}
+            className="flex items-start gap-3 rounded-xl bg-white px-4 py-3.5 shadow-lg"
+            style={{ boxShadow: "0 8px 24px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.08)" }}
           >
-            <div>
-              <div className="text-sm font-semibold text-neutral-900">{t.title}</div>
-              {t.message && <div className="text-xs mt-0.5">{t.message}</div>}
+            <div
+              className="flex h-8 w-8 flex-none items-center justify-center rounded-full"
+              style={{ background: palette[t.type].bg, border: `1px solid ${palette[t.type].ring}` }}
+            >
+              <ToastIcon type={t.type} color={palette[t.type].icon} />
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <div className="text-[13px] font-semibold leading-snug text-neutral-900">{t.title}</div>
+              {t.message && <div className="mt-0.5 text-[12px] leading-snug text-neutral-500">{t.message}</div>}
             </div>
             <button
               onClick={() => remove(t.id)}
-              className="text-xs opacity-60 hover:opacity-100"
+              className="flex-none rounded-md p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
               aria-label="Dismiss"
             >
-              ×
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
         ))}
       </div>
     </ToastContext.Provider>
+  );
+}
+
+function ToastIcon({ type, color }: { type: ToastType; color: string }) {
+  if (type === "success") {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={color} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+  }
+  if (type === "error") {
+    return (
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={color} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={color} strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
   );
 }
 

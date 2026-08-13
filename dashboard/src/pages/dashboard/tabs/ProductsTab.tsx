@@ -375,6 +375,27 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         automatically and shows up here too, but is still managed from WooCommerce itself.
       </div>
 
+      {/* Kept near the top rather than after the table — with a large
+          catalog the table can run on for a long while, and a button only
+          reachable after scrolling past hundreds of rows is effectively
+          invisible. */}
+      {products && products.length > 0 && (
+        <div
+          className="card"
+          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+        >
+          <div>
+            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+              Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>
+            Continue to Install Widget →
+          </button>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 16 }}>
         <h2>Bulk upload</h2>
         <p style={{ marginBottom: 12 }}>
@@ -756,20 +777,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
           </tbody>
         </table>
       </div>
-
-      {products && products.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 6 }}>Next: install your widget</h2>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
-            Your catalog has products in it — head to{" "}
-            <strong style={{ color: "var(--text)" }}>Install Widget</strong> (Step 3) to put the widget on your
-            site.
-          </p>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")}>
-            Continue to Install Widget →
-          </button>
-        </div>
-      )}
 
       <ProductModal product={editing} onClose={() => setEditing(null)} onSaved={load} />
 

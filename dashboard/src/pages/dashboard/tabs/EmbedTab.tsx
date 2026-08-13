@@ -213,7 +213,7 @@ function ScriptGuide({
         </div>
       </div>
 
-      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onToggle={onToggle} />
+      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} mode="custom" busy={busy} onToggle={onToggle} />
     </div>
   );
 }
@@ -416,7 +416,7 @@ function WooGuide({
         )}
       </div>
 
-      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} busy={busy} onToggle={onToggle} />
+      <WidgetStatusCard canInstall={canInstall} live={live} enabled={enabled} hasOrderMethod={hasOrderMethod} installed={installed} mode="woo" busy={busy} onToggle={onToggle} />
 
       {/* Disconnecting breaks a live storefront integration — confirm first. */}
       <div className={`modal-bg${confirmDisconnect ? " open" : ""}`}>
@@ -452,6 +452,7 @@ function WidgetStatusCard({
   enabled,
   hasOrderMethod,
   installed,
+  mode,
   busy,
   onToggle,
 }: {
@@ -460,6 +461,7 @@ function WidgetStatusCard({
   enabled: boolean;
   hasOrderMethod: boolean;
   installed: boolean;
+  mode: WebsiteMode;
   busy: boolean;
   onToggle: (next: boolean) => void;
 }) {
@@ -470,7 +472,9 @@ function WidgetStatusCard({
         {!canInstall
           ? "Add products first — the toggle below stays off until your catalog has at least one item."
           : !installed
-            ? "We haven't detected the snippet on your site yet — paste it in, then open your site once so we can confirm it's loading."
+            ? mode === "woo"
+              ? "We haven't detected the widget on your site yet — make sure the BuildVolt plugin is installed, activated, and connected above, then open your site once so we can confirm it's loading."
+              : "We haven't detected the snippet on your site yet — paste it in, then open your site once so we can confirm it's loading."
             : live
               ? "Your widget is enabled and serving build recommendations to customers."
               : enabled

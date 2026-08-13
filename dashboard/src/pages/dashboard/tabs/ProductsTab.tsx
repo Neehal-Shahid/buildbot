@@ -3,6 +3,7 @@ import { dashboardApi, type Product } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { ApiError } from "../../../lib/api";
+import { getStoredMode, type WebsiteMode } from "../../../lib/storeMode";
 
 // Must stay identical to CANONICAL_CATEGORIES in server/lib/categories.js —
 // anything else is rejected by POST/PUT /product.
@@ -14,6 +15,16 @@ const SOURCE_LABEL: Record<DataSource, string> = {
   woo: "WordPress / WooCommerce",
   ospos: "OSPOS",
   manual: "Dashboard",
+};
+
+// Which data sources make sense for each website type chosen in Store &
+// Sync (Step 1) — a custom (non-WordPress) site has no WooCommerce
+// product listing to sync from, and a WordPress site's widget shouldn't
+// offer "Dashboard" since it already has a real product listing of its
+// own (WooCommerce, or OSPOS if that's what actually runs the store).
+const ALLOWED_SOURCES: Record<WebsiteMode, DataSource[]> = {
+  custom: ["manual", "ospos"],
+  woo: ["woo", "ospos"],
 };
 
 const filterInputStyle = {
@@ -92,15 +103,22 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   const [confirmMode, setConfirmMode] = useState<{ run: (mode: "replace" | "append") => void } | null>(null);
 
   // Where the widget's product data actually comes from — separate from
-  // Store & Sync's website type and Install Widget's delivery method (see
-  // the "Data source" picker below). Showing the picker is driven by two
-  // things: the store has never confirmed one yet, or the owner clicked
-  // "Switch data source" to change an already-confirmed one.
+  // Store & Sync's website type and Install Widget's delivery method, but
+  // constrained by it: which sources even make sense depends on whether
+  // Step 1 chose a custom site or WordPress (see ALLOWED_SOURCES above).
   const [switchingSource, setSwitchingSource] = useState(false);
   const [sourceBusy, setSourceBusy] = useState(false);
   const dataSource: DataSource = store?.dataSource ?? "manual";
   const dataSourceConfirmed = !!store?.dataSourceConfirmed;
-  const showPicker = !dataSourceConfirmed || switchingSource;
+  const websiteMode: WebsiteMode = getStoredMode(store?.storeId || "");
+  const allowedSources = ALLOWED_SOURCES[websiteMode];
+  // If Step 1's website type changed after a data source was already
+  // confirmed (e.g. switched from Custom to WordPress while sourced from
+  // "Dashboard"), that source no longer makes sense — back to the picker,
+  // with an explanation, rather than silently leaving a mismatched choice
+  // in place.
+  const sourceMismatch = dataSourceConfirmed && !allowedSources.includes(dataSource);
+  const showPicker = !dataSourceConfirmed || switchingSource || sourceMismatch;
 
   function loadOsposStatus() {
     if (!token) return;
@@ -422,10 +440,16 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
 
       {showPicker ? (
         <DataSourcePicker
-          current={dataSourceConfirmed ? dataSource : null}
+          current={dataSourceConfirmed && !sourceMismatch ? dataSource : null}
+          allowedSources={allowedSources}
+          mismatchNotice={
+            sourceMismatch
+              ? `Your website type is now ${websiteMode === "woo" ? "WordPress / WooCommerce" : "Custom Website"} — "${SOURCE_LABEL[dataSource]}" no longer applies. Pick a data source that fits.`
+              : null
+          }
           busy={sourceBusy}
           onConfirm={confirmDataSource}
-          onCancel={dataSourceConfirmed ? () => setSwitchingSource(false) : undefined}
+          onCancel={dataSourceConfirmed && !sourceMismatch ? () => setSwitchingSource(false) : undefined}
         />
       ) : (
         <>
@@ -1001,13 +1025,49 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
 // above. `current` is null when the store has never confirmed a data
 // source yet (vs. sitting on the 'manual' column default unconfirmed —
 // same reasoning as storeMode.ts's hasChosenMode()).
+const SOURCE_CARDS: { value: DataSource; title: string; desc: string; bullets: string[] }[] = [
+  {
+    value: "manual",
+    title: "Dashboard",
+    desc: "Add products by hand, or upload a CSV/Excel/Word/PDF file — all managed right here.",
+    bullets: [
+      "Full control: add, edit, delete, undo, right in this tab",
+      "Best if you don't already have a product list somewhere else",
+    ],
+  },
+  {
+    value: "ospos",
+    title: "OSPOS",
+    desc: "Pull your catalog from Open Source Point of Sale, kept in sync automatically from then on.",
+    bullets: [
+      "One-click connect, then BuildVolt keeps pulling updates on its own",
+      "Works whether your widget installs via script or the WordPress plugin",
+      "Managed from OSPOS — not editable here once connected",
+    ],
+  },
+  {
+    value: "woo",
+    title: "WordPress / WooCommerce",
+    desc: "Sync straight from your WooCommerce product listing.",
+    bullets: [
+      "Requires the BuildVolt WordPress plugin connected (Install Widget, Step 3)",
+      "Add, edit, or remove products in WordPress — it syncs here automatically",
+      "Managed from WordPress — not editable here once connected",
+    ],
+  },
+];
+
 function DataSourcePicker({
   current,
+  allowedSources,
+  mismatchNotice,
   busy,
   onConfirm,
   onCancel,
 }: {
   current: DataSource | null;
+  allowedSources: DataSource[];
+  mismatchNotice?: string | null;
   busy: boolean;
   onConfirm: (source: DataSource) => void;
   onCancel?: () => void;
@@ -1016,6 +1076,7 @@ function DataSourcePicker({
   const displayed = picked ?? current;
   const isSwitch = current !== null && picked !== null && picked !== current;
   const isFirstPick = current === null && picked !== null;
+  const cards = SOURCE_CARDS.filter((c) => allowedSources.includes(c.value));
 
   const OptionCard = ({
     value,
@@ -1064,43 +1125,22 @@ function DataSourcePicker({
 
   return (
     <div>
-      {current === null && (
+      {mismatchNotice ? (
         <div className="alert alert-error show" style={{ marginBottom: 16 }}>
-          Pick where your widget's product data comes from to continue.
+          {mismatchNotice}
         </div>
+      ) : (
+        current === null && (
+          <div className="alert alert-error show" style={{ marginBottom: 16 }}>
+            Pick where your widget's product data comes from to continue.
+          </div>
+        )
       )}
 
       <div style={responsiveCols(240)}>
-        <OptionCard
-          value="manual"
-          title="Dashboard"
-          desc="Add products by hand, or upload a CSV/Excel/Word/PDF file — all managed right here."
-          bullets={[
-            "Full control: add, edit, delete, undo, right in this tab",
-            "Works no matter which website type or install method you use",
-            "Best if you don't already have a product list somewhere else",
-          ]}
-        />
-        <OptionCard
-          value="ospos"
-          title="OSPOS"
-          desc="Pull your catalog from Open Source Point of Sale, kept in sync automatically from then on."
-          bullets={[
-            "One-click connect, then BuildVolt keeps pulling updates on its own",
-            "Works whether your widget installs via script or the WordPress plugin",
-            "Managed from OSPOS — not editable here once connected",
-          ]}
-        />
-        <OptionCard
-          value="woo"
-          title="WordPress / WooCommerce"
-          desc="Sync straight from your WooCommerce product listing."
-          bullets={[
-            "Requires the BuildVolt WordPress plugin connected (Install Widget, Step 3)",
-            "Add, edit, or remove products in WordPress — it syncs here automatically",
-            "Managed from WordPress — not editable here once connected",
-          ]}
-        />
+        {cards.map((c) => (
+          <OptionCard key={c.value} value={c.value} title={c.title} desc={c.desc} bullets={c.bullets} />
+        ))}
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

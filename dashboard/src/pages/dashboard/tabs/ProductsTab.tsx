@@ -655,8 +655,14 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
           {/* Kept here — after the catalog-building methods, before the
               list itself — rather than after the table, where a large
               catalog would push it past however many hundred rows had
-              loaded and make it effectively invisible without scrolling. */}
-          {products && products.length > 0 && (
+              loaded and make it effectively invisible without scrolling.
+              Normally waits for at least one product, since Install
+              Widget can't do much with an empty catalog either way — but
+              when WooCommerce is the data source, products only start
+              existing AFTER the plugin is connected (see EmbedTab's
+              pluginBringsOwnData), so requiring products first here would
+              be the same deadlock, just one screen earlier. */}
+          {((products && products.length > 0) || dataSource === "woo") && (
             <div
               className="card"
               style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
@@ -664,7 +670,9 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
               <div>
                 <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-                  Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
+                  {products && products.length > 0
+                    ? "Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site."
+                    : "Connect the WordPress plugin in Install Widget (Step 3) — that's what brings your products in."}
                 </p>
               </div>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>

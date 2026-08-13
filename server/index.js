@@ -75,9 +75,17 @@ app.get("/plugin-update.json", (req, res) => {
   res.json(manifest);
 });
 
-// Health check
+// Health check. Includes Railway's auto-injected git commit SHA (present
+// on Railway deploys, undefined locally) so it's possible to confirm
+// exactly which commit is actually live with a single unauthenticated
+// curl, instead of guessing from which routes 404 — the previous method
+// used to debug several "my change isn't live yet" reports this session.
 app.get("/", (req, res) => {
-  res.json({ status: "BuildVolt server is running!", version: "2.0" });
+  res.json({
+    status: "BuildVolt server is running!",
+    version: "2.0",
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA || null,
+  });
 });
 
 // ─── GLOBAL ERROR HANDLER ─────────────────────────────────

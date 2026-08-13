@@ -360,7 +360,7 @@ export default function DashboardApp() {
           )}
 
           {tab === "home" && <HomeTab onNavigate={setTab} />}
-          {tab === "store" && <StoreSyncTab />}
+          {tab === "store" && <StoreSyncTab onNavigate={setTab} />}
           {tab === "products" && <ProductsTab />}
           {tab === "orders" && <OrdersTab />}
           {tab === "analytics" && <AnalyticsTab />}

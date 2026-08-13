@@ -18,7 +18,10 @@ const filterInputStyle = {
   outline: "none",
 } as const;
 
-export default function ProductsTab() {
+// How long an "Undo" stays available after a delete, in milliseconds.
+const UNDO_WINDOW_MS = 8000;
+
+export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed") => void }) {
   const { token, store } = useStoreAuth();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -34,6 +37,27 @@ export default function ProductsTab() {
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [stockBusyId, setStockBusyId] = useState<number | null>(null);
+
+  // Multi-select for bulk delete. Selection only tracks ids — it stays
+  // valid across a reload as long as the same rows still exist, and just
+  // silently drops ids that no longer do (e.g. after a delete).
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // "selected" = only the checked rows; "all" = the entire catalog
+  // regardless of the current search/category/stock filters, so a filtered
+  // view can never make "delete all" quietly delete less than it says.
+  const [bulkConfirmMode, setBulkConfirmMode] = useState<"selected" | "all" | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // The exact rows a delete just removed, kept around for a few seconds so
+  // "Undo" can hand them straight back to POST /products/restore — covers
+  // a single delete, a bulk-selected delete, and "delete all" alike, since
+  // all three now go through the same removeBulk() call.
+  const [undo, setUndo] = useState<{ products: Product[]; label: string } | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
 
   const [osposOpen, setOsposOpen] = useState(false);
   const [osposUseUrl, setOsposUseUrl] = useState(true);
@@ -122,18 +146,93 @@ export default function ProductsTab() {
     }
   }
 
+  function scheduleUndo(deletedRows: Product[], label: string) {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndo({ products: deletedRows, label });
+    undoTimerRef.current = setTimeout(() => setUndo(null), UNDO_WINDOW_MS);
+  }
+
+  async function undoDelete() {
+    if (!undo || !token || undoBusy) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoBusy(true);
+    try {
+      await dashboardApi.products.restore(token, undo.products);
+      toast.success("Restored", `${undo.label} restored.`);
+      setUndo(null);
+      load();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not restore. Try again.");
+    } finally {
+      setUndoBusy(false);
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  function toggleSelectAllFiltered() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filtered.forEach((p) => next.delete(p.id));
+      else filtered.forEach((p) => next.add(p.id));
+      return next;
+    });
+  }
+
   async function confirmDelete() {
     if (!deleting || !token || deleteBusy) return;
     setDeleteBusy(true);
     try {
-      await dashboardApi.products.remove(token, deleting.id);
+      const data = await dashboardApi.products.removeBulk(token, [deleting.id]);
       toast.success("Product deleted", `"${deleting.name}" was removed from your catalog.`);
+      scheduleUndo(data.deleted, `"${deleting.name}"`);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleting.id);
+        return next;
+      });
       setDeleting(null);
       load();
     } catch (err) {
       toast.error("Error", err instanceof ApiError ? err.message : "Could not delete the product.");
     } finally {
       setDeleteBusy(false);
+    }
+  }
+
+  // Backs both "Delete selected" and "Delete all" — same call, different id
+  // list. "all" always targets every product in the catalog, not just what
+  // the current search/category/stock filters happen to show, so the
+  // confirmation dialog's promise ("deletes your entire catalog") is
+  // always literally true.
+  async function runBulkDelete() {
+    if (!token || bulkBusy || !bulkConfirmMode) return;
+    const ids = bulkConfirmMode === "all" ? (products ?? []).map((p) => p.id) : Array.from(selectedIds);
+    if (!ids.length) {
+      setBulkConfirmMode(null);
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const data = await dashboardApi.products.removeBulk(token, ids);
+      const count = data.deleted.length;
+      toast.success("Deleted", data.message);
+      scheduleUndo(data.deleted, `${count} product${count === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+      setBulkConfirmMode(null);
+      load();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not delete these products.");
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -502,6 +601,14 @@ export default function ProductsTab() {
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")}>
             + Add Product
           </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            onClick={() => setBulkConfirmMode("all")}
+            disabled={!products || products.length === 0}
+          >
+            Delete All
+          </button>
         </div>
       </div>
 
@@ -511,10 +618,70 @@ export default function ProductsTab() {
         </div>
       )}
 
+      {undo && (
+        <div
+          className="alert alert-success show"
+          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
+        >
+          <span>{undo.label} deleted.</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn btn-sm" onClick={undoDelete} disabled={undoBusy}>
+              {undoBusy ? "Restoring…" : "Undo"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => {
+                if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                setUndo(null);
+              }}
+              disabled={undoBusy}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 16,
+            padding: "10px 14px",
+            background: "var(--accent-bg)",
+            border: "1px solid var(--accent-border)",
+            borderRadius: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{selectedIds.size} selected</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => setBulkConfirmMode("selected")}>
+              Delete selected
+            </button>
+            <button type="button" className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>
+              Clear selection
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <table>
           <thead>
             <tr>
+              <th style={{ width: 34 }}>
+                <input
+                  type="checkbox"
+                  aria-label="Select all filtered products"
+                  checked={allFilteredSelected}
+                  onChange={toggleSelectAllFiltered}
+                />
+              </th>
               <th>Name</th>
               <th>Category</th>
               <th>Price</th>
@@ -525,12 +692,12 @@ export default function ProductsTab() {
           <tbody>
             {!products && (
               <tr>
-                <td colSpan={5}>Loading…</td>
+                <td colSpan={6}>Loading…</td>
               </tr>
             )}
             {products && filtered.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ color: "var(--muted)" }}>
+                <td colSpan={6} style={{ color: "var(--muted)" }}>
                   {/* "No products found" read as an error when the catalog was
                       simply still empty. */}
                   {loadError
@@ -545,6 +712,14 @@ export default function ProductsTab() {
             )}
             {filtered.map((p) => (
               <tr key={p.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select "${p.name}"`}
+                    checked={selectedIds.has(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                  />
+                </td>
                 <td>{p.name}</td>
                 <td>{p.category}</td>
                 <td>{Number(p.price).toLocaleString()}</td>
@@ -581,6 +756,20 @@ export default function ProductsTab() {
           </tbody>
         </table>
       </div>
+
+      {products && products.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 6 }}>Next: install your widget</h2>
+          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+            Your catalog has products in it — head to{" "}
+            <strong style={{ color: "var(--text)" }}>Install Widget</strong> (Step 3) to put the widget on your
+            site.
+          </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")}>
+            Continue to Install Widget →
+          </button>
+        </div>
+      )}
 
       <ProductModal product={editing} onClose={() => setEditing(null)} onSaved={load} />
 
@@ -642,6 +831,31 @@ export default function ProductsTab() {
               {deleteBusy ? "Deleting…" : "Delete"}
             </button>
             <button type="button" className="btn" onClick={() => setDeleting(null)} disabled={deleteBusy}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={`modal-bg${bulkConfirmMode ? " open" : ""}`}>
+        <div className="modal">
+          <h2>{bulkConfirmMode === "all" ? "Delete your entire catalog?" : "Delete selected products?"}</h2>
+          <p>
+            {bulkConfirmMode === "all"
+              ? `This permanently removes all ${products?.length ?? 0} product${(products?.length ?? 0) === 1 ? "" : "s"} in your catalog — not just what's currently showing under your search/filters.`
+              : `This permanently removes ${selectedIds.size} product${selectedIds.size === 1 ? "" : "s"} from your catalog.`}{" "}
+            You'll get a short window to undo right after.
+          </p>
+          <div className="modal-btns">
+            <button
+              type="button"
+              className={`btn btn-danger${bulkBusy ? " is-loading" : ""}`}
+              onClick={runBulkDelete}
+              disabled={bulkBusy}
+            >
+              {bulkBusy ? "Deleting…" : "Delete"}
+            </button>
+            <button type="button" className="btn" onClick={() => setBulkConfirmMode(null)} disabled={bulkBusy}>
               Cancel
             </button>
           </div>

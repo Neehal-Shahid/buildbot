@@ -719,6 +719,53 @@ const productDB = {
     return res.rows;
   },
 
+  // Backs both "delete selected" (multi-select) and "delete entire list"
+  // (select-all then delete) in ProductsTab — both are really the same
+  // operation over a set of ids. Reads the full rows before deleting so
+  // the caller can offer an "Undo" that hands them straight to restore()
+  // without needing a second query or the client reconstructing field
+  // values by hand.
+  deleteByIds: async (storeId, ids) => {
+    if (!ids || !ids.length) return [];
+    const placeholders = ids.map(() => "?").join(",");
+    const before = await client.execute({
+      sql: `SELECT * FROM products WHERE store_id = ? AND id IN (${placeholders})`,
+      args: [storeId, ...ids],
+    });
+    await client.execute({
+      sql: `DELETE FROM products WHERE store_id = ? AND id IN (${placeholders})`,
+      args: [storeId, ...ids],
+    });
+    return before.rows;
+  },
+
+  // Undoes deleteByIds. Recreated as brand-new rows (new ids) rather than
+  // reinserted at their old ids — nothing else in the schema has a foreign
+  // key on products.id, so that's safe, and it avoids fighting SQLite's
+  // autoincrement sequence. Preserves everything about each product
+  // (category, price, stock status, and which source "owns" it) except
+  // the row identity itself.
+  restore: async (storeId, products) => {
+    if (!products || !products.length) return 0;
+    const stmts = products.map((p) => ({
+      sql: `INSERT INTO products (store_id, name, category, price, description, in_stock, source, woo_id, ospos_item_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        storeId,
+        p.name,
+        p.category,
+        p.price,
+        p.description || "",
+        p.in_stock ?? 1,
+        p.source || "manual",
+        p.woo_id ?? null,
+        p.ospos_item_id ?? null,
+      ],
+    }));
+    await client.batch(stmts, "write");
+    return products.length;
+  },
+
   getCount: async (storeId) => {
     const res = await client.execute({
       sql: "SELECT COUNT(*) as count FROM products WHERE store_id = ?",

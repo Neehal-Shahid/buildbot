@@ -211,9 +211,24 @@ export const dashboardApi = {
         body: { inStock },
         ...auth(token),
       }),
-    remove: (token: string, id: number) =>
-      apiFetch<{ success: boolean; message: string }>(`/product/${id}`, {
+    // Powers "delete selected" and "delete entire list" alike — the caller
+    // just passes every id it wants gone. The response's `deleted` array
+    // (full rows, not just ids) is what restoreProducts() below needs to
+    // undo this exact delete.
+    removeBulk: (token: string, ids: number[]) =>
+      apiFetch<{ success: boolean; message: string; deleted: Product[] }>("/products/bulk", {
         method: "DELETE",
+        body: { ids },
+        ...auth(token),
+      }),
+    // Undo for removeBulk (or a single remove()) — pass back the exact
+    // rows it returned as `deleted` to recreate them. New ids are
+    // assigned; nothing else references a product by id so that's
+    // invisible to the store owner.
+    restore: (token: string, products: Product[]) =>
+      apiFetch<{ success: boolean; message: string }>("/products/restore", {
+        method: "POST",
+        body: { products },
         ...auth(token),
       }),
     // mode: "replace" (default) wipes the entire catalog first, no matter

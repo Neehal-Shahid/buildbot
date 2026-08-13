@@ -361,7 +361,7 @@ export default function DashboardApp() {
 
           {tab === "home" && <HomeTab onNavigate={setTab} />}
           {tab === "store" && <StoreSyncTab onNavigate={setTab} />}
-          {tab === "products" && <ProductsTab />}
+          {tab === "products" && <ProductsTab onNavigate={setTab} />}
           {tab === "orders" && <OrdersTab />}
           {tab === "analytics" && <AnalyticsTab />}
           {tab === "settings" && <WidgetSettingsTab />}

@@ -569,6 +569,49 @@ router.delete("/product/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// ─── BULK DELETE (multi-select, or "delete entire list") ──
+// Same operation either way — the client just sends every currently
+// visible product's id for a "delete all". Returns the full deleted rows
+// so the dashboard can offer an "Undo" (see POST /products/restore) that
+// puts them back exactly as they were, no second lookup needed.
+router.delete("/products/bulk", authMiddleware, async (req, res) => {
+  const ids = Array.isArray(req.body.ids)
+    ? req.body.ids.map((id) => parseInt(id, 10)).filter(Number.isInteger)
+    : [];
+  if (!ids.length) {
+    return res.status(400).json({ error: "ids must be a non-empty array" });
+  }
+  try {
+    const deleted = await productDB.deleteByIds(req.store.storeId, ids);
+    if (deleted.length) await storeDB.touchCatalog(req.store.storeId);
+    res.json({
+      success: true,
+      message: `${deleted.length} product${deleted.length === 1 ? "" : "s"} deleted.`,
+      deleted,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── RESTORE (undo a delete) ───────────────────────────────
+router.post("/products/restore", authMiddleware, async (req, res) => {
+  const products = Array.isArray(req.body.products) ? req.body.products : [];
+  if (!products.length) {
+    return res.status(400).json({ error: "products must be a non-empty array" });
+  }
+  try {
+    const count = await productDB.restore(req.store.storeId, products);
+    await storeDB.touchCatalog(req.store.storeId);
+    res.json({
+      success: true,
+      message: `${count} product${count === 1 ? "" : "s"} restored.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 module.exports.parseCatalog = parseCatalog;
 module.exports.parseDelimitedText = parseDelimitedText;

@@ -433,6 +433,63 @@ router.post(
   },
 );
 
+// ─── PRODUCT BACKUP (persistent, single-slot undo) ─────────
+// Not time-limited like a toast-style undo — the snapshot taken right
+// before the store's most recent destructive change (a delete, or a
+// "replace" mode CSV/OSPOS import) stays restorable until either it's
+// used or another destructive change replaces it. See
+// productDB.saveBackup/getBackup/restoreBackup/clearBackup.
+//
+// Registered ahead of GET /products/:storeId below on purpose: Express
+// matches routes in registration order, and "/products/backup" is a
+// literal path that also matches that route's :storeId param pattern
+// (storeId="backup") — if that route came first, every request here
+// would be swallowed by it and answered with its own "Store not found"
+// 404 instead of ever reaching these handlers.
+router.get("/products/backup", authMiddleware, async (req, res) => {
+  try {
+    const backup = await productDB.getBackup(req.store.storeId);
+    res.json({
+      success: true,
+      backup: backup
+        ? {
+            id: backup.id,
+            label: backup.label,
+            productCount: backup.product_count,
+            createdAt: backup.created_at,
+          }
+        : null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/products/backup/restore", authMiddleware, async (req, res) => {
+  try {
+    const count = await productDB.restoreBackup(req.store.storeId);
+    if (count === null) {
+      return res.status(404).json({ error: "No previous catalog state to restore." });
+    }
+    await storeDB.touchCatalog(req.store.storeId);
+    res.json({
+      success: true,
+      message: `Catalog restored — ${count} product${count === 1 ? "" : "s"}.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/products/backup", authMiddleware, async (req, res) => {
+  try {
+    await productDB.clearBackup(req.store.storeId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── GET ALL PRODUCTS (public, for widget) ────────────────
 router.get("/products/:storeId", async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
@@ -598,56 +655,6 @@ router.delete("/products/bulk", authMiddleware, async (req, res) => {
       message: `${deleted.length} product${deleted.length === 1 ? "" : "s"} deleted.`,
       deleted,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── PRODUCT BACKUP (persistent, single-slot undo) ─────────
-// Not time-limited like a toast-style undo — the snapshot taken right
-// before the store's most recent destructive change (a delete, or a
-// "replace" mode CSV/OSPOS import) stays restorable until either it's
-// used or another destructive change replaces it. See
-// productDB.saveBackup/getBackup/restoreBackup/clearBackup.
-router.get("/products/backup", authMiddleware, async (req, res) => {
-  try {
-    const backup = await productDB.getBackup(req.store.storeId);
-    res.json({
-      success: true,
-      backup: backup
-        ? {
-            id: backup.id,
-            label: backup.label,
-            productCount: backup.product_count,
-            createdAt: backup.created_at,
-          }
-        : null,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post("/products/backup/restore", authMiddleware, async (req, res) => {
-  try {
-    const count = await productDB.restoreBackup(req.store.storeId);
-    if (count === null) {
-      return res.status(404).json({ error: "No previous catalog state to restore." });
-    }
-    await storeDB.touchCatalog(req.store.storeId);
-    res.json({
-      success: true,
-      message: `Catalog restored — ${count} product${count === 1 ? "" : "s"}.`,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.delete("/products/backup", authMiddleware, async (req, res) => {
-  try {
-    await productDB.clearBackup(req.store.storeId);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

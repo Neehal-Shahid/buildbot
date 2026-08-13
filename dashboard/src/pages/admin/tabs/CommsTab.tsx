@@ -287,6 +287,16 @@ function SupportTicketsCard() {
     }
   }
 
+  // Loads on mount and re-checks every 30s so a store owner's follow-up
+  // reply shows up without the admin having to remember to click Refresh —
+  // this card previously only ever loaded when that button was clicked.
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   async function updateStatus(id: string | number, status: SupportTicket["status"]) {
     if (!token) return;
     try {
@@ -311,7 +321,7 @@ function SupportTicketsCard() {
       </div>
       <div style={{ fontSize: 12, color: "var(--muted)" }}>
         {error && <div className="alert alert-error show">{error}</div>}
-        {!tickets && !error && !busy && "Click Refresh to load tickets."}
+        {!tickets && !error && "Loading…"}
         {tickets?.length === 0 && !error && "No support tickets."}
         {tickets?.map((t) => (
           <AdminTicketThread key={t.id} ticket={t} onUpdateStatus={updateStatus} onReplied={load} />

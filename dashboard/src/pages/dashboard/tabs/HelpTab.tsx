@@ -20,9 +20,11 @@ export default function HelpTab() {
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [ticketsBusy, setTicketsBusy] = useState(false);
 
   function loadTickets() {
     if (!token) return;
+    setTicketsBusy(true);
     setTicketsError(null);
     dashboardApi.support
       .list(token)
@@ -33,10 +35,20 @@ export default function HelpTab() {
         setTicketsError(
           err instanceof ApiError ? err.message : "Could not load your past support requests.",
         );
-      });
+      })
+      .finally(() => setTicketsBusy(false));
   }
 
-  useEffect(loadTickets, [token]);
+  // A page left open never re-fetched on its own before, so an admin's
+  // reply never appeared until the store owner happened to reload the
+  // whole page — polling every 30s (plus the manual Refresh button below)
+  // means it shows up on its own instead.
+  useEffect(() => {
+    loadTickets();
+    const interval = setInterval(loadTickets, 30 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function submit() {
     if (!token) return;
@@ -111,10 +123,16 @@ export default function HelpTab() {
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <h2>Your support requests</h2>
-        <p style={{ marginBottom: 14 }}>
-          Replies from the BuildVolt team show up here — you'll also get an email each time. You can reply again on
-          any request below to keep the conversation going.
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <h2 style={{ margin: 0 }}>Your support requests</h2>
+          <button type="button" className="btn btn-sm" onClick={loadTickets} disabled={ticketsBusy}>
+            {ticketsBusy ? "Checking…" : "Refresh"}
+          </button>
+        </div>
+        <p style={{ marginTop: 8, marginBottom: 14 }}>
+          Replies from the BuildVolt team show up here automatically (checked every 30s while this page is open) —
+          you'll also get an email each time. You can reply again on any request below to keep the conversation
+          going.
         </p>
         <div style={{ fontSize: 13, color: "var(--muted)" }}>
           {!tickets && "Loading…"}

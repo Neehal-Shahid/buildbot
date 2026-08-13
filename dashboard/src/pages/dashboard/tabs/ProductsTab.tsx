@@ -18,13 +18,16 @@ const SOURCE_LABEL: Record<DataSource, string> = {
 };
 
 // Which data sources make sense for each website type chosen in Store &
-// Sync (Step 1) — a custom (non-WordPress) site has no WooCommerce
-// product listing to sync from, and a WordPress site's widget shouldn't
-// offer "Dashboard" since it already has a real product listing of its
-// own (WooCommerce, or OSPOS if that's what actually runs the store).
+// Sync (Step 1). A custom (non-WordPress) site has no WooCommerce product
+// listing to ever sync from, so that option is excluded there — but a
+// WordPress site can still validly use Dashboard or OSPOS as its data
+// source instead of WooCommerce: the widget always gets its data from
+// BuildVolt's own catalog regardless of install method (script vs
+// plugin), so nothing about being on WordPress requires WooCommerce
+// specifically to be the source.
 const ALLOWED_SOURCES: Record<WebsiteMode, DataSource[]> = {
   custom: ["manual", "ospos"],
-  woo: ["woo", "ospos"],
+  woo: ["woo", "ospos", "manual"],
 };
 
 const filterInputStyle = {

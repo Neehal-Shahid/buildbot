@@ -257,11 +257,63 @@ async function initDB() {
       created_at    TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE
     )`,
+    // "Where does my widget's product data come from" — deliberately a
+    // separate setting from Store & Sync's website type / Install Widget's
+    // delivery method. A WordPress store might still want OSPOS (not
+    // WooCommerce) as its data source, or vice versa on a custom site —
+    // the WordPress plugin stays connected purely to deliver the widget
+    // either way. 'manual' covers both hand-added products and file
+    // uploads. See storeDB.setDataSource and the gating in
+    // routes/upload.js, routes/ospos.js, routes/plugin.js.
+    `ALTER TABLE stores ADD COLUMN data_source TEXT DEFAULT 'manual'`,
+    // Whether the store owner has actually gone through the Products tab's
+    // "choose a data source" step, vs. just sitting on the 'manual'
+    // column default untouched — same reasoning as storeMode.ts's
+    // hasChosenMode(): a default must never be presented as an explicit
+    // choice the owner hasn't actually made yet.
+    `ALTER TABLE stores ADD COLUMN data_source_confirmed INTEGER DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try {
       await client.execute(sql);
     } catch (e) {}
+  }
+
+  // One-time backfill for the data_source split above. Every store got
+  // data_source='manual' from the column default, which is wrong for a
+  // store that was already actively using WooCommerce or OSPOS as its
+  // real source — this corrects those and marks them confirmed so
+  // existing, already-working stores are never made to re-pick anything.
+  // Guarded by a platform_config flag so it runs exactly once, ever: if it
+  // re-ran on every boot it would fight a store owner's later, deliberate
+  // decision to switch away from WooCommerce/OSPOS while the plugin
+  // connection or old auto-sync flag was still sitting there for
+  // unrelated reasons (the plugin, e.g., stays connected purely to
+  // deliver the widget regardless of data source).
+  try {
+    const flagRes = await client.execute(
+      "SELECT value FROM platform_config WHERE key = 'data_source_backfilled'",
+    );
+    if (!flagRes.rows.length) {
+      await client.execute(
+        "UPDATE stores SET data_source = 'woo', data_source_confirmed = 1 WHERE woo_connected = 1",
+      );
+      await client.execute(
+        "UPDATE stores SET data_source = 'ospos', data_source_confirmed = 1 WHERE ospos_auto_sync = 1",
+      );
+      await client.execute(
+        `UPDATE stores SET data_source_confirmed = 1
+         WHERE data_source_confirmed = 0
+           AND store_id IN (SELECT DISTINCT store_id FROM products)`,
+      );
+      await client.execute({
+        sql: "INSERT OR REPLACE INTO platform_config (key, value) VALUES ('data_source_backfilled', '1')",
+        args: [],
+      });
+      console.log("data_source backfill complete.");
+    }
+  } catch (e) {
+    console.error("data_source backfill error:", e);
   }
 
   // Seed admin if none exists
@@ -463,6 +515,13 @@ const storeDB = {
     });
   },
 
+  setDataSource: async (storeId, source) => {
+    return await client.execute({
+      sql: "UPDATE stores SET data_source = ?, data_source_confirmed = 1 WHERE store_id = ?",
+      args: [source, storeId],
+    });
+  },
+
   deleteStoreAndData: async (storeId) => {
     const storeRes = await client.execute({
       sql: "SELECT email FROM stores WHERE store_id = ?",
@@ -536,12 +595,17 @@ const storeDB = {
 
   // Every store with auto-sync on, for the scheduled job — includes the
   // encrypted password so the job can decrypt-and-reconnect per store.
+  // data_source = 'ospos' is belt-and-suspenders: switching a store's data
+  // source away from OSPOS already calls disableOsposAutoSync, but this
+  // means the scheduled job can never write products for a store that
+  // isn't actually sourcing its catalog from OSPOS anymore, even if that
+  // flag were somehow left on.
   getAllOsposAutoSyncStores: async () => {
     const res = await client.execute(
       `SELECT store_id, ospos_db_host, ospos_db_port, ospos_db_name,
               ospos_db_user, ospos_db_password
        FROM stores
-       WHERE ospos_auto_sync = 1 AND plan_status != 'disabled'`,
+       WHERE ospos_auto_sync = 1 AND data_source = 'ospos' AND plan_status != 'disabled'`,
     );
     return res.rows;
   },

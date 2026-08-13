@@ -289,6 +289,17 @@ export const dashboardApi = {
         method: "POST",
         ...auth(token),
       }),
+    // Where the widget's product data comes from — separate from which
+    // install method (script vs plugin) delivers the widget itself.
+    // Switching to a different source (once one's already been chosen)
+    // wipes the current catalog server-side after snapshotting it, so
+    // "Undo last change" can bring it back if needed.
+    setDataSource: (token: string, source: "woo" | "ospos" | "manual") =>
+      apiFetch<{ success: boolean; message: string; error?: string }>("/data-source", {
+        method: "POST",
+        body: { source },
+        ...auth(token),
+      }),
   },
 
   plugin: {

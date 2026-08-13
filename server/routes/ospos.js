@@ -229,6 +229,15 @@ router.post("/ospos/import", osposLimiter, async (req, res) => {
     return res.status(401).json({ error: "Invalid token" });
   }
 
+  const store = await storeDB.findById(decoded.storeId);
+  if (!store) return res.status(404).json({ error: "Store not found" });
+  if (store.data_source !== "ospos") {
+    return res.status(403).json({
+      success: false,
+      error: "Switch your data source to OSPOS in Products first, then import.",
+    });
+  }
+
   const { host, port, database, username, password } = req.body || {};
   const mode = req.body?.mode === "append" ? "append" : "replace";
   if (!host || !database || !username) {

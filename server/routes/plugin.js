@@ -237,6 +237,23 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
 
   if (!(await validateWooSiteBinding(store, storeUrl, res))) return;
 
+  // The plugin connection itself is what delivers the widget, so it stays
+  // authenticated and this call still succeeds either way — but only
+  // actually writes products into the catalog when WooCommerce is the
+  // store's chosen data source. A store using OSPOS or the dashboard
+  // instead must never have its catalog silently overwritten by the
+  // plugin's own unattended 6-hourly cron sync just because the plugin
+  // happens to still be connected for widget delivery.
+  if (store.data_source !== "woo") {
+    return res.json({
+      success: true,
+      message: "Skipped — this store's data source isn't set to WooCommerce.",
+      synced: 0,
+      skipped: 0,
+      skippedCategory: 0,
+    });
+  }
+
   try {
     // Scoped to source='woo' rather than a blanket delete: this endpoint
     // is called both for the initial connection AND every unattended
@@ -311,6 +328,14 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
 router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
+
+  // See the matching check in /plugin/sync above — this fires on every
+  // WooCommerce product save while the plugin is connected, regardless of
+  // data source, so it must stay a no-op unless WooCommerce is actually
+  // the store's chosen source.
+  if (store.data_source !== "woo") {
+    return res.json({ success: true, message: "Skipped — this store's data source isn't set to WooCommerce." });
+  }
 
   const { product } = req.body;
   if (!product) return res.status(400).json({ error: "product is required" });
@@ -390,6 +415,11 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
 router.post("/plugin/product/delete", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
+
+  // See the matching check in /plugin/sync above.
+  if (store.data_source !== "woo") {
+    return res.json({ success: true, message: "Skipped — this store's data source isn't set to WooCommerce." });
+  }
 
   const { productName, wooId } = req.body;
   if (!productName && !wooId)

@@ -27,6 +27,29 @@ const uploadLimiter = rateLimit({
   message: { error: "Too many uploads. Please try again later." },
 });
 
+const DATA_SOURCE_LABEL = { woo: "WordPress / WooCommerce", ospos: "OSPOS", manual: "Dashboard" };
+
+// Shared guard for every manual-catalog route below (add/edit/stock/
+// delete/upload) — req.store is just the JWT payload (authMiddleware
+// never re-reads the DB row), so this is the one place that actually
+// checks the store's current data_source before letting a write through.
+// Sends the 403 itself and returns false when blocked, so callers can
+// just `if (!(await requireManualSource(req, res))) return;`.
+async function requireManualSource(req, res) {
+  const store = await storeDB.findById(req.store.storeId);
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return false;
+  }
+  if (store.data_source !== "manual") {
+    res.status(403).json({
+      error: `Products are managed from ${DATA_SOURCE_LABEL[store.data_source]}, not the dashboard. Switch your data source in Products first if you want to manage them here instead.`,
+    });
+    return false;
+  }
+  return true;
+}
+
 // ─── Content-sniffing fallback ─────────────────────────────────────
 // Some store files have unhelpful headers (col1/col2/col3/...) or don't
 // even keep the same column order from row to row (price first on one
@@ -349,6 +372,7 @@ router.post(
   },
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!(await requireManualSource(req, res))) return;
 
     const storeId = req.store.storeId;
     const ext = path.extname(req.file.originalname || "").toLowerCase();
@@ -483,6 +507,59 @@ router.post("/products/backup/restore", authMiddleware, async (req, res) => {
   }
 });
 
+// ─── DATA SOURCE (where the widget's products actually come from) ──
+// Deliberately separate from Store & Sync's website type and Install
+// Widget's delivery method — a WordPress site might source its catalog
+// from OSPOS instead of WooCommerce, or vice versa on a custom site. Only
+// one source is ever authoritative at a time; the manual add/edit/delete/
+// upload routes below, POST /ospos/import, and the WooCommerce plugin
+// sync routes in routes/plugin.js all check this before writing anything.
+router.post("/data-source", authMiddleware, async (req, res) => {
+  const { source } = req.body || {};
+  if (!["woo", "ospos", "manual"].includes(source)) {
+    return res.status(400).json({ error: "source must be 'woo', 'ospos', or 'manual'." });
+  }
+  try {
+    const store = await storeDB.findById(req.store.storeId);
+    if (!store) return res.status(404).json({ error: "Store not found" });
+
+    const sourceLabel = { woo: "WordPress / WooCommerce", ospos: "OSPOS", manual: "Dashboard" }[source];
+    const switching = !!store.data_source_confirmed && store.data_source !== source;
+
+    if (switching) {
+      // The old source's catalog is no longer authoritative — clear it so
+      // the store never shows a stale mix of two sources. Snapshotted
+      // first so "Undo last change" in Products can bring it straight
+      // back if this was a mistake.
+      await productDB.saveBackup(req.store.storeId, `Before switching data source to ${sourceLabel}`);
+      await client.execute({
+        sql: "DELETE FROM products WHERE store_id = ?",
+        args: [req.store.storeId],
+      });
+    }
+
+    // OSPOS is a pure data source with no other role, so leaving it means
+    // BuildVolt shouldn't keep holding credentials for (or polling) a
+    // database the store owner no longer wants used. WooCommerce is
+    // different — the plugin connection stays alive regardless of data
+    // source, since it's also what delivers the widget itself.
+    if (switching && store.data_source === "ospos") {
+      await storeDB.disableOsposAutoSync(req.store.storeId);
+    }
+
+    await storeDB.setDataSource(req.store.storeId, source);
+    await storeDB.touchCatalog(req.store.storeId);
+    res.json({
+      success: true,
+      message: switching
+        ? `Data source switched to ${sourceLabel}. Your previous catalog can be undone from Products if needed.`
+        : `Data source set to ${sourceLabel}.`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── GET ALL PRODUCTS (public, for widget) ────────────────
 router.get("/products/:storeId", async (req, res) => {
   const store = await storeDB.findById(req.params.storeId);
@@ -532,6 +609,7 @@ router.post("/product", authMiddleware, async (req, res) => {
     });
   }
   try {
+    if (!(await requireManualSource(req, res))) return;
     await productDB.saveBackup(req.store.storeId, `Before adding "${name}"`);
     await client.execute({
       sql: `INSERT INTO products (store_id, name, category, price, description, source)
@@ -566,6 +644,7 @@ router.put("/product/:id", authMiddleware, async (req, res) => {
     });
   }
   try {
+    if (!(await requireManualSource(req, res))) return;
     await productDB.saveBackup(req.store.storeId, `Before editing "${name}"`);
     const result = await client.execute({
       sql: `UPDATE products SET name=?, category=?, price=?, description=?
@@ -595,6 +674,7 @@ router.put("/product/:id", authMiddleware, async (req, res) => {
 router.put("/product/:id/stock", authMiddleware, async (req, res) => {
   const { inStock } = req.body;
   try {
+    if (!(await requireManualSource(req, res))) return;
     await productDB.saveBackup(req.store.storeId, "Before changing a stock status");
     await client.execute({
       sql: "UPDATE products SET in_stock=? WHERE id=? AND store_id=?",
@@ -610,6 +690,7 @@ router.put("/product/:id/stock", authMiddleware, async (req, res) => {
 // ─── DELETE PRODUCT ───────────────────────────────────────
 router.delete("/product/:id", authMiddleware, async (req, res) => {
   try {
+    if (!(await requireManualSource(req, res))) return;
     const result = await client.execute({
       sql: "DELETE FROM products WHERE id=? AND store_id=?",
       args: [req.params.id, req.store.storeId],
@@ -640,6 +721,7 @@ router.delete("/products/bulk", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: "ids must be a non-empty array" });
   }
   try {
+    if (!(await requireManualSource(req, res))) return;
     await productDB.saveBackup(
       req.store.storeId,
       `Before deleting ${ids.length} product${ids.length === 1 ? "" : "s"}`,

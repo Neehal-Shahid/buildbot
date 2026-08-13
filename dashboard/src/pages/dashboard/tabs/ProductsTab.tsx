@@ -8,6 +8,14 @@ import { ApiError } from "../../../lib/api";
 // anything else is rejected by POST/PUT /product.
 const CATEGORIES = ["CPU", "Motherboard", "RAM", "Storage", "GPU", "PSU", "Case", "CPU Cooler", "Case Fans"];
 
+type DataSource = "woo" | "ospos" | "manual";
+
+const SOURCE_LABEL: Record<DataSource, string> = {
+  woo: "WordPress / WooCommerce",
+  ospos: "OSPOS",
+  manual: "Dashboard",
+};
+
 const filterInputStyle = {
   padding: "10px 14px",
   background: "var(--surface-2)",
@@ -18,8 +26,14 @@ const filterInputStyle = {
   outline: "none",
 } as const;
 
+const responsiveCols = (min: number) => ({
+  display: "grid",
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}px, 100%), 1fr))`,
+  gap: 16,
+});
+
 export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed") => void }) {
-  const { token, store } = useStoreAuth();
+  const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -48,8 +62,8 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   // Classic single-level "Undo last change" — not time limited like a
   // toast. The server snapshots the whole catalog right before every
   // dashboard-initiated mutation (add/edit/stock toggle/delete/upload/
-  // import); this just reflects whether that snapshot currently exists.
-  // Never set by OSPOS's own background auto-sync.
+  // import/data-source switch); this just reflects whether that snapshot
+  // currently exists. Never set by OSPOS's own background auto-sync.
   const [backup, setBackup] = useState<{ id: number; label: string; productCount: number; createdAt: string } | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
 
@@ -76,6 +90,17 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   // already put products in the list — never silently guessed. `run` is
   // whichever of runUpload/runOsposImport was waiting on the answer.
   const [confirmMode, setConfirmMode] = useState<{ run: (mode: "replace" | "append") => void } | null>(null);
+
+  // Where the widget's product data actually comes from — separate from
+  // Store & Sync's website type and Install Widget's delivery method (see
+  // the "Data source" picker below). Showing the picker is driven by two
+  // things: the store has never confirmed one yet, or the owner clicked
+  // "Switch data source" to change an already-confirmed one.
+  const [switchingSource, setSwitchingSource] = useState(false);
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const dataSource: DataSource = store?.dataSource ?? "manual";
+  const dataSourceConfirmed = !!store?.dataSourceConfirmed;
+  const showPicker = !dataSourceConfirmed || switchingSource;
 
   function loadOsposStatus() {
     if (!token) return;
@@ -361,409 +386,502 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
+  async function confirmDataSource(source: DataSource) {
+    if (!token || sourceBusy) return;
+    setSourceBusy(true);
+    try {
+      const data = await dashboardApi.products.setDataSource(token, source);
+      toast.success("Data source set", data.message);
+      setSwitchingSource(false);
+      await refresh();
+      load();
+      loadBackupStatus();
+      loadOsposStatus();
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not set your data source.");
+    } finally {
+      setSourceBusy(false);
+    }
+  }
+
+  // Read-only everywhere the data source isn't 'manual' — WooCommerce and
+  // OSPOS are each the single source of truth for their own products, so
+  // editing from the dashboard would just get silently overwritten by the
+  // next sync (and the server rejects these writes outright either way,
+  // see requireManualSource in server/routes/upload.js).
+  const readOnly = dataSource !== "manual";
+  const colCount = readOnly ? 4 : 6;
+
   return (
     <div>
       <div className="section-title">Product Catalog — Step 2</div>
       <div className="section-sub">
-        Build your catalog with any combination of the three methods below — add products one at a time, upload a
-        file, or import from OSPOS. If you're on WordPress with the BuildVolt plugin connected, that catalog syncs
-        automatically and shows up here too, but is still managed from WooCommerce itself.
+        Where your widget's products come from, and installing the widget on your site, are two separate things —
+        pick your data source below first.
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h2>Bulk upload</h2>
-        <p style={{ marginBottom: 12 }}>
-          CSV, Excel (.xlsx), Word (.docx), or PDF — with a Name, Category, Price and optional Description per row.
-          Max 5MB. Supported categories: {CATEGORIES.join(", ")}.
-        </p>
-        <div
-          className="upload-area"
-          role="button"
-          tabIndex={0}
-          aria-label="Choose a catalog file to upload"
-          onClick={() => !uploading && fileRef.current?.click()}
-          onKeyDown={(e) => {
-            if ((e.key === "Enter" || e.key === " ") && !uploading) {
-              e.preventDefault();
-              fileRef.current?.click();
-            }
-          }}
-        >
-          <div className="ui">📄</div>
-          {/* Held in state — reading fileRef during render never re-rendered,
-              so the chosen filename was effectively never shown. */}
-          <p>{uploading ? `Uploading ${fileName}…` : "Click to choose a file"}</p>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,.xlsx,.docx,.pdf"
-          style={{ display: "none" }}
-          onChange={handleFileChosen}
+      {showPicker ? (
+        <DataSourcePicker
+          current={dataSourceConfirmed ? dataSource : null}
+          busy={sourceBusy}
+          onConfirm={confirmDataSource}
+          onCancel={dataSourceConfirmed ? () => setSwitchingSource(false) : undefined}
         />
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Import from OSPOS</h2>
-            <p style={{ margin: "4px 0 0" }}>
-              {osposAutoSync?.enabled
-                ? "Connected — BuildVolt keeps this catalog in sync with OSPOS automatically."
-                : "Pull your catalog directly from Open Source Point of Sale — one click, nothing to install."}
-            </p>
-          </div>
-          {!osposAutoSync?.enabled && (
-            <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
-              {osposOpen ? "Cancel" : "Import from OSPOS"}
-            </button>
-          )}
-        </div>
-
-        {osposAutoSync?.enabled ? (
-          <div style={{ marginTop: 16 }}>
-            <div
-              style={{
-                marginBottom: 14,
-                padding: "5px 14px",
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 700,
-                display: "inline-block",
-                background: "rgba(5,150,105,0.12)",
-                color: "var(--success)",
-                border: "1px solid rgba(5,150,105,0.3)",
-              }}
-            >
-              ● Auto-sync ON
+      ) : (
+        <>
+          <div
+            className="card"
+            style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
+          >
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>
+              Data source: <strong style={{ color: "var(--text)" }}>{SOURCE_LABEL[dataSource]}</strong>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))", gap: 12, marginBottom: 16 }}>
-              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Database Host</div>
-                <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500, wordBreak: "break-all" }}>{osposAutoSync.host || "—"}</div>
-              </div>
-              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Products Synced</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success)" }}>{osposAutoSync.productCount}</div>
-              </div>
-              <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Last Synced</div>
-                <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>
-                  {osposAutoSync.lastSync ? new Date(osposAutoSync.lastSync).toLocaleString() : "Never"}
-                </div>
-              </div>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-              Runs automatically every few hours — no need to re-import when your OSPOS listing changes. This always
-              merges (updates existing items, adds new ones) and never deletes anything from your catalog, even
-              products added through a different method — only a manual "Replace entire list" choice above does that.
-            </p>
-            <button
-              type="button"
-              className={`btn btn-sm${osposDisabling ? " is-loading" : ""}`}
-              onClick={stopOsposAutoSync}
-              disabled={osposDisabling}
-              style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}
-            >
-              {osposDisabling ? "Stopping…" : "Stop auto-sync"}
+            <button type="button" className="btn btn-sm" onClick={() => setSwitchingSource(true)}>
+              Switch data source
             </button>
           </div>
-        ) : (
-          osposOpen && (
-            <div style={{ marginTop: 16 }}>
-              <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
-                Connect your OSPOS database below — your host or whoever set up OSPOS can give you these details;
-                on shared hosting (cPanel), check for a <strong style={{ color: "var(--text)" }}>Remote MySQL</strong>{" "}
-                setting to allow the connection.{" "}
-                <strong style={{ color: "var(--text)" }}>
-                  After this first import, BuildVolt securely stores these details (encrypted) and keeps your
-                  catalog in sync with OSPOS automatically
-                </strong>{" "}
-                — you can turn that off any time below.
+
+          {dataSource === "woo" && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h2>Managed from WordPress</h2>
+              <p style={{ marginBottom: 12 }}>
+                Your catalog syncs automatically from your WooCommerce product listing — add, edit, or remove
+                products there, not here. Changes usually show up here within a few minutes of saving in WordPress.
               </p>
-
-              <div style={{ display: "flex", gap: 16, marginBottom: 14, fontSize: 12 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                  <input type="radio" checked={osposUseUrl} onChange={() => setOsposUseUrl(true)} />
-                  Paste a connection URL
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                  <input type="radio" checked={!osposUseUrl} onChange={() => setOsposUseUrl(false)} />
-                  Enter details separately
-                </label>
-              </div>
-
-              {osposUseUrl ? (
-                <div style={{ marginBottom: 14 }}>
-                  <label className="form-label" htmlFor="ospos-url">Connection URL</label>
-                  <input
-                    id="ospos-url"
-                    type="text"
-                    placeholder="mysql://username:password@host:3306/database_name"
-                    value={osposConnUrl}
-                    onChange={(e) => setOsposConnUrl(e.target.value)}
-                  />
-                  <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
-                    One line, in the form <code>username:password@host/database</code> — many hosting panels show
-                    this exact string already. Don't have one? Switch to "Enter details separately" above.
-                  </p>
-                </div>
+              {store?.wooConnected ? (
+                <div className="badge badge-success">Plugin connected — syncing</div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
-                  <div>
-                    <label className="form-label" htmlFor="ospos-host">Database Host</label>
-                    <input
-                      id="ospos-host"
-                      type="text"
-                      placeholder="e.g. localhost or db.hostingsite.com"
-                      value={osposHost}
-                      onChange={(e) => setOsposHost(e.target.value)}
-                    />
-                    <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-                      Not on port 3306? Add it here too, e.g. <code>db.host.com:3307</code>.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="form-label" htmlFor="ospos-db">Database Name</label>
-                    <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="form-label" htmlFor="ospos-user">Username</label>
-                    <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="form-label" htmlFor="ospos-pass">Password</label>
-                    <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
-                onClick={handleOsposImportClick}
-                disabled={osposImporting}
-              >
-                {osposImporting ? "Importing…" : "Import now"}
-              </button>
-            </div>
-          )
-        )}
-      </div>
-
-      {/* Kept here — after the catalog-building methods, before the list
-          itself — rather than after the table, where a large catalog would
-          push it past however many hundred rows had loaded and make it
-          effectively invisible without scrolling. */}
-      {products && products.length > 0 && (
-        <div
-          className="card"
-          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
-        >
-          <div>
-            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-              Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
-            </p>
-          </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>
-            Continue to Install Widget →
-          </button>
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
-        {products === null ? (
-          <span style={{ fontSize: 14, color: "var(--muted)" }}>Loading catalog…</span>
-        ) : (
-          <>
-            <span style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", lineHeight: 1 }}>{products.length}</span>
-            <span style={{ fontSize: 14, color: "var(--muted)" }}>
-              {products.length === 1 ? "product" : "products"} total
-              {hasFilters && filtered.length !== products.length && (
                 <>
-                  {" "}
-                  — <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> matching filters
+                  <div className="badge badge-warning" style={{ marginBottom: 10 }}>
+                    Plugin not connected yet
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--muted)" }}>
+                    Install and connect the BuildVolt WordPress plugin in{" "}
+                    <strong style={{ color: "var(--text)" }}>Install Widget</strong> (Step 3) to start syncing.
+                  </p>
                 </>
               )}
-            </span>
-          </>
-        )}
-      </div>
+            </div>
+          )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products…"
-            aria-label="Search products"
-            style={{ ...filterInputStyle, maxWidth: 260 }}
-          />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Filter by category" style={filterInputStyle}>
-            <option value="">All Categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Filter by stock status" style={filterInputStyle}>
-            <option value="">All Status</option>
-            <option value="1">In Stock</option>
-            <option value="0">Out of Stock</option>
-          </select>
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")}>
-            + Add Product
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            onClick={() => setBulkConfirmMode("all")}
-            disabled={!products || products.length === 0}
-          >
-            Delete All
-          </button>
-          {/* Classic single-level undo — reverts whatever the last
-              dashboard change was (add/edit/delete/upload/import), never
-              OSPOS's own background auto-sync. Always here, not just right
-              after a change, and disabled rather than hidden when there's
-              nothing to undo yet so it's never a mystery whether it exists. */}
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={runUndo}
-            disabled={!backup || restoreBusy}
-            title={backup ? backup.label : "Nothing to undo yet"}
-          >
-            {restoreBusy ? "Undoing…" : "Undo last change"}
-          </button>
-        </div>
-      </div>
+          {dataSource === "manual" && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h2>Bulk upload</h2>
+              <p style={{ marginBottom: 12 }}>
+                CSV, Excel (.xlsx), Word (.docx), or PDF — with a Name, Category, Price and optional Description per
+                row. Max 5MB. Supported categories: {CATEGORIES.join(", ")}.
+              </p>
+              <div
+                className="upload-area"
+                role="button"
+                tabIndex={0}
+                aria-label="Choose a catalog file to upload"
+                onClick={() => !uploading && fileRef.current?.click()}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && !uploading) {
+                    e.preventDefault();
+                    fileRef.current?.click();
+                  }
+                }}
+              >
+                <div className="ui">📄</div>
+                {/* Held in state — reading fileRef during render never
+                    re-rendered, so the chosen filename was effectively
+                    never shown. */}
+                <p>{uploading ? `Uploading ${fileName}…` : "Click to choose a file"}</p>
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.xlsx,.docx,.pdf"
+                style={{ display: "none" }}
+                onChange={handleFileChosen}
+              />
+            </div>
+          )}
 
-      {loadError && (
-        <div className="alert alert-error show" style={{ marginBottom: 16 }}>
-          {loadError}
-        </div>
-      )}
+          {dataSource === "ospos" && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Import from OSPOS</h2>
+                  <p style={{ margin: "4px 0 0" }}>
+                    {osposAutoSync?.enabled
+                      ? "Connected — BuildVolt keeps this catalog in sync with OSPOS automatically."
+                      : "Pull your catalog directly from Open Source Point of Sale — one click, nothing to install."}
+                  </p>
+                </div>
+                {!osposAutoSync?.enabled && (
+                  <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
+                    {osposOpen ? "Cancel" : "Import from OSPOS"}
+                  </button>
+                )}
+              </div>
 
-
-      {selectedIds.size > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 16,
-            padding: "10px 14px",
-            background: "var(--accent-bg)",
-            border: "1px solid var(--accent-border)",
-            borderRadius: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{selectedIds.size} selected</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-sm btn-danger" onClick={() => setBulkConfirmMode("selected")}>
-              Delete selected
-            </button>
-            <button type="button" className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>
-              Clear selection
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}>
-                <input
-                  type="checkbox"
-                  aria-label="Select all filtered products"
-                  checked={allFilteredSelected}
-                  onChange={toggleSelectAllFiltered}
-                />
-              </th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!products && (
-              <tr>
-                <td colSpan={6}>Loading…</td>
-              </tr>
-            )}
-            {products && filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ color: "var(--muted)" }}>
-                  {/* "No products found" read as an error when the catalog was
-                      simply still empty. */}
-                  {loadError
-                    ? "Your catalog could not be loaded."
-                    : products.length === 0
-                      ? "No products yet — add one manually or upload a catalog file above."
-                      : hasFilters
-                        ? "No products match these filters."
-                        : "No products found."}
-                </td>
-              </tr>
-            )}
-            {filtered.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    aria-label={`Select "${p.name}"`}
-                    checked={selectedIds.has(p.id)}
-                    onChange={() => toggleSelect(p.id)}
-                  />
-                </td>
-                <td>{p.name}</td>
-                <td>{p.category}</td>
-                <td>{Number(p.price).toLocaleString()}</td>
-                <td>
-                  <span
-                    className={`badge ${p.in_stock ? "badge-success" : "badge-danger"}`}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Mark "${p.name}" as ${p.in_stock ? "out of stock" : "in stock"}`}
-                    style={{ cursor: stockBusyId === p.id ? "wait" : "pointer", opacity: stockBusyId === p.id ? 0.5 : 1 }}
-                    onClick={() => toggleStock(p)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleStock(p);
-                      }
+              {osposAutoSync?.enabled ? (
+                <div style={{ marginTop: 16 }}>
+                  <div
+                    style={{
+                      marginBottom: 14,
+                      padding: "5px 14px",
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-block",
+                      background: "rgba(5,150,105,0.12)",
+                      color: "var(--success)",
+                      border: "1px solid rgba(5,150,105,0.3)",
                     }}
                   >
-                    {p.in_stock ? "In stock" : "Out of stock"}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button type="button" className="btn btn-sm" onClick={() => setEditing(p)}>
-                      Edit
-                    </button>
-                    <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleting(p)}>
-                      Delete
+                    ● Auto-sync ON
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))", gap: 12, marginBottom: 16 }}>
+                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Database Host</div>
+                      <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500, wordBreak: "break-all" }}>{osposAutoSync.host || "—"}</div>
+                    </div>
+                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Products Synced</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success)" }}>{osposAutoSync.productCount}</div>
+                    </div>
+                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Last Synced</div>
+                      <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>
+                        {osposAutoSync.lastSync ? new Date(osposAutoSync.lastSync).toLocaleString() : "Never"}
+                      </div>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+                    Runs automatically every few hours — no need to re-import when your OSPOS listing changes. This
+                    always merges (updates existing items, adds new ones) and never deletes anything, unless you
+                    explicitly choose "Replace" on a manual re-import.
+                  </p>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${osposDisabling ? " is-loading" : ""}`}
+                    onClick={stopOsposAutoSync}
+                    disabled={osposDisabling}
+                    style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}
+                  >
+                    {osposDisabling ? "Stopping…" : "Stop auto-sync"}
+                  </button>
+                </div>
+              ) : (
+                osposOpen && (
+                  <div style={{ marginTop: 16 }}>
+                    <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
+                      Connect your OSPOS database below — your host or whoever set up OSPOS can give you these
+                      details; on shared hosting (cPanel), check for a{" "}
+                      <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to allow the
+                      connection.{" "}
+                      <strong style={{ color: "var(--text)" }}>
+                        After this first import, BuildVolt securely stores these details (encrypted) and keeps your
+                        catalog in sync with OSPOS automatically
+                      </strong>{" "}
+                      — you can turn that off any time below.
+                    </p>
+
+                    <div style={{ display: "flex", gap: 16, marginBottom: 14, fontSize: 12 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                        <input type="radio" checked={osposUseUrl} onChange={() => setOsposUseUrl(true)} />
+                        Paste a connection URL
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                        <input type="radio" checked={!osposUseUrl} onChange={() => setOsposUseUrl(false)} />
+                        Enter details separately
+                      </label>
+                    </div>
+
+                    {osposUseUrl ? (
+                      <div style={{ marginBottom: 14 }}>
+                        <label className="form-label" htmlFor="ospos-url">Connection URL</label>
+                        <input
+                          id="ospos-url"
+                          type="text"
+                          placeholder="mysql://username:password@host:3306/database_name"
+                          value={osposConnUrl}
+                          onChange={(e) => setOsposConnUrl(e.target.value)}
+                        />
+                        <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
+                          One line, in the form <code>username:password@host/database</code> — many hosting panels
+                          show this exact string already. Don't have one? Switch to "Enter details separately"
+                          above.
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
+                        <div>
+                          <label className="form-label" htmlFor="ospos-host">Database Host</label>
+                          <input
+                            id="ospos-host"
+                            type="text"
+                            placeholder="e.g. localhost or db.hostingsite.com"
+                            value={osposHost}
+                            onChange={(e) => setOsposHost(e.target.value)}
+                          />
+                          <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                            Not on port 3306? Add it here too, e.g. <code>db.host.com:3307</code>.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label" htmlFor="ospos-db">Database Name</label>
+                          <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="form-label" htmlFor="ospos-user">Username</label>
+                          <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="form-label" htmlFor="ospos-pass">Password</label>
+                          <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
+                      onClick={handleOsposImportClick}
+                      disabled={osposImporting}
+                    >
+                      {osposImporting ? "Importing…" : "Import now"}
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                )
+              )}
+            </div>
+          )}
+
+          {/* Kept here — after the catalog-building methods, before the
+              list itself — rather than after the table, where a large
+              catalog would push it past however many hundred rows had
+              loaded and make it effectively invisible without scrolling. */}
+          {products && products.length > 0 && (
+            <div
+              className="card"
+              style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}
+            >
+              <div>
+                <h2 style={{ fontSize: 16, marginBottom: 4 }}>Next: install your widget</h2>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+                  Your catalog has products in it — head to Install Widget (Step 3) to put the widget on your site.
+                </p>
+              </div>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("embed")} style={{ whiteSpace: "nowrap" }}>
+                Continue to Install Widget →
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
+            {products === null ? (
+              <span style={{ fontSize: 14, color: "var(--muted)" }}>Loading catalog…</span>
+            ) : (
+              <>
+                <span style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", lineHeight: 1 }}>{products.length}</span>
+                <span style={{ fontSize: 14, color: "var(--muted)" }}>
+                  {products.length === 1 ? "product" : "products"} total
+                  {hasFilters && filtered.length !== products.length && (
+                    <>
+                      {" "}
+                      — <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> matching filters
+                    </>
+                  )}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1, flexWrap: "wrap" }}>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products…"
+                aria-label="Search products"
+                style={{ ...filterInputStyle, maxWidth: 260 }}
+              />
+              <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Filter by category" style={filterInputStyle}>
+                <option value="">All Categories</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Filter by stock status" style={filterInputStyle}>
+                <option value="">All Status</option>
+                <option value="1">In Stock</option>
+                <option value="0">Out of Stock</option>
+              </select>
+            </div>
+            {!readOnly && (
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")}>
+                  + Add Product
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => setBulkConfirmMode("all")}
+                  disabled={!products || products.length === 0}
+                >
+                  Delete All
+                </button>
+                {/* Classic single-level undo — reverts whatever the last
+                    dashboard change was. Always here, not just right
+                    after a change, and disabled rather than hidden when
+                    there's nothing to undo yet so it's never a mystery
+                    whether it exists. */}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={runUndo}
+                  disabled={!backup || restoreBusy}
+                  title={backup ? backup.label : "Nothing to undo yet"}
+                >
+                  {restoreBusy ? "Undoing…" : "Undo last change"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {loadError && (
+            <div className="alert alert-error show" style={{ marginBottom: 16 }}>
+              {loadError}
+            </div>
+          )}
+
+          {!readOnly && selectedIds.size > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 16,
+                padding: "10px 14px",
+                background: "var(--accent-bg)",
+                border: "1px solid var(--accent-border)",
+                borderRadius: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{selectedIds.size} selected</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn btn-sm btn-danger" onClick={() => setBulkConfirmMode("selected")}>
+                  Delete selected
+                </button>
+                <button type="button" className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>
+                  Clear selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  {!readOnly && (
+                    <th style={{ width: 34 }}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all filtered products"
+                        checked={allFilteredSelected}
+                        onChange={toggleSelectAllFiltered}
+                      />
+                    </th>
+                  )}
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  {!readOnly && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {!products && (
+                  <tr>
+                    <td colSpan={colCount}>Loading…</td>
+                  </tr>
+                )}
+                {products && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={colCount} style={{ color: "var(--muted)" }}>
+                      {/* "No products found" read as an error when the
+                          catalog was simply still empty. */}
+                      {loadError
+                        ? "Your catalog could not be loaded."
+                        : products.length === 0
+                          ? readOnly
+                            ? `No products yet — waiting on ${SOURCE_LABEL[dataSource]} to sync.`
+                            : "No products yet — add one manually or upload a catalog file above."
+                          : hasFilters
+                            ? "No products match these filters."
+                            : "No products found."}
+                    </td>
+                  </tr>
+                )}
+                {filtered.map((p) => (
+                  <tr key={p.id}>
+                    {!readOnly && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select "${p.name}"`}
+                          checked={selectedIds.has(p.id)}
+                          onChange={() => toggleSelect(p.id)}
+                        />
+                      </td>
+                    )}
+                    <td>{p.name}</td>
+                    <td>{p.category}</td>
+                    <td>{Number(p.price).toLocaleString()}</td>
+                    <td>
+                      {readOnly ? (
+                        <span className={`badge ${p.in_stock ? "badge-success" : "badge-danger"}`}>
+                          {p.in_stock ? "In stock" : "Out of stock"}
+                        </span>
+                      ) : (
+                        <span
+                          className={`badge ${p.in_stock ? "badge-success" : "badge-danger"}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Mark "${p.name}" as ${p.in_stock ? "out of stock" : "in stock"}`}
+                          style={{ cursor: stockBusyId === p.id ? "wait" : "pointer", opacity: stockBusyId === p.id ? 0.5 : 1 }}
+                          onClick={() => toggleStock(p)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleStock(p);
+                            }
+                          }}
+                        >
+                          {p.in_stock ? "In stock" : "Out of stock"}
+                        </span>
+                      )}
+                    </td>
+                    {!readOnly && (
+                      <td>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button type="button" className="btn btn-sm" onClick={() => setEditing(p)}>
+                            Edit
+                          </button>
+                          <button type="button" className="btn btn-sm btn-danger" onClick={() => setDeleting(p)}>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <ProductModal
         product={editing}
@@ -865,6 +983,158 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Deliberately separate from Store & Sync's website-type picker and
+// Install Widget's delivery-method choice — see the section-sub copy
+// above. `current` is null when the store has never confirmed a data
+// source yet (vs. sitting on the 'manual' column default unconfirmed —
+// same reasoning as storeMode.ts's hasChosenMode()).
+function DataSourcePicker({
+  current,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  current: DataSource | null;
+  busy: boolean;
+  onConfirm: (source: DataSource) => void;
+  onCancel?: () => void;
+}) {
+  const [picked, setPicked] = useState<DataSource | null>(null);
+  const displayed = picked ?? current;
+  const isSwitch = current !== null && picked !== null && picked !== current;
+  const isFirstPick = current === null && picked !== null;
+
+  const OptionCard = ({
+    value,
+    title,
+    desc,
+    bullets,
+  }: {
+    value: DataSource;
+    title: string;
+    desc: string;
+    bullets: string[];
+  }) => {
+    const active = displayed === value;
+    const justPicked = picked === value && picked !== current;
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setPicked(value)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPicked(value))}
+        className="card"
+        style={{
+          cursor: "pointer",
+          textAlign: "left",
+          border: active ? "2px solid var(--accent)" : "1px solid var(--border)",
+          background: active ? "var(--accent-bg)" : undefined,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <h2 style={{ margin: 0 }}>{title}</h2>
+          {active && (
+            <span className={`badge ${justPicked ? "badge-warning" : "badge-success"}`}>
+              {justPicked ? "Picked — confirm below" : "Current"}
+            </span>
+          )}
+        </div>
+        <p style={{ marginBottom: 12 }}>{desc}</p>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--muted)", lineHeight: 1.7 }}>
+          {bullets.map((b) => (
+            <li key={b}>{b}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {current === null && (
+        <div className="alert alert-error show" style={{ marginBottom: 16 }}>
+          Pick where your widget's product data comes from to continue.
+        </div>
+      )}
+
+      <div style={responsiveCols(240)}>
+        <OptionCard
+          value="manual"
+          title="Dashboard"
+          desc="Add products by hand, or upload a CSV/Excel/Word/PDF file — all managed right here."
+          bullets={[
+            "Full control: add, edit, delete, undo, right in this tab",
+            "Works no matter which website type or install method you use",
+            "Best if you don't already have a product list somewhere else",
+          ]}
+        />
+        <OptionCard
+          value="ospos"
+          title="OSPOS"
+          desc="Pull your catalog from Open Source Point of Sale, kept in sync automatically from then on."
+          bullets={[
+            "One-click connect, then BuildVolt keeps pulling updates on its own",
+            "Works whether your widget installs via script or the WordPress plugin",
+            "Managed from OSPOS — not editable here once connected",
+          ]}
+        />
+        <OptionCard
+          value="woo"
+          title="WordPress / WooCommerce"
+          desc="Sync straight from your WooCommerce product listing."
+          bullets={[
+            "Requires the BuildVolt WordPress plugin connected (Install Widget, Step 3)",
+            "Add, edit, or remove products in WordPress — it syncs here automatically",
+            "Managed from WordPress — not editable here once connected",
+          ]}
+        />
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        {isSwitch ? (
+          <>
+            <h2 style={{ fontSize: 16, marginBottom: 6 }}>Confirm switch</h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+              Switching to <strong style={{ color: "var(--text)" }}>{SOURCE_LABEL[picked as DataSource]}</strong>{" "}
+              clears your current catalog first (nothing from {SOURCE_LABEL[current as DataSource]} stays mixed
+              in) — "Undo last change" can bring it straight back afterwards if this was a mistake.
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => picked && onConfirm(picked)} disabled={busy}>
+                {busy ? "Switching…" : "Confirm & switch"}
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => setPicked(null)} disabled={busy}>
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : isFirstPick ? (
+          <>
+            <h2 style={{ fontSize: 16, marginBottom: 6 }}>Confirm your choice</h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+              You picked <strong style={{ color: "var(--text)" }}>{SOURCE_LABEL[picked as DataSource]}</strong>.
+            </p>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => picked && onConfirm(picked)} disabled={busy}>
+              {busy ? "Saving…" : "Confirm"}
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontSize: 16, marginBottom: 6 }}>
+              {current ? "Pick a different source above to switch" : "Pick a source above to continue"}
+            </h2>
+            {onCancel && (
+              <button type="button" className="btn btn-sm" onClick={onCancel} style={{ marginTop: 4 }}>
+                Cancel
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

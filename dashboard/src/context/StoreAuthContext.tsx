@@ -47,6 +47,11 @@ function normalizeStore(raw: Record<string, unknown>): StoreSession {
     widgetBg: String(raw.widget_bg || WIDGET_DEFAULTS.widgetBg),
     widgetLastSeen: raw.widget_last_seen ? String(raw.widget_last_seen) : null,
     isGoogleAccount: !!raw.google_id,
+    dataSource: (raw.data_source === "woo" || raw.data_source === "ospos" ? raw.data_source : "manual") as
+      | "woo"
+      | "ospos"
+      | "manual",
+    dataSourceConfirmed: !!raw.data_source_confirmed,
   };
 }
 

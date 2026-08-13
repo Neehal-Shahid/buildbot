@@ -237,7 +237,7 @@ function WooGuide({
   onCopy: (v: string, label: string) => void;
   onToggle: (next: boolean) => void;
 }) {
-  const { token } = useStoreAuth();
+  const { token, store } = useStoreAuth();
   const toast = useToast();
   const [status, setStatus] = useState<PluginStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -329,6 +329,26 @@ function WooGuide({
           </div>
         </div>
         <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
+
+        {status?.wooConnected && store?.dataSource && store.dataSource !== "woo" && (
+          <div
+            style={{
+              marginBottom: 20,
+              padding: "10px 14px",
+              background: "var(--warning-bg)",
+              border: "1px solid var(--warning-border)",
+              borderRadius: 8,
+              fontSize: 12,
+              color: "var(--text)",
+              lineHeight: 1.55,
+            }}
+          >
+            The plugin is connected and delivering the widget, but your{" "}
+            <strong>data source</strong> in Products (Step 2) is set to {store.dataSource === "ospos" ? "OSPOS" : "Dashboard"},
+            not WooCommerce — so products aren't syncing from here. That's expected if you're deliberately sourcing
+            your catalog elsewhere.
+          </div>
+        )}
 
         {status?.wooConnected ? (
           <div>

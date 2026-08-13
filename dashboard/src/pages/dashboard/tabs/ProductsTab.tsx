@@ -45,10 +45,11 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   const [bulkConfirmMode, setBulkConfirmMode] = useState<"selected" | "all" | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // Persistent, single-slot "undo my last catalog change" — not time
-  // limited like a toast. The server snapshots the whole catalog right
-  // before any delete or "replace" mode import; this just reflects
-  // whether that snapshot currently exists.
+  // Classic single-level "Undo last change" — not time limited like a
+  // toast. The server snapshots the whole catalog right before every
+  // dashboard-initiated mutation (add/edit/stock toggle/delete/upload/
+  // import); this just reflects whether that snapshot currently exists.
+  // Never set by OSPOS's own background auto-sync.
   const [backup, setBackup] = useState<{ id: number; label: string; productCount: number; createdAt: string } | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
 
@@ -134,6 +135,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     try {
       await dashboardApi.products.setStock(token, p.id, !p.in_stock);
       load();
+      loadBackupStatus();
     } catch (err) {
       // Previously unhandled: the badge just silently refused to change.
       toast.error(
@@ -145,16 +147,16 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
-  async function runRestoreBackup() {
+  async function runUndo() {
     if (!token || restoreBusy) return;
     setRestoreBusy(true);
     try {
       const data = await dashboardApi.products.restoreBackup(token);
-      toast.success("Restored", data.message);
+      toast.success("Undone", data.message);
       setBackup(null);
       load();
     } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not restore your catalog.");
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not undo the last change.");
     } finally {
       setRestoreBusy(false);
     }
@@ -237,7 +239,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       if (data.success) {
         toast.success("Upload complete", data.message);
         load();
-        if (mode === "replace") loadBackupStatus();
+        loadBackupStatus();
       } else {
         toast.error("Upload failed", data.error || "The file could not be imported.");
       }
@@ -333,7 +335,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         setOsposConnUrl("");
         load();
         loadOsposStatus();
-        if (mode === "replace") loadBackupStatus();
+        loadBackupStatus();
       } else {
         toast.error("Import failed", data.error || "Could not import from OSPOS.");
       }
@@ -625,6 +627,20 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
           >
             Delete All
           </button>
+          {/* Classic single-level undo — reverts whatever the last
+              dashboard change was (add/edit/delete/upload/import), never
+              OSPOS's own background auto-sync. Always here, not just right
+              after a change, and disabled rather than hidden when there's
+              nothing to undo yet so it's never a mystery whether it exists. */}
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={runUndo}
+            disabled={!backup || restoreBusy}
+            title={backup ? backup.label : "Nothing to undo yet"}
+          >
+            {restoreBusy ? "Undoing…" : "Undo last change"}
+          </button>
         </div>
       </div>
 
@@ -634,33 +650,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         </div>
       )}
 
-      {backup && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-            borderColor: "var(--warning-border)",
-            background: "var(--warning-bg)",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{backup.label}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>
-              Saved {new Date(backup.createdAt).toLocaleString()} — {backup.productCount} product
-              {backup.productCount === 1 ? "" : "s"}. Stays available until you restore it, or make another change
-              that replaces it — nothing here can make this option disappear on its own.
-            </div>
-          </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={runRestoreBackup} disabled={restoreBusy} style={{ whiteSpace: "nowrap" }}>
-            {restoreBusy ? "Restoring…" : "Restore this catalog"}
-          </button>
-        </div>
-      )}
 
       {selectedIds.size > 0 && (
         <div
@@ -776,15 +765,22 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         </table>
       </div>
 
-      <ProductModal product={editing} onClose={() => setEditing(null)} onSaved={load} />
+      <ProductModal
+        product={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          load();
+          loadBackupStatus();
+        }}
+      />
 
       <div className={`modal-bg${confirmMode ? " open" : ""}`}>
         <div className="modal">
           <h2>Add or replace?</h2>
           <p>
             You already have {products?.length ?? 0} product{products?.length === 1 ? "" : "s"} in your catalog.
-            Add these on top of them, or replace the entire list with just this new source? Replacing is restorable
-            afterwards from a "Restore this catalog" card if needed.
+            Add these on top of them, or replace the entire list with just this new source? Either way, "Undo last
+            change" above can bring back what you had right before this.
           </p>
           <div className="modal-btns" style={{ flexWrap: "wrap" }}>
             <button
@@ -827,8 +823,8 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
         <div className="modal">
           <h2>Delete product?</h2>
           <p>
-            "{deleting?.name}" will be removed from your catalog. You can restore it afterwards from the "Restore
-            this catalog" card if needed.
+            "{deleting?.name}" will be removed from your catalog. "Undo last change" above can bring it back
+            afterwards if needed.
           </p>
           <div className="modal-btns">
             <button
@@ -853,7 +849,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
             {bulkConfirmMode === "all"
               ? `This permanently removes all ${products?.length ?? 0} product${(products?.length ?? 0) === 1 ? "" : "s"} in your catalog — not just what's currently showing under your search/filters.`
               : `This permanently removes ${selectedIds.size} product${selectedIds.size === 1 ? "" : "s"} from your catalog.`}{" "}
-            You can restore this afterwards from the "Restore this catalog" card that appears above the list.
+            "Undo last change" above can bring these back afterwards if needed.
           </p>
           <div className="modal-btns">
             <button

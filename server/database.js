@@ -243,12 +243,11 @@ async function initDB() {
     // public /store-config/:storeId endpoint is hit, which only happens
     // when widget.js is actually loaded by a real page.
     `ALTER TABLE stores ADD COLUMN widget_last_seen TEXT DEFAULT NULL`,
-    // Single-slot, persistent "undo my last catalog change" — see
+    // Single-level "undo my last change" (like Ctrl+Z) — see
     // productDB.saveBackup/restoreBackup. Snapshots the store's entire
-    // product list right before anything that could lose data (a delete,
-    // or a "replace" mode CSV/OSPOS import), so it stays restorable
-    // whenever the store owner comes back to it, not just for a few
-    // seconds after the change.
+    // product list right before every dashboard-initiated catalog
+    // mutation, so it stays restorable whenever the store owner comes
+    // back to it, not just for a few seconds after the change.
     `CREATE TABLE IF NOT EXISTS product_backups (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       store_id      TEXT NOT NULL,
@@ -696,10 +695,11 @@ const productDB = {
   // server/routes/plugin.js, which both scope their own deletes to a
   // single source rather than calling this in "replace" mode.
   bulkInsert: async (storeId, products, { source = "manual", mode = "replace", backupLabel } = {}) => {
+    // Always a dashboard-initiated action (there's no automatic background
+    // caller of bulkInsert), so it always sets the undo point — see
+    // productDB.saveBackup.
+    await productDB.saveBackup(storeId, backupLabel || (mode === "replace" ? "Catalog replaced" : "Products added"));
     if (mode === "replace") {
-      // Snapshot what's about to be wiped so it stays restorable — see
-      // productDB.saveBackup.
-      await productDB.saveBackup(storeId, backupLabel || "Catalog replaced");
       await client.execute({
         sql: "DELETE FROM products WHERE store_id = ?",
         args: [storeId],
@@ -786,26 +786,26 @@ const productDB = {
     return products.length;
   },
 
-  // ─── PERSISTENT UNDO (product_backups) ───────────────────
-  // A previous version of "undo" only lived in the browser for a few
-  // seconds after a delete — reasonable for catching a misclick, useless
-  // for "I deleted/replaced my catalog five minutes ago and want it back".
-  // This is a real, server-side, single-slot backup: before ANY operation
-  // that can lose catalog data (deleting products, or a "replace" mode
-  // CSV/OSPOS import wiping the whole catalog first), the store's ENTIRE
-  // current product list is snapshotted here first. Restoring always means
-  // "make my catalog look exactly like it did right before that change" —
-  // a full wipe-and-reinsert of the snapshot, not a partial merge — so the
-  // same restore logic is correct whether the backup was taken before a
-  // delete or before a replace. Single slot per store (saving a new backup
-  // replaces the previous one) rather than a full history: it answers "undo
-  // my last change", not "browse every past version of my catalog".
+  // ─── UNDO (product_backups) ───────────────────────────────
+  // Classic single-level undo, like Ctrl+Z: before EVERY dashboard-
+  // initiated change to the catalog (add, edit, stock toggle, delete
+  // single/selected/all, a CSV/Excel upload, or a manual OSPOS import —
+  // append or replace alike), the store's ENTIRE current product list is
+  // snapshotted here first, overwriting whatever was saved before. Undo
+  // always means "make my catalog look exactly like it did right before
+  // my last change" — a full wipe-and-reinsert of that one snapshot, not a
+  // partial merge, and only ever one step back (no redo, no history list).
+  //
+  // Deliberately NOT called from the unattended scheduled OSPOS auto-sync
+  // job (mode "auto" in server/routes/ospos.js) — only actions the store
+  // owner actually took from the dashboard should ever be undoable, and
+  // auto-sync running in the background must never silently consume or
+  // overwrite the undo slot the owner might still want for something else.
   saveBackup: async (storeId, label) => {
     const current = await client.execute({
       sql: "SELECT * FROM products WHERE store_id = ?",
       args: [storeId],
     });
-    if (!current.rows.length) return; // nothing to lose, nothing to back up
     await client.execute({
       sql: "DELETE FROM product_backups WHERE store_id = ?",
       args: [storeId],

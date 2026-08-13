@@ -83,10 +83,18 @@ function mapOsposItem(item) {
 //               makes auto-sync safe to run unattended every few hours: it
 //               can only add or refresh, never wipe.
 async function syncItemsForStore(storeId, items, mode = "replace") {
+  // Only "replace"/"append" — a manual, dashboard-initiated import — set
+  // the undo point. "auto" is the unattended scheduled auto-sync job (see
+  // pullAllAutoSyncStores below); it must never touch the undo slot, or a
+  // background sync could silently overwrite an undo point the store owner
+  // was still relying on for something they actually did on purpose.
+  if (mode !== "auto") {
+    await productDB.saveBackup(
+      storeId,
+      mode === "replace" ? "Before OSPOS import replaced your catalog" : "Before OSPOS import added products",
+    );
+  }
   if (mode === "replace") {
-    // Snapshot what's about to be wiped so it stays restorable — see
-    // productDB.saveBackup/restoreBackup.
-    await productDB.saveBackup(storeId, "Before OSPOS import replaced your catalog");
     await client.execute({
       sql: "DELETE FROM products WHERE store_id = ?",
       args: [storeId],

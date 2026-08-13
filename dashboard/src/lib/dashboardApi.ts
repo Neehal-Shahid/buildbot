@@ -222,10 +222,11 @@ export const dashboardApi = {
         body: { ids },
         ...auth(token),
       }),
-    // Persistent, single-slot "undo my last catalog change" — not
-    // time-limited. A backup is taken right before any delete or
-    // "replace" mode import; it stays restorable until either it's used
-    // or another destructive change overwrites it.
+    // Classic single-level "Undo last change" — not time-limited. A
+    // snapshot is taken right before every dashboard-initiated catalog
+    // mutation (add/edit/stock toggle/delete/upload/import), never by
+    // OSPOS's own background auto-sync; it stays restorable until either
+    // it's used or another change overwrites it.
     backupStatus: (token: string) =>
       apiFetch<{
         success: boolean;

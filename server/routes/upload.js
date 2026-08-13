@@ -407,7 +407,7 @@ router.post(
       const count = await productDB.bulkInsert(storeId, validProducts, {
         source: "csv",
         mode,
-        backupLabel: "Before file upload replaced your catalog",
+        backupLabel: mode === "replace" ? "Before file upload replaced your catalog" : "Before file upload added products",
       });
       await storeDB.touchCatalog(storeId);
 
@@ -532,6 +532,7 @@ router.post("/product", authMiddleware, async (req, res) => {
     });
   }
   try {
+    await productDB.saveBackup(req.store.storeId, `Before adding "${name}"`);
     await client.execute({
       sql: `INSERT INTO products (store_id, name, category, price, description, source)
              VALUES (?, ?, ?, ?, ?, 'manual')`,
@@ -565,6 +566,7 @@ router.put("/product/:id", authMiddleware, async (req, res) => {
     });
   }
   try {
+    await productDB.saveBackup(req.store.storeId, `Before editing "${name}"`);
     const result = await client.execute({
       sql: `UPDATE products SET name=?, category=?, price=?, description=?
              WHERE id=? AND store_id=?`,
@@ -593,6 +595,7 @@ router.put("/product/:id", authMiddleware, async (req, res) => {
 router.put("/product/:id/stock", authMiddleware, async (req, res) => {
   const { inStock } = req.body;
   try {
+    await productDB.saveBackup(req.store.storeId, "Before changing a stock status");
     await client.execute({
       sql: "UPDATE products SET in_stock=? WHERE id=? AND store_id=?",
       args: [inStock ? 1 : 0, req.params.id, req.store.storeId],

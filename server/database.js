@@ -825,13 +825,6 @@ const productDB = {
     return res.rows[0] || null;
   },
 
-  clearBackup: async (storeId) => {
-    await client.execute({
-      sql: "DELETE FROM product_backups WHERE store_id = ?",
-      args: [storeId],
-    });
-  },
-
   // Returns null if there was nothing to restore, otherwise the restored
   // product count. Clears the backup slot afterwards — once used, that
   // snapshot no longer reflects "the state before the most recent change".

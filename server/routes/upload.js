@@ -438,7 +438,9 @@ router.post(
 // before the store's most recent destructive change (a delete, or a
 // "replace" mode CSV/OSPOS import) stays restorable until either it's
 // used or another destructive change replaces it. See
-// productDB.saveBackup/getBackup/restoreBackup/clearBackup.
+// productDB.saveBackup/getBackup/restoreBackup. There is deliberately no
+// "discard" action — the only way this option goes away is by being used,
+// or by another destructive change overwriting it with a newer snapshot.
 //
 // Registered ahead of GET /products/:storeId below on purpose: Express
 // matches routes in registration order, and "/products/backup" is a
@@ -476,15 +478,6 @@ router.post("/products/backup/restore", authMiddleware, async (req, res) => {
       success: true,
       message: `Catalog restored — ${count} product${count === 1 ? "" : "s"}.`,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.delete("/products/backup", authMiddleware, async (req, res) => {
-  try {
-    await productDB.clearBackup(req.store.storeId);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -236,8 +236,6 @@ export const dashboardApi = {
         method: "POST",
         ...auth(token),
       }),
-    discardBackup: (token: string) =>
-      apiFetch<{ success: boolean }>("/products/backup", { method: "DELETE", ...auth(token) }),
     // mode: "replace" (default) wipes the entire catalog first, no matter
     // which method(s) put products there before — "append" adds on top of
     // whatever already exists. ProductsTab asks the store owner which one

@@ -51,7 +51,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   // whether that snapshot currently exists.
   const [backup, setBackup] = useState<{ id: number; label: string; productCount: number; createdAt: string } | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
-  const [discardBusy, setDiscardBusy] = useState(false);
 
   function loadBackupStatus() {
     if (!token) return;
@@ -158,19 +157,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       toast.error("Error", err instanceof ApiError ? err.message : "Could not restore your catalog.");
     } finally {
       setRestoreBusy(false);
-    }
-  }
-
-  async function runDiscardBackup() {
-    if (!token || discardBusy) return;
-    setDiscardBusy(true);
-    try {
-      await dashboardApi.products.discardBackup(token);
-      setBackup(null);
-    } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not discard the backup.");
-    } finally {
-      setDiscardBusy(false);
     }
   }
 
@@ -666,18 +652,13 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{backup.label}</div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>
               Saved {new Date(backup.createdAt).toLocaleString()} — {backup.productCount} product
-              {backup.productCount === 1 ? "" : "s"}. This stays available until you restore it, or make another
-              change that replaces it.
+              {backup.productCount === 1 ? "" : "s"}. Stays available until you restore it, or make another change
+              that replaces it — nothing here can make this option disappear on its own.
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-primary btn-sm" onClick={runRestoreBackup} disabled={restoreBusy || discardBusy}>
-              {restoreBusy ? "Restoring…" : "Restore this catalog"}
-            </button>
-            <button type="button" className="btn btn-sm" onClick={runDiscardBackup} disabled={restoreBusy || discardBusy}>
-              {discardBusy ? "Discarding…" : "Discard"}
-            </button>
-          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={runRestoreBackup} disabled={restoreBusy} style={{ whiteSpace: "nowrap" }}>
+            {restoreBusy ? "Restoring…" : "Restore this catalog"}
+          </button>
         </div>
       )}
 

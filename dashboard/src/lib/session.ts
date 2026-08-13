@@ -23,6 +23,12 @@ export interface StoreSession {
   welcomeMsg?: string;
   buttonText?: string;
   widgetBg?: string;
+  // True for accounts created via "Sign in with Google" — they DO have a
+  // password row in the DB (a random one, generated server-side so the
+  // schema's NOT NULL constraint is satisfied), but the owner never chose
+  // or knows it, so "enter your current password to change it" is
+  // impossible for them to complete. See AccountTab.tsx.
+  isGoogleAccount?: boolean;
   [key: string]: unknown;
 }
 

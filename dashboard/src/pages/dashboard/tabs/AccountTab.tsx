@@ -35,13 +35,23 @@ function passwordProblem(pw: string): string | null {
 }
 
 export default function AccountTab() {
+  const { store } = useStoreAuth();
+  // Accounts created via "Sign in with Google" get a random password set
+  // server-side (see server/routes/auth.js) that the owner never sees, so
+  // "enter your current password" (SecurityCard) is a dead end for them —
+  // there's no current password they could know. ForgotPasswordCard's
+  // email-a-reset-link flow needs no current password at all, so for these
+  // accounts it's shown instead, relabeled as setting a password rather
+  // than resetting one.
+  const isGoogle = !!store?.isGoogleAccount;
+
   return (
     <div>
       <div className="section-title">Account</div>
       <div className="section-sub">Manage your password, security, &amp; account settings.</div>
 
-      <SecurityCard />
-      <ForgotPasswordCard />
+      {!isGoogle && <SecurityCard />}
+      <ForgotPasswordCard isGoogle={isGoogle} />
       <EmailPreferencesCard />
       <DangerZoneCard />
     </div>
@@ -183,7 +193,7 @@ function SecurityCard() {
   );
 }
 
-function ForgotPasswordCard() {
+function ForgotPasswordCard({ isGoogle }: { isGoogle: boolean }) {
   const { store } = useStoreAuth();
   const [email, setEmail] = useState(store?.email || "");
   const [busy, setBusy] = useState(false);
@@ -211,9 +221,11 @@ function ForgotPasswordCard() {
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
-      <h2>Forgot password?</h2>
+      <h2>{isGoogle ? "Set a password" : "Forgot password?"}</h2>
       <p style={{ marginBottom: 14, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
-        Same reset flow as the login page — we will email you a link to set a new password.
+        {isGoogle
+          ? "You signed up with Google, so your account doesn't have a password you chose yet. Email yourself a link to set one — useful if you ever want to sign in without Google."
+          : "Same reset flow as the login page — we will email you a link to set a new password."}
       </p>
       <div className="form-group">
         <label className="form-label" htmlFor="acct-reset-email">
@@ -230,7 +242,7 @@ function ForgotPasswordCard() {
         />
       </div>
       <button type="button" className="btn btn-outline btn-sm" onClick={submit} disabled={busy}>
-        {busy ? "Sending…" : "Email reset link"}
+        {busy ? "Sending…" : isGoogle ? "Email set-password link" : "Email reset link"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} style={{ maxWidth: 420 }} />
     </div>

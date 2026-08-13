@@ -33,10 +33,16 @@ export default function WidgetSettingsTab() {
   );
 }
 
+// BuildVolt currently only serves Pakistani stores, so currency isn't a
+// real user choice yet — every store saves as PKR. The picker (PKR/USD/
+// AED) was removed rather than just hidden: leaving it visible implied a
+// multi-currency capability the widget and recommendation engine don't
+// actually support yet.
+const DEFAULT_CURRENCY = "PKR";
+
 function BrandingCard() {
   const { token, store, refresh } = useStoreAuth();
   const [color, setColor] = useState(store?.brandColor || "#4f46e5");
-  const [currency, setCurrency] = useState(store?.currency || "PKR");
   const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -52,7 +58,7 @@ function BrandingCard() {
     setBusy(true);
     setAlert(null);
     try {
-      const data = await dashboardApi.settings.saveBranding(token, color.trim(), currency);
+      const data = await dashboardApi.settings.saveBranding(token, color.trim(), DEFAULT_CURRENCY);
       setAlert({ msg: data.message, type: "success" });
       refresh();
     } catch (err) {
@@ -67,7 +73,7 @@ function BrandingCard() {
 
   return (
     <div className="card">
-      <h2>Brand Colors &amp; Currency</h2>
+      <h2>Brand Color</h2>
       <p style={{ marginBottom: 20 }}>Match the widget to your store's look.</p>
       <div className="form-group">
         <label className="form-label" htmlFor="brand-color-text">
@@ -91,16 +97,6 @@ function BrandingCard() {
             maxLength={7}
           />
         </div>
-      </div>
-      <div className="form-group">
-        <label className="form-label" htmlFor="brand-currency">
-          Currency
-        </label>
-        <select id="brand-currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-          <option value="PKR">PKR – Pakistani Rupee</option>
-          <option value="USD">USD – US Dollar</option>
-          <option value="AED">AED – UAE Dirham</option>
-        </select>
       </div>
       <button type="button" className={`btn btn-primary${busy ? " is-loading" : ""}`} onClick={save} disabled={busy}>
         {busy ? "Saving…" : "Save Branding"}

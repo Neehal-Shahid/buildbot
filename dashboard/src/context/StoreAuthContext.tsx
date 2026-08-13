@@ -45,6 +45,7 @@ function normalizeStore(raw: Record<string, unknown>): StoreSession {
     welcomeMsg: String(raw.welcome_msg || WIDGET_DEFAULTS.welcomeMsg),
     buttonText: String(raw.button_text || WIDGET_DEFAULTS.buttonText),
     widgetBg: String(raw.widget_bg || WIDGET_DEFAULTS.widgetBg),
+    isGoogleAccount: !!raw.google_id,
   };
 }
 
@@ -121,6 +122,12 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
     setStoreSession(t, s);
     setToken(t);
     setStore(s);
+    // Login/signup/Google-auth responses only carry a handful of fields
+    // (see server/routes/auth.js), not the full /me shape — isGoogleAccount
+    // among them. Refresh right after so a store owner who just finished
+    // signing in doesn't have to reload the page before fields like that
+    // one are actually correct (see AccountTab.tsx).
+    refresh();
   }
 
   function logout() {

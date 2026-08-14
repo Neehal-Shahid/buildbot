@@ -17,6 +17,24 @@ const TO_OVERRIDE = EMAIL_TEST_MODE
   ? (process.env.RESEND_EMAIL_4TEST || "muhammadneehal1805@gmail.com") 
   : null;
 
+// Store owners control their own name and support-ticket subject/message,
+// and none of that is HTML-stripped on the way in (see /store-setup and
+// /support in routes/auth.js) — interpolated raw into an HTML email, a
+// store name or ticket message like `<a href="...">Security Alert</a>`
+// renders as a real, clickable link in the platform admin's inbox, the
+// most privileged account on the platform. Applied only to the fields
+// below that reach an *admin* inbox from store-controlled input — emails
+// sent back to a store using their own data aren't a cross-account risk.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[ch]);
+}
+
 // ─── EMAIL BASE TEMPLATE ────────────────────────────────────────
 function emailBase({ preheader = "", content = "" } = {}) {
   return `<!DOCTYPE html>
@@ -298,11 +316,14 @@ function adminPasswordResetEmail(name, email, token) {
 
 function adminNewStoreEmail(storeName, storeEmail, storeId) {
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "workwithneehal@gmail.com";
+  const safeName = escapeHtml(storeName);
+  const safeEmail = escapeHtml(storeEmail);
+  const safeId = escapeHtml(storeId);
   return {
     to: ADMIN_EMAIL,
     subject: `New store registered — ${storeName}`,
     html: emailBase({
-      preheader: `${storeName} just signed up for BuildVolt.`,
+      preheader: `${safeName} just signed up for BuildVolt.`,
       content: `
     <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
       <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
@@ -313,9 +334,9 @@ function adminNewStoreEmail(storeName, storeEmail, storeId) {
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">Here are the details:</p>
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
       <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
-        <div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Store Name</span><br/><strong style="color:#111827;font-size:14px;">${storeName}</strong></div>
-        <div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Email</span><br/><strong style="color:#111827;font-size:14px;">${storeEmail}</strong></div>
-        <div><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Store ID</span><br/><strong style="color:#111827;font-size:14px;">${storeId}</strong></div>
+        <div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Store Name</span><br/><strong style="color:#111827;font-size:14px;">${safeName}</strong></div>
+        <div style="margin-bottom:10px;"><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Email</span><br/><strong style="color:#111827;font-size:14px;">${safeEmail}</strong></div>
+        <div><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#9ca3af;">Store ID</span><br/><strong style="color:#111827;font-size:14px;">${safeId}</strong></div>
       </td></tr>
     </table>
     <table cellpadding="0" cellspacing="0"><tr>
@@ -380,25 +401,27 @@ function supportTicketAdminEmail(
   ticketId,
 ) {
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "workwithneehal@gmail.com";
+  const safeName = escapeHtml(storeName);
+  const safeSubject = escapeHtml(subject);
   return {
     to: ADMIN_EMAIL,
     subject: `[Support #${ticketId}] ${subject}`,
     html: emailBase({
-      preheader: `${storeName} submitted a support request.`,
+      preheader: `${safeName} submitted a support request.`,
       content: `
     <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
       <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
         <span style="font-size:12px;font-weight:700;color:#4f46e5;letter-spacing:0.05em;text-transform:uppercase;">Support Request #${ticketId}</span>
       </td>
     </tr></table>
-    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${subject}</h2>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${safeSubject}</h2>
     <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
-      <strong style="color:#111827;">${storeName}</strong><br/>
-      ${storeEmail} · Store ID: ${storeId}
+      <strong style="color:#111827;">${safeName}</strong><br/>
+      ${escapeHtml(storeEmail)} · Store ID: ${escapeHtml(storeId)}
     </p>
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
       <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
-        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${message}</div>
+        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${escapeHtml(message)}</div>
       </td></tr>
     </table>
     <table cellpadding="0" cellspacing="0"><tr>
@@ -466,25 +489,27 @@ function supportTicketReplyToStoreEmail(storeName, email, subject, replyMessage,
 // a brand-new request.
 function supportTicketFollowUpAdminEmail(storeName, storeEmail, storeId, subject, replyMessage, ticketId) {
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "workwithneehal@gmail.com";
+  const safeName = escapeHtml(storeName);
+  const safeSubject = escapeHtml(subject);
   return {
     to: ADMIN_EMAIL,
     subject: `[Support #${ticketId}] Follow-up: ${subject}`,
     html: emailBase({
-      preheader: `${storeName} replied on support request #${ticketId}.`,
+      preheader: `${safeName} replied on support request #${ticketId}.`,
       content: `
     <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
       <td style="background:#eef2ff;border:1px solid rgba(79,70,229,0.2);border-radius:8px;padding:10px 14px;">
         <span style="font-size:12px;font-weight:700;color:#4f46e5;letter-spacing:0.05em;text-transform:uppercase;">Follow-up on #${ticketId}</span>
       </td>
     </tr></table>
-    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${subject}</h2>
+    <h2 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">${safeSubject}</h2>
     <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
-      <strong style="color:#111827;">${storeName}</strong><br/>
-      ${storeEmail} · Store ID: ${storeId}
+      <strong style="color:#111827;">${safeName}</strong><br/>
+      ${escapeHtml(storeEmail)} · Store ID: ${escapeHtml(storeId)}
     </p>
     <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
       <tr><td style="padding:16px 20px;background:#f7f8fa;border:1px solid #e4e7ed;border-radius:10px;">
-        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${replyMessage}</div>
+        <div style="font-size:14px;color:#374151;line-height:1.8;white-space:pre-wrap;">${escapeHtml(replyMessage)}</div>
       </td></tr>
     </table>
     <table cellpadding="0" cellspacing="0"><tr>

@@ -87,8 +87,16 @@ function mapProduct(wooProduct) {
     .trim()
     .slice(0, 200);
 
-  const wooCategoryName = wooProduct.categories?.[0]?.name || "";
-  const category = normalizeCategory(wooCategoryName, wooProduct.name || "");
+  // Join every WooCommerce category, not just the first one — a product's
+  // first category is often a generic/marketing tag ("Uncategorized",
+  // "Featured") with the actual part-type category listed second or
+  // third, and detectCategory() does substring matching so joining is
+  // enough to let any of them match.
+  const wooCategoryNames = (wooProduct.categories || [])
+    .map((c) => c?.name || "")
+    .filter(Boolean)
+    .join(" ");
+  const category = normalizeCategory(wooCategoryNames, wooProduct.name || "");
 
   return {
     name: wooProduct.name || "Unknown Product",

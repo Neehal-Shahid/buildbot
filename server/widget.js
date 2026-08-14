@@ -235,31 +235,12 @@
           <button class="bb-btn" id="bb-next-s2">Next →</button>
         </div>
 
-        <!-- S3: Purpose -->
-        <div class="bb-screen" id="bb-s3">
-          <button class="bb-back" id="bb-back-s3">← Back</button>
-          <div class="bb-step-label">Step 2 of 3</div>
-          <div class="bb-screen-title" style="font-size:17px;">What will you build it for?</div>
-          <div class="bb-field-error" id="bb-purpose-error"></div>
-          <div class="bb-chips" id="bb-purposes">
-            <button class="bb-chip" aria-pressed="false">🏢 Office Work</button>
-            <button class="bb-chip" aria-pressed="false">📚 Studies</button>
-            <button class="bb-chip" aria-pressed="false">💻 Coding</button>
-            <button class="bb-chip" aria-pressed="false">🎨 Designing</button>
-            <button class="bb-chip" aria-pressed="false">🎬 Video Editing</button>
-            <button class="bb-chip" aria-pressed="false">🎮 Gaming</button>
-            <button class="bb-chip" aria-pressed="false">📡 Streaming</button>
-            <button class="bb-chip" aria-pressed="false">🔁 Mixed Use</button>
-          </div>
-          <button class="bb-btn" id="bb-next-s3">Next →</button>
-        </div>
-
         <!-- S4: Build -->
         <div class="bb-screen" id="bb-s4">
           <button class="bb-back" id="bb-back-s4">← Back</button>
-          <div class="bb-step-label">Step 3 of 3</div>
+          <div class="bb-step-label">Step 2 of 2</div>
           <div class="bb-screen-title" style="font-size:17px;">Ready to build your PC?</div>
-          <div class="bb-screen-body">BuildVolt will use the store inventory to create 3 compatible PC builds that fit your budget and purpose.</div>
+          <div class="bb-screen-body">BuildVolt will use the store inventory to create 3 compatible PC builds that fit your budget — a Budget, a Balanced, and a Max-Spend option.</div>
           <button class="bb-btn" id="bb-build-btn">⚡ Build My PC</button>
         </div>
 
@@ -323,7 +304,10 @@
 
   // ─── EVENTS ───────────────────────────────────────────────
   function bindEvents() {
-    let selectedPurpose = "";
+    // No longer asked as a separate step — budget alone drives the 3 tiers
+    // (Budget/Balanced/Max), so this stays fixed at the neutral default
+    // getPurposeProfile() already falls back to for unrecognized text.
+    let selectedPurpose = "general";
     const $ = (id) => document.getElementById(id);
 
     // Helper functions for error handling
@@ -395,7 +379,7 @@
       }
       hideError("bb-budget-error");
       $("bb-budget").classList.remove("error");
-      goTo("s2", "s3", 2);
+      goTo("s2", "s4", 2);
     };
 
     $("bb-back-s2").onclick = () => goTo("s2", "s1", 0);
@@ -406,34 +390,7 @@
       $("bb-budget").classList.remove("error");
     };
 
-    $("bb-purposes")
-      .querySelectorAll(".bb-chip")
-      .forEach((chip) => {
-        chip.onclick = () => {
-          $("bb-purposes")
-            .querySelectorAll(".bb-chip")
-            .forEach((c) => {
-              c.classList.remove("sel");
-              c.setAttribute("aria-pressed", "false");
-            });
-          chip.classList.add("sel");
-          chip.setAttribute("aria-pressed", "true");
-          selectedPurpose = chip.textContent.trim();
-          hideError("bb-purpose-error");
-        };
-      });
-
-    $("bb-next-s3").onclick = () => {
-      if (!selectedPurpose) {
-        showError("bb-purpose-error", "Please select a purpose!");
-        return;
-      }
-      hideError("bb-purpose-error");
-      goTo("s3", "s4", 3);
-    };
-
-    $("bb-back-s3").onclick = () => goTo("s3", "s2", 1);
-    $("bb-back-s4").onclick = () => goTo("s4", "s3", 2);
+    $("bb-back-s4").onclick = () => goTo("s4", "s2", 1);
 
     $("bb-build-btn").onclick = async () => {
       const budget = $("bb-budget").value;
@@ -524,7 +481,7 @@
     };
 
     $("bb-restart-btn").onclick = () => {
-      selectedPurpose = "";
+      selectedPurpose = "general";
       $("bb-budget").value = "";
       document.querySelectorAll(".bb-chip").forEach((c) => {
         c.classList.remove("sel");
@@ -580,6 +537,23 @@
         const overlay = document.getElementById("bb-modal-overlay");
         if (overlay) overlay.classList.remove("open");
       }
+    });
+
+    // Delegated (not per-render) so it keeps working across every
+    // openBuildModal() re-render without stacking duplicate listeners.
+    // Reads the name back out of a data-attribute rather than building the
+    // search URL inline in the generated HTML, so a product name with
+    // quotes/special characters can never break out of an inline handler.
+    document.getElementById("bb-modal-content").addEventListener("click", (e) => {
+      const row = e.target.closest(".bb-modal-part-clickable");
+      if (!row) return;
+      const name = row.dataset.partName;
+      if (!name) return;
+      window.open(
+        `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(name)}`,
+        "_blank",
+        "noopener",
+      );
     });
   }
 
@@ -699,10 +673,10 @@
         const qty = p.quantity || 1;
         const totalPrice = p.totalPrice || p.price * qty;
         return `
-        <div class="bb-modal-part">
+        <div class="bb-modal-part bb-modal-part-clickable" data-part-name="${escapeHtml(p.name)}" title="See images of this exact part on Google">
           <div class="bb-modal-part-cat">${escapeHtml(p.category)}</div>
           <div class="bb-modal-part-info">
-            <div class="bb-modal-part-name">${escapeHtml(p.name)}</div>
+            <div class="bb-modal-part-name">${escapeHtml(p.name)} <span class="bb-modal-part-search">🔍</span></div>
             ${qty > 1 ? `<div class="bb-modal-part-qty">× ${qty} units</div>` : ""}
             ${p.reason ? `<div class="bb-modal-part-reason">${escapeHtml(p.reason)}</div>` : ""}
           </div>
@@ -851,6 +825,19 @@
     }
 
     if (ORDER_METHOD === "whatsapp") {
+      // Without a saved order_requests row, the store owner has no
+      // server-side record to cross-check the WhatsApp message against —
+      // and since WhatsApp always requires the customer to tap Send
+      // themselves before it goes anywhere, that message text could still
+      // be edited (e.g. the price) with nothing to catch it against. Safer
+      // to make the customer retry than to send an unverifiable order.
+      if (!orderId) {
+        btn.disabled = false;
+        btn.textContent = origText;
+        btn.dataset.bbOrdering = "";
+        alert("Could not prepare your order — please try again.");
+        return;
+      }
       const lines = [
         `Hi! I'd like to order this PC build from ${WIDGET_TITLE}:`,
         "",

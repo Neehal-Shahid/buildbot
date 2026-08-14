@@ -289,6 +289,17 @@ export const dashboardApi = {
         method: "POST",
         ...auth(token),
       }),
+    // Pulls the latest OSPOS listing right now, reusing the credentials
+    // already saved from the original import — for when a store owner just
+    // changed something in OSPOS and doesn't want to wait for the next
+    // scheduled auto-sync run.
+    syncOsposNow: (token: string) =>
+      apiFetch<{
+        success: boolean;
+        message?: string;
+        error?: string;
+        synced?: number;
+      }>("/ospos/sync-now", { method: "POST", ...auth(token) }),
     // Where the widget's product data comes from — separate from which
     // install method (script vs plugin) delivers the widget itself.
     // Switching to a different source (once one's already been chosen)

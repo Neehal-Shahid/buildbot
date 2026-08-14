@@ -764,8 +764,15 @@ const productDB = {
     // productDB.saveBackup.
     await productDB.saveBackup(storeId, backupLabel || (mode === "replace" ? "Catalog replaced" : "Products added"));
     if (mode === "replace") {
+      // Scoped to the dashboard-family sources only ('manual' hand-added
+      // rows and 'csv' bulk uploads are the same "Dashboard" catalog from
+      // the store owner's point of view) — other data sources' rows now
+      // stay dormant rather than being deleted on switch (see
+      // POST /data-source in routes/upload.js), so an unscoped delete here
+      // would wipe out a different source's catalog too if the store had
+      // used one before.
       await client.execute({
-        sql: "DELETE FROM products WHERE store_id = ?",
+        sql: "DELETE FROM products WHERE store_id = ? AND source IN ('manual', 'csv')",
         args: [storeId],
       });
     }
@@ -793,9 +800,23 @@ const productDB = {
     return products.length;
   },
 
+  // Only returns rows from the store's CURRENTLY ACTIVE data source.
+  // Switching data source no longer deletes the other sources' rows (see
+  // POST /data-source in routes/upload.js) — they just sit dormant, tagged
+  // by their own `source` column, so switching back to a source that was
+  // used before shows exactly what it had, with nothing to re-import.
+  // 'manual' covers both hand-added rows (source='manual') and CSV/Excel/
+  // Word/PDF bulk uploads (source='csv') — both are "the dashboard" from
+  // the store owner's point of view, there's no separate picker for them.
   getByStore: async (storeId) => {
     const res = await client.execute({
-      sql: "SELECT * FROM products WHERE store_id = ? AND in_stock = 1",
+      sql: `SELECT p.* FROM products p
+            JOIN stores s ON s.store_id = p.store_id
+            WHERE p.store_id = ? AND p.in_stock = 1
+              AND (
+                (s.data_source = 'manual' AND p.source IN ('manual', 'csv'))
+                OR (s.data_source != 'manual' AND p.source = s.data_source)
+              )`,
       args: [storeId],
     });
     return res.rows;

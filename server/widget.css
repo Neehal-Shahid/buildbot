@@ -832,6 +832,14 @@
   transition: border-color 0.15s;
 }
 .bb-modal-part:hover { border-color: var(--bb-border-hover); }
+.bb-modal-part-clickable { cursor: pointer; }
+.bb-modal-part-clickable:hover { border-color: var(--bb-brand); }
+.bb-modal-part-search {
+  font-size: 11px;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.bb-modal-part-clickable:hover .bb-modal-part-search { opacity: 1; }
 .bb-modal-part-cat {
   font-family: 'Inter', sans-serif;
   font-size: 9px;

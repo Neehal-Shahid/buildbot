@@ -526,19 +526,12 @@ router.post("/data-source", authMiddleware, async (req, res) => {
     const sourceLabel = { woo: "WordPress / WooCommerce", ospos: "OSPOS", manual: "Dashboard" }[source];
     const switching = !!store.data_source_confirmed && store.data_source !== source;
 
-    if (switching) {
-      // The old source's catalog is no longer authoritative — clear it so
-      // the store never shows a stale mix of two sources. Snapshotted
-      // first so "Undo last change" in Products can bring it straight
-      // back if this was a mistake.
-      await productDB.saveBackup(req.store.storeId, `Before switching data source to ${sourceLabel}`);
-      await client.execute({
-        sql: "DELETE FROM products WHERE store_id = ?",
-        args: [req.store.storeId],
-      });
-    }
-
-    // OSPOS is a pure data source with no other role, so leaving it means
+    // The old source's rows are NOT deleted — they're just tagged with
+    // their own `source` value (see productDB.getByStore), so they simply
+    // stop being shown/used while another source is active. Switching back
+    // to a source used before shows exactly what it had, with nothing to
+    // re-import or undo. OSPOS is the one exception: it's a pure data
+    // source with no other role, so leaving it also disables auto-sync —
     // BuildVolt shouldn't keep holding credentials for (or polling) a
     // database the store owner no longer wants used. WooCommerce is
     // different — the plugin connection stays alive regardless of data
@@ -552,7 +545,7 @@ router.post("/data-source", authMiddleware, async (req, res) => {
     res.json({
       success: true,
       message: switching
-        ? `Data source switched to ${sourceLabel}. Your previous catalog can be undone from Products if needed.`
+        ? `Data source switched to ${sourceLabel}.`
         : `Data source set to ${sourceLabel}.`,
     });
   } catch (err) {
@@ -582,10 +575,20 @@ router.get("/products/:storeId", async (req, res) => {
 });
 
 // ─── GET ALL PRODUCTS (dashboard, includes out of stock) ──
+// Same active-source filtering as productDB.getByStore, minus the
+// in_stock restriction — the store owner needs to see and manage
+// out-of-stock rows here too, not just what the widget currently offers.
 router.get("/products/manage/:storeId", authMiddleware, async (req, res) => {
   try {
     const res2 = await client.execute({
-      sql: `SELECT * FROM products WHERE store_id = ? ORDER BY category, name`,
+      sql: `SELECT p.* FROM products p
+            JOIN stores s ON s.store_id = p.store_id
+            WHERE p.store_id = ?
+              AND (
+                (s.data_source = 'manual' AND p.source IN ('manual', 'csv'))
+                OR (s.data_source != 'manual' AND p.source = s.data_source)
+              )
+            ORDER BY p.category, p.name`,
       args: [req.store.storeId],
     });
     res.json({ success: true, products: res2.rows });

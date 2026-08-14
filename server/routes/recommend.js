@@ -687,10 +687,10 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
 
   const summaryBase =
     tier === "Budget Build"
-      ? `The most economical complete build for ${purpose || "your needs"}, using this store's cheapest compatible parts.`
+      ? "The most economical complete build for your needs, using this store's cheapest compatible parts."
       : tier === "Balanced Build"
-        ? `A balanced build that puts extra budget where it matters most for ${purpose || "your needs"}, without maxing out your spend.`
-        : `A premium build that uses the best compatible parts this store can offer, as close to your full budget as possible.`;
+        ? "A balanced build that puts extra budget where it matters most, without maxing out your spend."
+        : "A premium build that uses the best compatible parts this store can offer, as close to your full budget as possible.";
 
   const missingNote = missingCategories.length
     ? ` Not available in the store's current inventory: ${missingCategories.join(", ")}.`
@@ -768,8 +768,8 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     if (!cpus.length) missingHere.push("CPU");
     if (!boards.length) missingHere.push("Motherboard");
     const noBuildsReason = missingHere.length
-      ? `Your inventory is missing: ${missingHere.join(", ")}. Add products in ${missingHere.length > 1 ? "these categories" : "this category"} to enable PC builds.`
-      : "None of the CPUs in your inventory share a matching socket with any motherboard (e.g. LGA1700, AM5), so a complete build can't be assembled. Check the socket details in your product names or descriptions.";
+      ? `This store's inventory is missing: ${missingHere.join(", ")}. Add products in ${missingHere.length > 1 ? "these categories" : "this category"} to enable PC builds.`
+      : "None of the CPUs in this store's inventory share a matching socket with any motherboard (e.g. LGA1700, AM5), so a complete build can't be assembled. Check the socket details in the product names or descriptions.";
     return { canBuild: false, noBuildsReason, builds: [] };
   }
 
@@ -796,7 +796,7 @@ function generateBuildsFromCatalog(products, budget, purpose) {
       (n) => missingSet.get(n) === "not_in_inventory",
     );
     const noBuildsReason = notInInventory.length
-      ? `Your inventory is missing: ${notInInventory.join(", ")}. A complete PC build needs at least one product in every core category.`
+      ? `This store's inventory is missing: ${notInInventory.join(", ")}. A complete PC build needs at least one product in every core category.`
       : `We couldn't find a combination where ${names.join(", ")} are compatible with the rest of the build. Double-check specs like memory type (DDR4/DDR5) or case form factor in your product descriptions.`;
     return { canBuild: false, noBuildsReason, builds: [] };
   }

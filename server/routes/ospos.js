@@ -95,8 +95,12 @@ async function syncItemsForStore(storeId, items, mode = "replace") {
     );
   }
   if (mode === "replace") {
+    // Scoped to this source only — other data sources' rows now stay
+    // dormant rather than being deleted on switch (see POST /data-source
+    // in routes/upload.js), so an unscoped delete here would wipe out a
+    // different source's catalog too if the store had used one before.
     await client.execute({
-      sql: "DELETE FROM products WHERE store_id = ?",
+      sql: "DELETE FROM products WHERE store_id = ? AND source = 'ospos'",
       args: [storeId],
     });
   }
@@ -174,18 +178,22 @@ async function syncItemsForStore(storeId, items, mode = "replace") {
 // controller in its codebase, and a request for one, issue #2463, has
 // been open, unresolved, since 2019), so a direct, read-only database
 // query is the only integration point available.
-const ITEMS_QUERY = `
-  SELECT
-      i.item_id, i.name, i.category, i.description, i.item_number,
-      i.unit_price, i.cost_price,
-      i.custom1, i.custom2, i.custom3, i.custom4, i.custom5,
-      i.custom6, i.custom7, i.custom8, i.custom9, i.custom10,
-      COALESCE(SUM(q.quantity), 0) AS quantity
-  FROM ospos_items i
-  LEFT JOIN ospos_item_quantities q ON q.item_id = i.item_id
-  WHERE i.deleted = 0
-  GROUP BY i.item_id
-`;
+const CUSTOM_FIELD_NAMES = Array.from({ length: 10 }, (_, i) => `custom${i + 1}`);
+
+function buildItemsQuery(presentCustomFields) {
+  const customCols = presentCustomFields.map((c) => `i.${c}`).join(", ");
+  return `
+    SELECT
+        i.item_id, i.name, i.category, i.description, i.item_number,
+        i.unit_price, i.cost_price
+        ${customCols ? `, ${customCols}` : ""},
+        COALESCE(SUM(q.quantity), 0) AS quantity
+    FROM ospos_items i
+    LEFT JOIN ospos_item_quantities q ON q.item_id = i.item_id
+    WHERE i.deleted = 0
+    GROUP BY i.item_id
+  `;
+}
 
 // Shared by the interactive import and the scheduled auto-sync job: open a
 // connection, read every item, close the connection — always, even on
@@ -204,7 +212,23 @@ async function connectReadAndClose({ host, port, database, username, password })
     // don't have a certificate configured for it anyway.
   });
   try {
-    const [rows] = await connection.query(ITEMS_QUERY);
+    // The custom1..custom10 columns were dropped from ospos_items in newer
+    // OSPOS releases in favor of a separate attributes system (confirmed
+    // against a real 3.4.1 install, where querying them outright fails
+    // the whole import with "Unknown column"). They're purely optional
+    // enrichment (see buildEnrichedDescription below), so check which ones
+    // actually exist on this store's install and only select those —
+    // works against both old installs that still have them and new ones
+    // that don't.
+    const [colRows] = await connection.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'ospos_items' AND COLUMN_NAME IN (?)`,
+      [database, CUSTOM_FIELD_NAMES],
+    );
+    const presentCustomFields = CUSTOM_FIELD_NAMES.filter((name) =>
+      colRows.some((r) => r.COLUMN_NAME === name),
+    );
+    const [rows] = await connection.query(buildItemsQuery(presentCustomFields));
     return rows;
   } finally {
     await connection.end().catch(() => {});
@@ -309,6 +333,54 @@ router.get("/ospos/auto-sync-status", async (req, res) => {
     });
   } catch (err) {
     res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+// ─── SYNC NOW (dashboard-authenticated) ────────────────────
+// Lets the store owner pull the latest OSPOS listing on demand instead of
+// waiting for the next scheduled auto-sync run (every few hours) — reuses
+// the credentials already saved from the original import, so there's
+// nothing to re-enter. Same "auto" merge mode as the scheduled job: never
+// deletes, only adds/updates.
+router.post("/ospos/sync-now", osposLimiter, async (req, res) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token" });
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  const store = await storeDB.findById(decoded.storeId);
+  if (!store) return res.status(404).json({ error: "Store not found" });
+  if (!store.ospos_auto_sync) {
+    return res.status(400).json({
+      success: false,
+      error: "OSPOS isn't connected yet — import once first.",
+    });
+  }
+
+  try {
+    const rows = await connectReadAndClose({
+      host: store.ospos_db_host,
+      port: store.ospos_db_port,
+      database: store.ospos_db_name,
+      username: store.ospos_db_user,
+      password: decrypt(store.ospos_db_password),
+    });
+    const result = await syncItemsForStore(decoded.storeId, rows, "auto");
+    res.json({
+      success: true,
+      message: `Synced — ${result.synced} product${result.synced === 1 ? "" : "s"} up to date.`,
+      ...result,
+    });
+  } catch (err) {
+    res.status(200).json({
+      success: false,
+      error: `Sync failed: ${err.message}`,
+    });
   }
 });
 

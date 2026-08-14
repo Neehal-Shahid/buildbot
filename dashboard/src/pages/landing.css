@@ -36,6 +36,11 @@
         background: var(--bg);
         color: var(--text);
         min-height: 100vh;
+        /* Safety net against any single element (long unbreakable word,
+           a fixed-width box, etc.) pushing the whole page into horizontal
+           scroll on narrow viewports — see .hero-h1's overflow-wrap fix
+           below for the specific case that surfaced this. */
+        overflow-x: hidden;
       }
 
       /* ── PAGES ── */
@@ -597,6 +602,20 @@
         box-shadow: 0 24px 40px rgba(0, 0, 0, 0.35);
       }
 
+      /* backdrop-filter on #main-nav creates a new containing block for
+         any position:fixed descendant — including .nav-links, the mobile
+         drawer. That silently broke its "top: 0; right: 0" (meant to be
+         relative to the viewport): it ended up anchored to #main-nav's
+         own small pill-shaped box instead, so the drawer rendered
+         offset/short instead of covering the full right edge of the
+         screen, with the hero text still faintly visible where the
+         drawer should have been solid. Dropping the filter while open
+         (see the nav-open class toggle in LandingPage.tsx) restores true
+         viewport-relative fixed positioning for the drawer.  */
+      #main-nav.nav-open {
+        backdrop-filter: none;
+      }
+
       #main-nav .nav-logo {
         font-family: "Montserrat", sans-serif;
         font-size: 18px;
@@ -657,7 +676,8 @@
       #page-signup.active,
       #page-login.active,
       #page-forgot.active,
-      #page-verify-pending.active {
+      #page-verify-pending.active,
+      #page-reset-password.active {
         height: calc(100vh - 72px);
         overflow: hidden;
       }
@@ -709,7 +729,8 @@
       #page-signup,
       #page-login,
       #page-forgot,
-      #page-verify-pending {
+      #page-verify-pending,
+      #page-reset-password {
         background: var(--auth-bg);
         min-height: 100vh;
       }
@@ -717,7 +738,8 @@
       #page-signup.active,
       #page-login.active,
       #page-forgot.active,
-      #page-verify-pending.active {
+      #page-verify-pending.active,
+      #page-reset-password.active {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -980,6 +1002,11 @@
         animation: fadeUp 0.5s ease 0.1s both;
         position: relative;
         z-index: 2;
+        /* "Recommendations" alone is wider than the available width on
+           narrow phones at this weight/size — without this it overflowed
+           past the edge instead of wrapping, dragging the whole page into
+           horizontal scroll. */
+        overflow-wrap: break-word;
       }
 
       .hero-sub {
@@ -1719,7 +1746,8 @@
       #page-signup .auth-wrap,
       #page-login .auth-wrap,
       #page-forgot .auth-wrap,
-      #page-verify-pending .auth-wrap {
+      #page-verify-pending .auth-wrap,
+      #page-reset-password .auth-wrap {
         width: 100%;
         max-width: 440px;
         display: flex;
@@ -1733,7 +1761,8 @@
       #page-signup .auth-box,
       #page-login .auth-box,
       #page-forgot .auth-box,
-      #page-verify-pending .auth-box {
+      #page-verify-pending .auth-box,
+      #page-reset-password .auth-box {
         width: 100%;
         background: var(--auth-surface);
         border: 1px solid var(--auth-border);
@@ -1762,7 +1791,8 @@
       #page-signup .auth-box h2,
       #page-login .auth-box h2,
       #page-forgot .auth-box h2,
-      #page-verify-pending .auth-box h2 {
+      #page-verify-pending .auth-box h2,
+      #page-reset-password .auth-box h2 {
         font-size: 22px;
         font-weight: 700;
         color: var(--auth-text);
@@ -1775,7 +1805,8 @@
       #page-signup .auth-box > p,
       #page-login .auth-box > p,
       #page-forgot .auth-box > p,
-      #page-verify-pending .auth-box > p {
+      #page-verify-pending .auth-box > p,
+      #page-reset-password .auth-box > p {
         font-size: 13px;
         color: var(--auth-muted);
         margin-bottom: 24px;
@@ -1819,14 +1850,16 @@
       #page-signup .form-group,
       #page-login .form-group,
       #page-forgot .form-group,
-      #page-verify-pending .form-group {
+      #page-verify-pending .form-group,
+      #page-reset-password .form-group {
         margin-bottom: 14px;
       }
 
       #page-signup .form-label,
       #page-login .form-label,
       #page-forgot .form-label,
-      #page-verify-pending .form-label {
+      #page-verify-pending .form-label,
+      #page-reset-password .form-label {
         display: block;
         font-size: 12px;
         font-weight: 600;
@@ -1839,7 +1872,8 @@
       #page-signup input,
       #page-login input,
       #page-forgot input,
-      #page-verify-pending input {
+      #page-verify-pending input,
+      #page-reset-password input {
         background: var(--auth-surface);
         border: 1px solid var(--auth-border);
         border-radius: 6px;
@@ -1917,7 +1951,8 @@
       #page-signup .btn.btn-primary.btn-full,
       #page-login .btn.btn-primary.btn-full,
       #page-forgot .btn.btn-primary.btn-full,
-      #page-verify-pending .btn.btn-primary.btn-full {
+      #page-verify-pending .btn.btn-primary.btn-full,
+      #page-reset-password .btn.btn-primary.btn-full {
         background: var(--auth-accent);
         color: #fff;
         border: none;
@@ -1938,7 +1973,8 @@
       #page-signup .btn.btn-primary.btn-full:hover,
       #page-login .btn.btn-primary.btn-full:hover,
       #page-forgot .btn.btn-primary.btn-full:hover,
-      #page-verify-pending .btn.btn-primary.btn-full:hover {
+      #page-verify-pending .btn.btn-primary.btn-full:hover,
+      #page-reset-password .btn.btn-primary.btn-full:hover {
         background: var(--auth-accent-hover);
         transform: none;
         box-shadow: none;
@@ -1948,7 +1984,8 @@
       #page-signup .alert,
       #page-login .alert,
       #page-forgot .alert,
-      #page-verify-pending .alert {
+      #page-verify-pending .alert,
+      #page-reset-password .alert {
         margin-top: 12px;
         font-size: 13px;
         border-radius: 8px;
@@ -1957,7 +1994,8 @@
       #page-signup .alert-error,
       #page-login .alert-error,
       #page-forgot .alert-error,
-      #page-verify-pending .alert-error {
+      #page-verify-pending .alert-error,
+      #page-reset-password .alert-error {
         background: var(--auth-danger-bg);
         color: var(--auth-danger);
         border-color: rgba(220, 38, 38, 0.2);
@@ -1967,7 +2005,8 @@
       #page-signup .auth-switch,
       #page-login .auth-switch,
       #page-forgot .auth-switch,
-      #page-verify-pending .auth-switch {
+      #page-verify-pending .auth-switch,
+      #page-reset-password .auth-switch {
         text-align: center;
         margin-top: 18px;
         font-size: 13px;
@@ -1977,7 +2016,8 @@
       #page-signup .auth-switch a,
       #page-login .auth-switch a,
       #page-forgot .auth-switch a,
-      #page-verify-pending .auth-switch a {
+      #page-verify-pending .auth-switch a,
+      #page-reset-password .auth-switch a {
         color: var(--auth-accent);
         font-weight: 600;
         cursor: pointer;
@@ -1988,7 +2028,8 @@
       #page-signup .auth-switch a:hover,
       #page-login .auth-switch a:hover,
       #page-forgot .auth-switch a:hover,
-      #page-verify-pending .auth-switch a:hover {
+      #page-verify-pending .auth-switch a:hover,
+      #page-reset-password .auth-switch a:hover {
         text-decoration: underline;
       }
 
@@ -2036,7 +2077,8 @@
       }
 
       /* Verify pending page */
-      #page-verify-pending .auth-status-icon {
+      #page-verify-pending .auth-status-icon,
+      #page-reset-password .auth-status-icon {
         width: 56px;
         height: 56px;
         border-radius: 14px;
@@ -2048,18 +2090,21 @@
         margin-bottom: 18px;
       }
 
-      #page-verify-pending .auth-status-icon svg {
+      #page-verify-pending .auth-status-icon svg,
+      #page-reset-password .auth-status-icon svg {
         width: 26px;
         height: 26px;
       }
 
-      #page-verify-pending .verify-email-highlight {
+      #page-verify-pending .verify-email-highlight,
+      #page-reset-password .verify-email-highlight {
         font-weight: 600;
         color: var(--auth-text);
         word-break: break-all;
       }
 
-      #page-verify-pending .alert-success {
+      #page-verify-pending .alert-success,
+      #page-reset-password .alert-success {
         background: #ecfdf5;
         color: var(--auth-success);
         border: 1px solid rgba(5, 150, 105, 0.2);
@@ -2070,7 +2115,8 @@
         #page-signup .auth-box,
         #page-login .auth-box,
         #page-forgot .auth-box,
-        #page-verify-pending .auth-box {
+        #page-verify-pending .auth-box,
+        #page-reset-password .auth-box {
           padding: 28px 22px 24px;
           border-radius: 14px;
         }
@@ -2335,5 +2381,17 @@
 
         .footer-right {
           justify-content: center;
+        }
+      }
+
+      /* Placed after the 768px block above on purpose — same selector,
+         same specificity, so source order decides the tie, and this must
+         win at these narrower widths. At 36px, "Recommendations" alone is
+         wider than the available width on phones this narrow and has to
+         break mid-word (harmless — see overflow-wrap on .hero-h1 — but
+         not pretty). Small enough here to fit without breaking. */
+      @media (max-width: 420px) {
+        .hero-h1 {
+          font-size: 28px;
         }
       }

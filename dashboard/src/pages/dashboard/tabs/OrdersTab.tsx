@@ -63,7 +63,7 @@ export default function OrdersTab() {
 
       <div className="card">
         <div style={{ overflowX: "auto" }}>
-          <table>
+          <table className={!orders || orders.length === 0 ? "table-empty-state" : undefined}>
             <thead>
               <tr>
                 <th>Date</th>

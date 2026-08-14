@@ -139,7 +139,7 @@ function SecurityCard() {
             autoComplete="new-password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            placeholder="Min 8 chars, upper + lowercase, number, symbol"
+            placeholder="Min 8 characters"
             style={{ maxWidth: 320 }}
           />
           <span

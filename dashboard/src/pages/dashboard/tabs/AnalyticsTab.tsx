@@ -140,7 +140,7 @@ export default function AnalyticsTab() {
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2>Recent Recommendations</h2>
-        <table>
+        <table className={!stats || stats.recent.length === 0 ? "table-empty-state" : undefined}>
           <thead>
             <tr>
               <th>Budget</th>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, ApiError } from "../lib/api";
 import { BrandLogo } from "../components/BrandLogo";
 
 type Status = "loading" | "success" | "error";
@@ -76,29 +76,41 @@ export default function VerifyPage() {
     apiFetch<{ success?: boolean; error?: string }>(
       `/verify-email?token=${token}`,
     )
-      .then((data) => {
-        if (data.success) {
-          setCard({
-            status: "success",
-            title: "Email verified",
-            message:
-              "Your email address has been confirmed. You can now sign in to your dashboard.",
-            btnText: "Sign in now",
-            btnHref: "/?dashboard=1",
-          });
-        } else {
+      .then(() => {
+        // apiFetch throws on any non-2xx response (see lib/api.ts), so
+        // reaching this .then() at all already means success — the
+        // `data.success ? ... : ...` branch this used to have a live
+        // "else" for could never actually run, since the server's real
+        // "expired/invalid token" response is a 400 (confirmed against
+        // the live endpoint), which apiFetch turns into a rejection, not
+        // a resolved { success: false } payload.
+        setCard({
+          status: "success",
+          title: "Email verified",
+          message:
+            "Your email address has been confirmed. You can now sign in to your dashboard.",
+          btnText: "Sign in now",
+          btnHref: "/?dashboard=1",
+        });
+      })
+      .catch((err) => {
+        // A real "link expired/invalid" response (ApiError, e.g. status
+        // 400) needs to say that — not the same generic "check your
+        // internet connection" message a genuine network failure gets.
+        // Every already-used verification link was showing this wrong
+        // message before this fix.
+        if (err instanceof ApiError) {
           setCard({
             status: "error",
             title: "Link expired",
             message:
-              data.error ||
+              err.message ||
               "This verification link has expired. Please sign up again to get a new one.",
             btnText: "Go to sign in",
             btnHref: "/?dashboard=1",
           });
+          return;
         }
-      })
-      .catch(() => {
         setCard({
           status: "error",
           title: "Connection error",

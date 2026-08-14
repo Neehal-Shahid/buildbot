@@ -203,7 +203,7 @@ export default function HomeTab({ onNavigate }: { onNavigate: (tab: "help" | "st
       <div className="card">
         <h2>Recent Activity</h2>
         <p style={{ marginBottom: 16 }}>Last 10 build recommendations made on your store.</p>
-        <table>
+        <table className={loading || !stats || stats.recent.length === 0 ? "table-empty-state" : undefined}>
           <thead>
             <tr>
               <th>Purpose</th>

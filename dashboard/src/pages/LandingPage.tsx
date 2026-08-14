@@ -135,7 +135,12 @@ export default function LandingPage() {
   }
 
   function scrollToLandingSection(id: string) {
+    // showPage() already closes the mobile drawer as a side effect, but
+    // that branch is skipped when already on the landing page — clicking
+    // "Features" there scrolled to the section but left the drawer open
+    // covering it, since nothing else on this path ever closed it.
     if (view !== "landing") showPage("landing");
+    else setMobileNavOpen(false);
     requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -165,7 +170,10 @@ export default function LandingPage() {
     <>
       <div className="nav-overlay" style={mobileNavOpen ? { display: "block", opacity: 1 } : undefined} onClick={() => setMobileNavOpen(false)} />
       {view === "landing" && (
-        <nav id="main-nav">
+        // nav-open drops #main-nav's own backdrop-filter while the mobile
+        // drawer is open — see the CSS comment on #main-nav.nav-open for
+        // why that filter can't stay on at the same time as the drawer.
+        <nav id="main-nav" className={mobileNavOpen ? "nav-open" : undefined}>
           <div className="nav-logo" onClick={goHome}>
             ⚡ BuildVolt
           </div>

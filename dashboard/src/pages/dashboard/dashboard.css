@@ -1109,6 +1109,14 @@
           min-width: 560px;
         }
 
+        /* A table with no real rows yet (loading/"no data" placeholder) has
+           nothing worth scrolling to see — the forced 560px min-width just
+           pushes the centered placeholder text past the right edge of the
+           screen, so it un-sets the min-width for that instance only. */
+        .main table.table-empty-state {
+          min-width: 0;
+        }
+
         .card:has(table) {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;

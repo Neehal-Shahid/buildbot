@@ -13,9 +13,12 @@ const crypto = require("crypto");
 // this codebase). Setting a dedicated ENCRYPTION_KEY is stronger — anyone
 // who later rotates JWT_SECRET (invalidating all sessions) would otherwise
 // also silently break every stored OSPOS credential — but is optional so
-// deployment doesn't gain a new hard requirement.
-const SOURCE_SECRET =
-  process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || "buildbot-secret";
+// deployment doesn't gain a new hard requirement. JWT_SECRET itself is
+// never a hardcoded fallback (see lib/secrets.js) — if neither env var is
+// actually set, this now derives from a per-process random secret instead
+// of a fixed, publicly-known string.
+const { JWT_SECRET } = require("./secrets");
+const SOURCE_SECRET = process.env.ENCRYPTION_KEY || JWT_SECRET;
 const KEY = crypto.createHash("sha256").update(SOURCE_SECRET).digest();
 const ALGO = "aes-256-gcm";
 

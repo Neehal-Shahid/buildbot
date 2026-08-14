@@ -16,6 +16,16 @@ const osposRoute = require("./routes/ospos");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Railway sits directly in front of this app as a single reverse-proxy
+// hop, so Express needs to know that to compute req.ip/req.ips correctly
+// from X-Forwarded-For — without this, any per-IP rate limiter (here and
+// in routes/recommend.js) either sees Railway's own IP for every request
+// (useless limiting) or, if a route reads the header directly instead,
+// trusts whatever IP a client claims in that header verbatim, letting a
+// single caller reset their own limit by sending a different value on
+// every request.
+app.set("trust proxy", 1);
+
 app.use(cors({ origin: "*" }));
 // Limit JSON body to 1MB to prevent payload-based DoS attacks
 app.use(express.json({ limit: "1mb" }));

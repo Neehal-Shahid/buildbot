@@ -20,7 +20,8 @@ const {
 } = require("../email");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
+const { JWT_SECRET } = require("../lib/secrets");
+const asyncHandler = require("../lib/asyncHandler");
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -255,7 +256,10 @@ router.post("/resend-verification", authLimiter, async (req, res) => {
 
     // Legacy path: unverified store row — validate password against stores table
     const valid = await bcrypt.compare(password, store.password);
-    if (!valid) return res.status(400).json({ error: "Incorrect password" });
+    // Same message as "no account" below — avoids letting a caller
+    // enumerate registered emails by trying wrong passwords against this
+    // endpoint.
+    if (!valid) return res.status(400).json({ error: "Invalid email or password" });
 
     if (await tokenDB.recentlyCreated(email, "verify", 60))
       return res
@@ -272,13 +276,14 @@ router.post("/resend-verification", authLimiter, async (req, res) => {
     });
   }
 
-  // New flow: validate password against pending_signups
+  // New flow: validate password against pending_signups. Both failure
+  // branches share one message, same reasoning as above.
   const pending = await pendingSignupDB.findByEmail(email);
   if (!pending)
-    return res.status(400).json({ error: "No account found with this email" });
+    return res.status(400).json({ error: "Invalid email or password" });
 
   const valid = await bcrypt.compare(password, pending.password);
-  if (!valid) return res.status(400).json({ error: "Incorrect password" });
+  if (!valid) return res.status(400).json({ error: "Invalid email or password" });
 
   if (await tokenDB.recentlyCreated(email, "verify", 60))
     return res
@@ -378,7 +383,7 @@ router.post("/verify-email-otp", authLimiter, async (req, res) => {
 });
 
 // ─── LOGIN ────────────────────────────────────────────────
-router.post("/login", authLimiter, async (req, res) => {
+router.post("/login", authLimiter, asyncHandler(async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const { password } = req.body;
   if (!email || !password)
@@ -396,11 +401,14 @@ router.post("/login", authLimiter, async (req, res) => {
         email,
       });
     }
-    return res.status(400).json({ error: "No account found with this email" });
+    // Same message as a wrong password below — telling an attacker
+    // "no account" vs "incorrect password" lets them enumerate which
+    // emails are registered stores by brute-forcing this endpoint.
+    return res.status(400).json({ error: "Invalid email or password" });
   }
 
   const valid = await bcrypt.compare(password, store.password);
-  if (!valid) return res.status(400).json({ error: "Incorrect password" });
+  if (!valid) return res.status(400).json({ error: "Invalid email or password" });
 
   const isVerified = await verifyDB.isVerified(email);
   if (!isVerified) {
@@ -429,7 +437,7 @@ router.post("/login", authLimiter, async (req, res) => {
       currency: store.currency,
     },
   });
-});
+}));
 
 // ─── GOOGLE LOGIN/SIGNUP ──────────────────────────────────
 router.post("/google-auth", authLimiter, async (req, res) => {
@@ -504,7 +512,7 @@ router.post("/google-auth", authLimiter, async (req, res) => {
 });
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────
-router.post("/forgot-password", authLimiter, async (req, res) => {
+router.post("/forgot-password", authLimiter, asyncHandler(async (req, res) => {
   const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ error: "Email required" });
 
@@ -525,10 +533,10 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
     success: true,
     message: "Password reset link sent! Check your email.",
   });
-});
+}));
 
 // ─── RESET PASSWORD ───────────────────────────────────────
-router.post("/reset-password", authLimiter, async (req, res) => {
+router.post("/reset-password", authLimiter, asyncHandler(async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password)
     return res.status(400).json({ error: "Token and password required" });
@@ -551,10 +559,10 @@ router.post("/reset-password", authLimiter, async (req, res) => {
     success: true,
     message: "Password reset successfully! You can now login.",
   });
-});
+}));
 
 // ─── CHANGE PASSWORD (DASHBOARD) ──────────────────────────
-router.put("/change-password", authMiddleware, async (req, res) => {
+router.put("/change-password", authMiddleware, asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword)
     return res
@@ -578,7 +586,7 @@ router.put("/change-password", authMiddleware, async (req, res) => {
   await storeDB.updatePassword(store.email, hashedPassword);
 
   res.json({ success: true, message: "Password changed successfully!" });
-});
+}));
 
 // ─── COMPLETE STORE SETUP ─────────────────────────────────
 router.put("/store-setup", authMiddleware, async (req, res) => {
@@ -771,16 +779,33 @@ router.get("/order-requests", authMiddleware, async (req, res) => {
 });
 
 // ─── ME ───────────────────────────────────────────────────
-router.get("/me", authMiddleware, async (req, res) => {
+router.get("/me", authMiddleware, asyncHandler(async (req, res) => {
   const store = await storeDB.findById(req.store.storeId);
   if (!store) return res.status(404).json({ error: "Store not found" });
 
-  const { password, plugin_secret, ...safeStore } = store;
+  // /me's contract is "your profile" — strip auth secrets (password,
+  // plugin_secret) and the OSPOS database connection blob (host/port/
+  // name/user, plus the encrypted password ciphertext) along with it.
+  // None of it is ever read by the dashboard from this response (OSPOS
+  // status has its own endpoint, GET /ospos/auto-sync-status, which
+  // returns only what the UI actually needs), so there's no reason a
+  // leaked JWT or an XSS on the dashboard should also hand over a full
+  // set of infra credentials.
+  const {
+    password,
+    plugin_secret,
+    ospos_db_host,
+    ospos_db_port,
+    ospos_db_name,
+    ospos_db_user,
+    ospos_db_password,
+    ...safeStore
+  } = store;
   res.json({
     success: true,
     store: safeStore,
   });
-});
+}));
 
 // ─── TOGGLE WIDGET ────────────────────────────────────────
 router.post("/widget-toggle", authMiddleware, async (req, res) => {

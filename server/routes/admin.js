@@ -18,7 +18,8 @@ const {
 } = require("../database");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
+const { JWT_SECRET } = require("../lib/secrets");
+const asyncHandler = require("../lib/asyncHandler");
 
 // Basic brute-force protection for admin auth endpoints
 const adminAuthLimiter = rateLimit({
@@ -28,6 +29,20 @@ const adminAuthLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many attempts. Please try again later." },
 });
+
+// Same rule for both /admin/reset-password (token flow) and /admin/password
+// (authenticated self-service change) — the latter used to only check
+// length >= 8, letting an admin set something like "aaaaaaaa" through one
+// flow that the other flow would refuse.
+function isStrongAdminPassword(pw) {
+  return (
+    pw.length >= 8 &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /[0-9]/.test(pw) &&
+    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
+  );
+}
 
 // ─── EFFECTIVE STATUS HELPER ──────────────────────────────
 // plan_status in the DB is 'disabled' only when explicitly disabled by admin.
@@ -93,7 +108,7 @@ function adminAuth(req, res, next) {
   }
 }
 
-router.post("/admin/login", adminAuthLimiter, async (req, res) => {
+router.post("/admin/login", adminAuthLimiter, asyncHandler(async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const { password } = req.body;
   if (!email || !password)
@@ -113,21 +128,21 @@ router.post("/admin/login", adminAuthLimiter, async (req, res) => {
     { expiresIn: "1d" },
   );
   res.json({ success: true, token });
-});
+}));
 
-router.get("/admin/overview", adminAuth, async (req, res) => {
+router.get("/admin/overview", adminAuth, asyncHandler(async (req, res) => {
   const storesRaw = await storeDB.getAll();
   const stores = await enrichStoresWithCounts(storesRaw);
   const totalRecs = await analyticsDB.getTotalRecs();
 
   res.json({ success: true, stores, totalRecs });
-});
+}));
 
-router.get("/admin/stores", adminAuth, async (req, res) => {
+router.get("/admin/stores", adminAuth, asyncHandler(async (req, res) => {
   const storesRaw = await storeDB.getAll();
   const stores = await enrichStoresWithCounts(storesRaw);
   res.json({ success: true, stores });
-});
+}));
 
 router.post("/admin/disable-store", adminAuth, async (req, res) => {
   const storeId = String(req.body.storeId || "").trim();
@@ -162,13 +177,20 @@ router.post("/admin/delete-store", adminAuth, async (req, res) => {
     const store = await storeDB.findById(storeId);
     if (!store) return res.status(404).json({ error: "Store not found" });
 
-    const { sendEmail, storeDeletedEmail } = require("../email");
-    if (store.email) {
-      await sendEmail(storeDeletedEmail(store.name, store.email));
-    }
-
+    // Deletion is the actual point of this endpoint; the notification
+    // email is informational. It used to be awaited *before* the delete,
+    // so a Resend outage or a bad email address meant the store never
+    // actually got deleted despite the admin's request succeeding up to
+    // that point — fire-and-forget, same pattern as disable-store above.
     await storeDB.deleteStoreAndData(storeId);
     await adminAuditDB.log(req.admin.email, "Deleted store", storeId, `${store.name} (${store.email})`);
+
+    const { sendEmail, storeDeletedEmail } = require("../email");
+    if (store.email) {
+      sendEmail(storeDeletedEmail(store.name, store.email)).catch((e) =>
+        console.error("Store-deleted email failed:", e.message),
+      );
+    }
 
     res.json({ success: true, message: "Store and all related data deleted." });
   } catch (err) {
@@ -201,6 +223,16 @@ router.post("/admin/toggle-widget", adminAuth, async (req, res) => {
       sql: "UPDATE stores SET widget_enabled = ? WHERE store_id = ?",
       args: [enabled ? 1 : 0, storeId],
     });
+    // This can take a live customer's widget offline (or back on) just
+    // like disable-store/activate-store do — it needs the same audit
+    // trail those already get, or an admin flipping it leaves no record
+    // of who actually did it.
+    await adminAuditDB.log(
+      req.admin.email,
+      enabled ? "Enabled widget (override)" : "Disabled widget (override)",
+      storeId,
+      store.name,
+    );
     res.json({ success: true, widgetEnabled: enabled });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -232,21 +264,10 @@ router.post("/admin/forgot-password", adminAuthLimiter, async (req, res) => {
   });
 });
 
-router.post("/admin/reset-password", adminAuthLimiter, async (req, res) => {
+router.post("/admin/reset-password", adminAuthLimiter, asyncHandler(async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password)
     return res.status(400).json({ error: "Token and password required" });
-
-  // Enforce strong password (same rules as store users)
-  function isStrongAdminPassword(pw) {
-    return (
-      pw.length >= 8 &&
-      /[A-Z]/.test(pw) &&
-      /[a-z]/.test(pw) &&
-      /[0-9]/.test(pw) &&
-      /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
-    );
-  }
 
   if (!isStrongAdminPassword(password))
     return res
@@ -268,7 +289,7 @@ router.post("/admin/reset-password", adminAuthLimiter, async (req, res) => {
     success: true,
     message: "Admin password reset successfully! You can now login.",
   });
-});
+}));
 
 router.put("/admin/profile", adminAuth, async (req, res) => {
   const name = req.body.name;
@@ -326,17 +347,18 @@ router.put("/admin/recovery-email", adminAuth, async (req, res) => {
   }
 });
 
-router.put("/admin/password", adminAuth, async (req, res) => {
+router.put("/admin/password", adminAuth, asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const token = req.headers["authorization"]?.split(" ")[1];
   const decoded = jwt.verify(token, JWT_SECRET);
 
   if (!currentPassword || !newPassword)
     return res.status(400).json({ error: "Passwords required" });
-  if (newPassword.length < 8)
-    return res
-      .status(400)
-      .json({ error: "New password must be at least 8 characters" });
+  if (!isStrongAdminPassword(newPassword))
+    return res.status(400).json({
+      error:
+        "New password must be at least 8 characters with uppercase, lowercase, number and special character",
+    });
 
   const admin = await adminDB.findById(decoded.id);
   if (!admin) return res.status(404).json({ error: "Admin not found" });
@@ -349,9 +371,9 @@ router.put("/admin/password", adminAuth, async (req, res) => {
   await adminDB.updatePassword(admin.email, hashedPassword);
 
   res.json({ success: true, message: "Password changed successfully" });
-});
+}));
 
-router.get("/admin/me", adminAuth, async (req, res) => {
+router.get("/admin/me", adminAuth, asyncHandler(async (req, res) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   const decoded = jwt.verify(token, JWT_SECRET);
   const admin = await adminDB.findById(decoded.id);
@@ -364,7 +386,7 @@ router.get("/admin/me", adminAuth, async (req, res) => {
       recoveryEmail: admin.recovery_email || "",
     },
   });
-});
+}));
 
 // ─── DB INTEGRITY AUDIT (admin only) ──────────────────────
 router.get("/admin/db-audit", adminAuth, async (req, res) => {
@@ -503,6 +525,7 @@ router.post("/admin/save-notes", adminAuth, async (req, res) => {
     return res.status(400).json({ error: "Notes too long (max 1000 chars)" });
   try {
     await storeDB.setNotes(storeId, notes || "");
+    await adminAuditDB.log(req.admin.email, "Updated store notes", storeId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -550,6 +573,11 @@ router.post("/admin/set-drip-paused", adminAuth, async (req, res) => {
     return res.status(400).json({ error: "storeId and paused required" });
   try {
     await storeDB.setDripPaused(storeId, !!paused);
+    await adminAuditDB.log(
+      req.admin.email,
+      paused ? "Paused drip emails" : "Resumed drip emails",
+      storeId,
+    );
     res.json({
       success: true,
       message: paused

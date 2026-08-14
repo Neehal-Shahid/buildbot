@@ -348,6 +348,16 @@ function SignupPage({
 
   async function submit() {
     if (!email || !password) return setAlert({ msg: "Please fill all fields.", type: "error" });
+    // The strength meter below was purely cosmetic — it showed a red bar
+    // for a weak password but never actually stopped submission, so a
+    // password like "password" round-tripped to the server and back with
+    // a rejection instead of failing immediately, in-page. Mirrors the
+    // server's isStrongPassword() in server/routes/auth.js exactly.
+    if (score < 5)
+      return setAlert({
+        msg: "Password needs 8+ characters, uppercase, lowercase, a number, and a special character.",
+        type: "error",
+      });
     setBusy(true);
     try {
       const data = await authApi.signup(email, password);
@@ -473,7 +483,20 @@ function VerifyPendingPage({
   }
 
   async function resend() {
-    if (!email || !password) return onLogin();
+    // The backend's resend-verification endpoint proves ownership of the
+    // account by checking this against the stored password — which this
+    // page only ever has right after a fresh signup, never after a page
+    // reload (boot() in the parent only restores the pending email, not a
+    // plaintext password it was never supposed to keep around). Silently
+    // bouncing to the login screen here used to look like the button just
+    // did nothing; explain what's actually going on instead.
+    if (!email || !password) {
+      setAlert({
+        msg: "We can't resend automatically after a page reload. Try signing up again with the same email — or if you already have a code, use \"Verify with code\" above.",
+        type: "error",
+      });
+      return;
+    }
     setResending(true);
     try {
       const data = await authApi.resendVerification(email, password);

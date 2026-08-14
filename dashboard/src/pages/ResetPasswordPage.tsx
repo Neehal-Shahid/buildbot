@@ -61,16 +61,21 @@ function Alert({ msg, type }: { msg: string | null; type: "success" | "error" | 
   return <div className={`alert alert-${type} show`}>{msg}</div>;
 }
 
+// Mirrors isStrongPassword() in server/routes/auth.js exactly — the
+// lowercase check was missing here, so e.g. "PASSWORD1!" scored a full
+// 4/4 "strong" on this meter despite the server rejecting it outright for
+// having no lowercase letter.
 function strengthScore(val: string) {
   let score = 0;
   if (val.length >= 8) score++;
   if (/[A-Z]/.test(val)) score++;
+  if (/[a-z]/.test(val)) score++;
   if (/[0-9]/.test(val)) score++;
   if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(val)) score++;
   return score;
 }
 
-const strengthColors = ["#e5e7eb", "#e74c3c", "#f39c12", "#f39c12", "#2ecc71"];
+const strengthColors = ["#e5e7eb", "#e74c3c", "#f39c12", "#f39c12", "#2ecc71", "#2ecc71"];
 
 export default function ResetPasswordPage() {
   useInjectedCss(landingCss);
@@ -94,6 +99,17 @@ export default function ResetPasswordPage() {
     }
     if (password !== confirm) {
       setAlert({ type: "error", msg: "Passwords do not match." });
+      return;
+    }
+    // The strength meter above was purely cosmetic — it colored a bar but
+    // never actually blocked a weak password from being submitted, so
+    // this round-tripped to the server for a rejection instead of
+    // failing immediately in-page.
+    if (strengthScore(password) < 5) {
+      setAlert({
+        type: "error",
+        msg: "Password needs 8+ characters, uppercase, lowercase, a number, and a special character.",
+      });
       return;
     }
     if (!token) {
@@ -158,7 +174,7 @@ export default function ResetPasswordPage() {
               <PwdToggle shown={showPw} onToggle={() => setShowPw((s) => !s)} />
             </div>
             <div style={{ height: 3, borderRadius: 2, background: "#e5e7eb", margin: "8px 0 5px", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 2, transition: "all 0.3s", width: `${(score / 4) * 100}%`, background: strengthColors[score] }} />
+              <div style={{ height: "100%", borderRadius: 2, transition: "all 0.3s", width: `${(score / 5) * 100}%`, background: strengthColors[score] }} />
             </div>
             <div style={{ fontSize: 11, color: "#9ca3af", lineHeight: 1.5 }}>
               Uppercase, lowercase, number and special character required.

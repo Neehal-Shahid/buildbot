@@ -4,6 +4,7 @@ import { adminApi, type AdminStore, type EmailLog, type SupportTicket } from "..
 import { useAdminAuth } from "../../../context/AdminAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { ApiError } from "../../../lib/api";
+import { ConfirmActionModal } from "./ConfirmActionModal";
 
 // Server-side limits from server/routes/admin.js (/admin/send-email and
 // /admin/broadcast both reject beyond these), mirrored here so the input
@@ -68,10 +69,14 @@ function BroadcastCard() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  // Emailing every active store on the platform is at least as
+  // consequential as the disable/delete/DB-cleanup actions elsewhere in
+  // this panel, which all confirm first — this used to send on a single
+  // click with no second step.
+  const [confirmSend, setConfirmSend] = useState(false);
 
   async function send() {
     if (!token) return;
-    if (!subject || !message) return setAlert({ msg: "Fill subject and message.", type: "error" });
     setBusy(true);
     try {
       const data = await adminApi.broadcast(token, subject, message);
@@ -83,6 +88,11 @@ function BroadcastCard() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleSendClick() {
+    if (!subject || !message) return setAlert({ msg: "Fill subject and message.", type: "error" });
+    setConfirmSend(true);
   }
 
   return (
@@ -130,7 +140,7 @@ function BroadcastCard() {
           style={textareaStyle}
         />
       </div>
-      <button className="btn btn-primary" onClick={send} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <button className="btn btn-primary" onClick={handleSendClick} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 2L11 13" />
           <path d="M22 2l-7 20-4-9-9-4 20-7z" />
@@ -138,6 +148,33 @@ function BroadcastCard() {
         {busy ? "Sending…" : "Send Broadcast"}
       </button>
       <Alert msg={alert?.msg ?? null} type={alert?.type ?? null} />
+
+      <ConfirmActionModal
+        open={confirmSend}
+        onClose={() => setConfirmSend(false)}
+        onConfirm={async () => {
+          setConfirmSend(false);
+          await send();
+        }}
+        iconBg="var(--warning-bg)"
+        iconColor="var(--warning)"
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 2L11 13" />
+            <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+          </svg>
+        }
+        title="Send broadcast to every active store?"
+        desc="This emails every active store on the platform right now — it can't be recalled once sent."
+        detail={
+          <>
+            <strong>Subject:</strong> {subject}
+          </>
+        }
+        confirmLabel="Send Broadcast"
+        busyLabel="Sending…"
+        confirmClass="btn btn-primary"
+      />
     </div>
   );
 }

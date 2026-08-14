@@ -7,7 +7,7 @@ const { encrypt, decrypt } = require("../lib/crypto");
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
+const { JWT_SECRET } = require("../lib/secrets");
 
 const osposLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 mins

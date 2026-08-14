@@ -566,6 +566,14 @@
   color: var(--bb-warning);
   border: 1px solid var(--bb-warning);
 }
+/* Distinct from .incompatible: parts weren't found to conflict, but one or
+   more listings didn't state enough spec detail (e.g. CPU/motherboard
+   socket) to actually verify compatibility rather than assume it. */
+.bb-compatibility-badge.unverified {
+  background: var(--bb-warning-bg);
+  color: var(--bb-warning);
+  border: 1px dashed var(--bb-warning);
+}
 #bb-modal-body {
   overflow-y: auto;
   flex: 1;

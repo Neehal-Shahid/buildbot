@@ -7,7 +7,7 @@ const { normalizeCategory } = require("../lib/categories");
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "buildbot-secret";
+const { JWT_SECRET } = require("../lib/secrets");
 
 const pluginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 mins

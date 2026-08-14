@@ -72,6 +72,28 @@
     return `${r}, ${g}, ${b}`;
   }
 
+  // ─── HTML ESCAPING ────────────────────────────────────────
+  // Every string below is either store-editable (widget title/welcome
+  // text) or ultimately traces back to a product row a store owner
+  // uploaded/typed (name, category, description-derived reason text) or a
+  // customer-submitted budget/purpose — none of it is safe to drop into
+  // innerHTML unescaped. A product named `<img src=x onerror=...>` (from
+  // a CSV/PDF bulk import, or any store account, malicious or
+  // compromised) would otherwise execute in every visitor's browser who
+  // views a build containing it. Applied at each interpolation site
+  // rather than at the source, since some of these same values (e.g.
+  // WIDGET_TITLE in the WhatsApp order message) are also used as plain
+  // text where HTML-escaping them would be wrong.
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[ch]);
+  }
+
   // ─── INIT ─────────────────────────────────────────────────
   async function initWidget() {
     try {
@@ -169,7 +191,7 @@
     panel.innerHTML = `
       <div id="bb-header">
         <div>
-          <div class="bb-title">⚡ ${WIDGET_TITLE}</div>
+          <div class="bb-title">⚡ ${escapeHtml(WIDGET_TITLE)}</div>
           <div class="bb-sub">PC Build Recommender</div>
         </div>
         <button id="bb-close">✕</button>
@@ -186,8 +208,8 @@
             <div class="bb-welcome-badge">⚡ Instant Match</div>
             <div class="bb-welcome-icon">🖥️</div>
             <div class="bb-screen-title">Build Your Perfect PC</div>
-            <div class="bb-screen-body">${WELCOME_MSG}</div>
-            <button class="bb-btn" id="bb-start-btn">${BUTTON_TEXT} →</button>
+            <div class="bb-screen-body">${escapeHtml(WELCOME_MSG)}</div>
+            <button class="bb-btn" id="bb-start-btn">${escapeHtml(BUTTON_TEXT)} →</button>
             <div class="bb-welcome-trust">
               <span>🔒 Secure</span>
               <span>·</span>
@@ -203,11 +225,11 @@
           <button class="bb-back" id="bb-back-s2">← Back</button>
           <div class="bb-label">What's your budget?</div>
           <div class="bb-budget-row">
-            <div class="bb-currency" id="bb-curr-label">${CURRENCY}</div>
+            <div class="bb-currency" id="bb-curr-label">${escapeHtml(CURRENCY)}</div>
             <input class="bb-input" id="bb-budget" type="number" placeholder="e.g. 80000" style="margin:0;flex:1;"/>
           </div>
           <div class="bb-field-error" id="bb-budget-error"></div>
-          <div class="bb-input-hint">Enter your total budget in ${CURRENCY}. You'll get 3 builds to choose from.</div>
+          <div class="bb-input-hint">Enter your total budget in ${escapeHtml(CURRENCY)}. You'll get 3 builds to choose from.</div>
           <div class="bb-label">Quick select</div>
           <div class="bb-chips" id="bb-budget-chips"></div>
           <button class="bb-btn" id="bb-next-s2">Next →</button>
@@ -572,7 +594,7 @@
           <span class="bb-no-builds-icon">😔</span>
           <div class="bb-no-builds-title">Sorry, we couldn't build a PC for this budget.</div>
           <div class="bb-no-builds-msg">
-            ${noBuildsReason || "The products available in this store aren't enough to build a complete PC within your budget right now."}
+            ${escapeHtml(noBuildsReason) || "The products available in this store aren't enough to build a complete PC within your budget right now."}
           </div>
           <div class="bb-no-builds-suggestion">
             💡 Try increasing your budget, or contact the store directly — they may be able to help you find the right parts.
@@ -591,17 +613,17 @@
         // Parts preview — show first 4 categories as pills
         const previewParts = (build.parts || [])
           .slice(0, 4)
-          .map((p) => `<span class="bb-card-part-pill">${p.category}</span>`)
+          .map((p) => `<span class="bb-card-part-pill">${escapeHtml(p.category)}</span>`)
           .join("");
 
         return `
         <div class="bb-build-card ${isFeatured ? "featured" : ""}" data-build-idx="${i}">
           <div class="bb-card-top">
-            <span class="bb-card-tier-badge">${build.tier || "Build " + (i + 1)}</span>
+            <span class="bb-card-tier-badge">${escapeHtml(build.tier) || "Build " + (i + 1)}</span>
             <span class="bb-card-price">${currency} ${Number(build.totalPrice || 0).toLocaleString()}</span>
           </div>
-          <div class="bb-card-name">${build.buildName || "Custom PC Build"}</div>
-          <div class="bb-card-tagline">${build.tagline || build.summary || "A custom build selected for your needs."}</div>
+          <div class="bb-card-name">${escapeHtml(build.buildName) || "Custom PC Build"}</div>
+          <div class="bb-card-tagline">${escapeHtml(build.tagline) || escapeHtml(build.summary) || "A custom build selected for your needs."}</div>
           <span class="bb-card-budget-tag ${isOver ? "over" : "within"}">
             ${
               isOver
@@ -660,10 +682,16 @@
     document.getElementById("bb-modal-tagline").textContent =
       build.tagline || "A custom build selected for your needs.";
 
-    // Compatibility badge
-    const compatibilityBadge = isCompatible
-      ? `<div class="bb-compatibility-badge compatible">✅ All parts verified compatible</div>`
-      : `<div class="bb-compatibility-badge incompatible">⚠️ ${build.compatibilityNote || "Compatibility issues detected"}</div>`;
+    // Compatibility badge — three states, not two: incompatible (missing
+    // required parts), compatible-but-unverified (no conflict found, but
+    // the CPU/motherboard socket couldn't actually be confirmed from the
+    // listing text), and fully verified. Only the last one gets to claim
+    // "verified compatible".
+    const compatibilityBadge = !isCompatible
+      ? `<div class="bb-compatibility-badge incompatible">⚠️ ${escapeHtml(build.compatibilityNote) || "Compatibility issues detected"}</div>`
+      : build.compatibilityNote
+        ? `<div class="bb-compatibility-badge unverified">ℹ️ ${escapeHtml(build.compatibilityNote)}</div>`
+        : `<div class="bb-compatibility-badge compatible">✅ All parts verified compatible</div>`;
 
     // Parts list
     const partsHtml = (build.parts || [])
@@ -672,11 +700,11 @@
         const totalPrice = p.totalPrice || p.price * qty;
         return `
         <div class="bb-modal-part">
-          <div class="bb-modal-part-cat">${p.category}</div>
+          <div class="bb-modal-part-cat">${escapeHtml(p.category)}</div>
           <div class="bb-modal-part-info">
-            <div class="bb-modal-part-name">${p.name}</div>
+            <div class="bb-modal-part-name">${escapeHtml(p.name)}</div>
             ${qty > 1 ? `<div class="bb-modal-part-qty">× ${qty} units</div>` : ""}
-            ${p.reason ? `<div class="bb-modal-part-reason">${p.reason}</div>` : ""}
+            ${p.reason ? `<div class="bb-modal-part-reason">${escapeHtml(p.reason)}</div>` : ""}
           </div>
           <div class="bb-modal-part-price">${currency} ${Number(totalPrice).toLocaleString()}</div>
         </div>`;
@@ -685,7 +713,7 @@
 
     const missingHtml =
       build.missingCategories && build.missingCategories.length > 0
-        ? `<div class="bb-modal-missing">⚠️ Not available in store: ${build.missingCategories.join(", ")}</div>`
+        ? `<div class="bb-modal-missing">⚠️ Not available in store: ${escapeHtml(build.missingCategories.join(", "))}</div>`
         : "";
 
     document.getElementById("bb-modal-content").innerHTML = `
@@ -694,7 +722,7 @@
       ${
         build.summary
           ? `
-        <div class="bb-modal-summary">${build.summary}</div>
+        <div class="bb-modal-summary">${escapeHtml(build.summary)}</div>
       `
           : ""
       }
@@ -715,12 +743,12 @@
       ${renderOrderSectionHtml(build)}
       ${
         build.tips
-          ? `<div class="bb-modal-section-label">Tips & Notes</div><div class="bb-modal-tips">💡 ${build.tips}</div>`
+          ? `<div class="bb-modal-section-label">Tips & Notes</div><div class="bb-modal-tips">💡 ${escapeHtml(build.tips)}</div>`
           : ""
       }
       ${
         build.budgetAdvice
-          ? `<div class="bb-modal-tips">💰 ${build.budgetAdvice}</div>`
+          ? `<div class="bb-modal-tips">💰 ${escapeHtml(build.budgetAdvice)}</div>`
           : ""
       }`;
 
@@ -762,9 +790,20 @@
   // store owner can still look up that reference in their dashboard and
   // see the real, untampered order.
   async function placeOrderForBuild(build, btn) {
+    // Locked for the rest of this function's life, not just during the
+    // fetch — re-enabling the button right after the round-trip (and
+    // before the WhatsApp tab actually opened / the WooCommerce redirect
+    // actually fired) left a real window where a second click, or a
+    // customer clicking again after WhatsApp opened in a background tab
+    // not realizing the first click already worked, fired a second
+    // /order-request for the same build and created a duplicate order
+    // reference. Re-opening the build's modal rebinds a fresh button (see
+    // openBuildModal), so this only blocks repeat clicks on this one.
+    if (btn.dataset.bbOrdering === "1") return;
     if (ORDER_METHOD === "woo" && !(build.parts || []).some((p) => p.wooId))
       return;
 
+    btn.dataset.bbOrdering = "1";
     const origText = btn.textContent;
     btn.disabled = true;
     btn.textContent = "Please wait…";
@@ -792,14 +831,20 @@
       /* fall through — still let the order proceed with local data */
     }
 
-    btn.disabled = false;
-    btn.textContent = origText;
-
     if (ORDER_METHOD === "woo") {
       const items = (orderedBuild.parts || [])
         .filter((p) => p.wooId)
         .map((p) => ({ id: p.wooId, qty: p.quantity || 1 }));
-      if (!items.length) return;
+      if (!items.length) {
+        // Nothing to actually check out with — no customer-facing action
+        // is about to happen, so this is a real failure the customer
+        // should be able to retry, not a placed order.
+        btn.disabled = false;
+        btn.textContent = origText;
+        btn.dataset.bbOrdering = "";
+        return;
+      }
+      btn.textContent = "Redirecting…";
       const url = `${WOO_URL}/?buildvolt_add_to_cart=1&items=${encodeURIComponent(JSON.stringify(items))}`;
       window.location.href = url;
       return;
@@ -831,6 +876,11 @@
       const waNumber = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
       const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
       window.open(waUrl, "_blank", "noopener");
+      // WhatsApp opens in a separate tab, so this page (and this button)
+      // stays right where it was — left disabled with a clear "done"
+      // label instead of springing back to "Order via WhatsApp", which
+      // read as an invitation to click it again.
+      btn.textContent = "✅ Sent to WhatsApp";
     }
   }
 
@@ -877,12 +927,17 @@
       // Generate each build
       builds.forEach((build, index) => {
         const isCompatible = build.compatible !== false;
-        const compatibilityBadge = isCompatible
-          ? `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #edf7f2; color: #1a7a4a; border: 1px solid #1a7a4a; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
-              ✅ All parts verified compatible
+        // Same three states as the modal badge — see the comment there.
+        const compatibilityBadge = !isCompatible
+          ? `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef3e2; color: #b45309; border: 1px solid #b45309; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
+              ⚠️ ${escapeHtml(build.compatibilityNote) || "Compatibility issues detected"}
             </div>`
-          : `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef3e2; color: #b45309; border: 1px solid #b45309; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
-              ⚠️ ${build.compatibilityNote || "Compatibility issues detected"}
+          : build.compatibilityNote
+            ? `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef3e2; color: #b45309; border: 1px dashed #b45309; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
+              ℹ️ ${escapeHtml(build.compatibilityNote)}
+            </div>`
+            : `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #edf7f2; color: #1a7a4a; border: 1px solid #1a7a4a; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 20px;">
+              ✅ All parts verified compatible
             </div>`;
 
         const partsTable = (build.parts || [])
@@ -893,12 +948,12 @@
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 8px; vertical-align: top; width: 120px;">
                 <span style="background: #f5f5f5; color: #666666; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-                  ${p.category}
+                  ${escapeHtml(p.category)}
                 </span>
               </td>
               <td style="padding: 12px 8px; vertical-align: top;">
-                <div style="font-weight: 600; color: #111111; margin-bottom: 4px;">${p.name}</div>
-                ${p.reason ? `<div style="font-size: 11px; color: #666666; line-height: 1.4;">${p.reason}</div>` : ""}
+                <div style="font-weight: 600; color: #111111; margin-bottom: 4px;">${escapeHtml(p.name)}</div>
+                ${p.reason ? `<div style="font-size: 11px; color: #666666; line-height: 1.4;">${escapeHtml(p.reason)}</div>` : ""}
                 ${qty > 1 ? `<div style="display: inline-block; background: #fef3e2; color: #b45309; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 4px;">×${qty}</div>` : ""}
               </td>
               <td style="padding: 12px 8px; vertical-align: top; text-align: right; width: 120px; font-weight: 600; color: #111111;">
@@ -912,13 +967,13 @@
         const missingCategoriesHtml =
           build.missingCategories && build.missingCategories.length > 0
             ? `<div style="background: #fef3e2; border: 1px solid #b45309; border-radius: 8px; padding: 12px; margin: 16px 0; font-size: 12px; color: #b45309;">
-              ⚠️ Not available in store: ${build.missingCategories.join(", ")}
+              ⚠️ Not available in store: ${escapeHtml(build.missingCategories.join(", "))}
             </div>`
             : "";
 
         const tipsHtml = build.tips
           ? `<div style="background: #f8f9fa; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 12px; margin: 16px 0; font-size: 12px; color: #666666; line-height: 1.6;">
-              💡 ${build.tips}
+              💡 ${escapeHtml(build.tips)}
             </div>`
           : "";
 
@@ -932,10 +987,10 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
               <div>
                 <div style="background: rgba(124, 106, 247, 0.1); color: #7c6af7; border: 1px solid rgba(124, 106, 247, 0.2); padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 12px;">
-                  ${build.tier || `Build ${index + 1}`}
+                  ${escapeHtml(build.tier) || `Build ${index + 1}`}
                 </div>
-                <h2 style="font-size: 24px; font-weight: 700; color: #111111; margin: 0 0 8px 0;">${build.buildName}</h2>
-                <p style="font-size: 14px; color: #666666; margin: 0; line-height: 1.5;">${build.tagline || build.summary || ""}</p>
+                <h2 style="font-size: 24px; font-weight: 700; color: #111111; margin: 0 0 8px 0;">${escapeHtml(build.buildName)}</h2>
+                <p style="font-size: 14px; color: #666666; margin: 0; line-height: 1.5;">${escapeHtml(build.tagline) || escapeHtml(build.summary) || ""}</p>
               </div>
               <div style="text-align: right;">
                 <div style="font-size: 20px; font-weight: 700; color: #111111;">${currency} ${Number(build.totalPrice).toLocaleString()}</div>
@@ -951,7 +1006,7 @@
                 ? `
               <div style="background: #f5f5f5; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 24px;">
                 <h3 style="font-size: 14px; font-weight: 700; color: #111111; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Why This Build?</h3>
-                <p style="font-size: 13px; color: #666666; margin: 0; line-height: 1.6;">${build.summary}</p>
+                <p style="font-size: 13px; color: #666666; margin: 0; line-height: 1.6;">${escapeHtml(build.summary)}</p>
               </div>
             `
                 : ""
@@ -1004,7 +1059,7 @@
               build.budgetAdvice
                 ? `
               <div style="background: #f8f9fa; border-left: 3px solid #7c6af7; border-radius: 0 8px 8px 0; padding: 12px; margin: 16px 0; font-size: 12px; color: #666666; line-height: 1.6;">
-                💰 ${build.budgetAdvice}
+                💰 ${escapeHtml(build.budgetAdvice)}
               </div>
             `
                 : ""
@@ -1054,7 +1109,7 @@
       <div class="bb-no-builds">
         <span class="bb-no-builds-icon">${limitReached ? "⏳" : "😔"}</span>
         <div class="bb-no-builds-title">${limitReached ? "Limit Reached" : "Something went wrong"}</div>
-        <div class="bb-no-builds-msg">${msg || "We couldn't generate recommendations right now."}</div>
+        <div class="bb-no-builds-msg">${escapeHtml(msg) || "We couldn't generate recommendations right now."}</div>
         <div class="bb-no-builds-suggestion">Please try again later or contact the store directly.</div>
         ${!limitReached ? '<button class="bb-btn bb-retry-btn" style="margin-top: 16px;">Try Again</button>' : ""}
       </div>`;

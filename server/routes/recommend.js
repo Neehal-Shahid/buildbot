@@ -199,8 +199,27 @@ function estimateGpuWattage(gpu) {
   return 450;
 }
 
+// Same idea as estimateGpuWattage's price ladder — a CPU listing that
+// doesn't literally state a wattage number used to fall back to a flat
+// 65W regardless of price, which badly undersized the PSU requirement for
+// any high-draw CPU (e.g. a 200W+ part) whose store listing just never
+// mentions TDP. Bands are deliberately on the higher side within each
+// price tier: this number feeds a safety-relevant PSU-sufficiency check,
+// so overestimating a bit is far safer than underestimating.
+function estimateCpuWattage(cpu) {
+  const explicit = detectWattage(cpu);
+  if (explicit) return explicit;
+  const price = Number(cpu.price) || 0;
+  if (price <= 15000) return 65;
+  if (price <= 35000) return 75;
+  if (price <= 55000) return 95;
+  if (price <= 80000) return 125;
+  if (price <= 120000) return 150;
+  return 200;
+}
+
 function requiredPsuWattage(cpu, gpu) {
-  const cpuW = detectWattage(cpu) || 65;
+  const cpuW = estimateCpuWattage(cpu);
   const gpuW = gpu ? estimateGpuWattage(gpu) : 0;
   const baseline = 120; // motherboard, drives, fans headroom
   return Math.ceil((baseline + cpuW + gpuW) * 1.2);
@@ -541,8 +560,17 @@ function nextUpgradeFor(category, part, catalogByCategory, ctx) {
   }
 
   const qtyCap = MAX_QUANTITY[category];
+  // RAM must stay in matched pairs once it has more than one stick — 3
+  // sticks fits a 4-slot board's quantity cap fine but disables
+  // dual-channel operation, which defeats the point of using quantity as
+  // an upgrade lever here at all. Jump straight from 2 to 4 rather than
+  // ever landing on the odd count in between; every other category (Case
+  // Fans) still adds one unit at a time.
+  const addAmount = category === "RAM" && part.quantity === 2 ? 2 : 1;
   const addOption =
-    qtyCap && part.quantity < qtyCap ? { addQuantity: true, delta: part.price } : null;
+    qtyCap && part.quantity + addAmount <= qtyCap
+      ? { addQuantity: true, addAmount, delta: part.price * addAmount }
+      : null;
 
   // Prefer whichever costs less — both move the same category forward.
   const options = [swapOption, addOption].filter(Boolean);
@@ -580,7 +608,7 @@ function climbToward(build, catalogByCategory, budget, ceiling, weights) {
       const upgrade = nextUpgradeFor(category, parts[idx], catalogByCategory, ctx);
       if (!upgrade || total + upgrade.delta > cap) break;
       if (upgrade.addQuantity) {
-        parts[idx].quantity += 1;
+        parts[idx].quantity += upgrade.addAmount || 1;
         parts[idx].totalPrice = parts[idx].price * parts[idx].quantity;
       } else {
         parts[idx] = partEntry(category, upgrade.item, parts[idx].quantity);
@@ -633,6 +661,15 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     .filter((m) => m.reason !== "excluded_for_budget" && m.reason !== "not_needed")
     .map((m) => m.category);
   const compatible = !b.missing.some((m) => REQUIRED_SET.has(m.category));
+  // socketsMatch() treats a missing socket string on either side as "don't
+  // block the pairing" rather than "confirmed compatible" — reasonable for
+  // not over-rejecting real matches when a listing's text is sparse, but
+  // it means `compatible` alone can't tell a genuinely verified CPU/board
+  // pairing apart from one that was simply never contradicted. Surfaced
+  // separately so the widget can be honest about the difference instead of
+  // claiming "all parts verified compatible" for a pairing that was really
+  // just assumed.
+  const socketVerified = !!(b.ctx?.cpuSocket && b.ctx?.boardSocket);
 
   const buildName =
     tier === "Budget Build"
@@ -694,8 +731,11 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     withinBudget,
     budgetRemaining,
     compatible,
+    socketVerified,
     compatibilityNote: compatible
-      ? ""
+      ? socketVerified
+        ? ""
+        : "The CPU and motherboard listings didn't both state a socket, so this pairing wasn't fully verified — double-check compatibility before buying."
       : `This store's inventory is missing required parts: ${missingCategories.join(", ")}.`,
     parts: b.parts,
     missingCategories,
@@ -849,7 +889,7 @@ const ipRequests = new Map();
 setInterval(() => ipRequests.clear(), 60 * 60 * 1000);
 
 router.post("/recommend", async (req, res) => {
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ip = req.ip; // trust-proxy aware (see app.set("trust proxy", 1) in index.js)
   const currentRequests = ipRequests.get(ip) || 0;
 
   if (currentRequests >= 15) {
@@ -863,8 +903,14 @@ router.post("/recommend", async (req, res) => {
 
   ipRequests.set(ip, currentRequests + 1);
 
-  const { budget, purpose, extras, storeId } = req.body;
-  const safeExtras = (extras || "").trim().slice(0, 200);
+  const { budget, purpose: rawPurpose, extras, storeId } = req.body;
+  // Both are freeform request-body fields that end up echoed back into
+  // finalizeBuild()'s summary text (and cached/persisted via
+  // analyticsDB.logRecommendation) — typed and length-capped the same way
+  // regardless of what the caller sends, since nothing downstream should
+  // ever see a non-string or an unbounded string here.
+  const safeExtras = (typeof extras === "string" ? extras : "").trim().slice(0, 200);
+  const purpose = (typeof rawPurpose === "string" ? rawPurpose : "").trim().slice(0, 100);
 
   if (!budget || !purpose || !storeId) {
     return res
@@ -991,7 +1037,7 @@ router.post("/recommend", async (req, res) => {
 // one recomputed here, fresh, from the store's real catalog. This becomes
 // the store owner's ground truth to cross-check an order message against.
 router.post("/order-request", async (req, res) => {
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const ip = req.ip; // trust-proxy aware (see app.set("trust proxy", 1) in index.js)
   const currentRequests = ipRequests.get(ip) || 0;
   if (currentRequests >= 15) {
     return res.status(429).json({
@@ -1001,7 +1047,10 @@ router.post("/order-request", async (req, res) => {
   }
   ipRequests.set(ip, currentRequests + 1);
 
-  const { storeId, budget, purpose, tier, orderMethod } = req.body;
+  const { storeId, budget, purpose: rawPurpose, tier, orderMethod } = req.body;
+  // Same reasoning as /recommend above — purpose is freeform and flows
+  // into finalizeBuild()'s summary text.
+  const purpose = (typeof rawPurpose === "string" ? rawPurpose : "").trim().slice(0, 100);
   if (!storeId || !budget || !purpose || !tier) {
     return res
       .status(400)

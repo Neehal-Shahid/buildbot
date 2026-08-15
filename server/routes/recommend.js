@@ -269,35 +269,6 @@ function evaluablePairs(pairs, limitEachEnd) {
   return [...pairs.slice(0, limitEachEnd), ...pairs.slice(-limitEachEnd)];
 }
 
-// Reduces a pair list to one entry per unique CPU — the cheapest board
-// that CPU is compatible with. Board brand/model isn't something a
-// customer thinks of as "a different build"; CPU (and, separately, GPU —
-// see catalogWithFixedGpu) is what actually varies the offering. Uses the
-// CPU object itself as the map key, which works because every pair
-// sharing a CPU references the exact same object from catalogByCategory's
-// CPU list (see compatiblePairs), not a copy.
-function uniqueCheapestBoardPerCpu(pairs) {
-  const byCpu = new Map();
-  pairs.forEach((pair) => {
-    const existing = byCpu.get(pair.cpu);
-    if (!existing || pair.board.price < existing.board.price) {
-      byCpu.set(pair.cpu, pair);
-    }
-  });
-  return [...byCpu.values()];
-}
-
-// Lets cheapestFillFromPair's existing "always pick compatibleCandidates[0]"
-// logic pick a SPECIFIC GPU rather than skipping the category or picking
-// the cheapest — by handing it a catalog where GPU has exactly one
-// candidate. Cheap to build (shallow Map clone) and avoids duplicating
-// cheapestFillFromPair's fill logic just to force one category's choice.
-function catalogWithFixedGpu(catalogByCategory, gpu) {
-  const clone = new Map(catalogByCategory);
-  clone.set("GPU", [gpu]);
-  return clone;
-}
-
 // Picks up to `max` builds spread evenly across a price-sorted list rather
 // than just the `max` cheapest — a customer's budget should see the full
 // range of what's achievable (cheapest through priciest-still-affordable),
@@ -484,7 +455,7 @@ function ensurePsuSufficient(result, catalogByCategory, budget) {
 // there's no longer a fixed number of builds, so naming/messaging is
 // derived from where this build actually falls (cheapest, priciest-
 // affordable, or in between) among however many came back this time.
-function finalizeBuild(b, rank, count, budget) {
+function finalizeBuild(b, rank, count, budget, anyPricierBuildHasGpu) {
   const totalPrice = Math.round(b.total);
   const withinBudget = totalPrice <= budget;
   const budgetRemaining = budget - totalPrice;
@@ -539,11 +510,21 @@ function finalizeBuild(b, rank, count, budget) {
   const gpuBudgetNote = gpuExcludedForBudget
     ? (() => {
         const igpu = integratedGraphicsStatus(b.ctx.cpu);
+        // Two genuinely different situations read very differently: a
+        // no-GPU build sitting among pricier GPU-equipped options in the
+        // SAME result set is just this ladder's cheap end, not a shortfall
+        // — saying "didn't fit your budget" there is actively wrong, since
+        // the customer's budget clearly did afford a GPU (see the pricier
+        // cards). That framing is only accurate for the one case where no
+        // build at any price up to the full budget could include a GPU.
+        const opening = anyPricierBuildHasGpu
+          ? "This is a lower-cost option without a graphics card — see the pricier builds below for one that includes a GPU."
+          : "No graphics card in this build — adding one would push it over your budget with the store's current stock.";
         if (igpu === "present")
-          return ` No graphics card in this build — this CPU has built-in (integrated) graphics, so you'll still get a display; a graphics card wasn't added because doing so would push this build over your budget with the store's current stock.`;
+          return ` ${opening} This CPU has built-in (integrated) graphics, so you'll still get a display either way.`;
         if (igpu === "none")
-          return ` No graphics card in this build — adding one would push this build over your budget with the store's current stock, and this CPU does NOT have integrated graphics, so you will need to add a graphics card separately (even a cheap one) to get any display output.`;
-        return ` No graphics card in this build — adding one would push this build over your budget with the store's current stock. Please confirm this CPU has integrated graphics before buying; if it doesn't, you'll need a separate graphics card for a display signal.`;
+          return ` ${opening} This CPU does NOT have integrated graphics, so you will need to add a graphics card separately (even a cheap one) to get any display output.`;
+        return ` ${opening} Please confirm this CPU has integrated graphics before buying; if it doesn't, you'll need a separate graphics card for a display signal.`;
       })()
     : "";
 
@@ -596,6 +577,230 @@ function finalizeBuild(b, rank, count, budget) {
 // modest variety will naturally return fewer.
 const MAX_BUILDS_SHOWN = 12;
 
+// Realistic per-category quantity ceilings — a real PC has 2-4 RAM slots
+// and room for a handful of case fans, never dozens.
+const MAX_QUANTITY = { RAM: 4, "Case Fans": 6 };
+
+function compatibleCpusForBoard(catalogByCategory, boardSocket) {
+  return (catalogByCategory.get("CPU") || []).filter((c) =>
+    socketsMatch(detectSocket(c), boardSocket),
+  );
+}
+
+function compatibleBoardsForCpu(catalogByCategory, cpuSocket, ramType, formFactor) {
+  return (catalogByCategory.get("Motherboard") || []).filter((b) => {
+    if (!socketsMatch(detectSocket(b), cpuSocket)) return false;
+    const bRam = detectRamType(b);
+    if (ramType && bRam && bRam !== ramType) return false;
+    const bFF = detectFormFactor(b);
+    if (formFactor && bFF && bFF !== formFactor) return false;
+    return true;
+  });
+}
+
+// Finds the single cheapest possible next step up from the current build
+// — CPU swap, Motherboard swap, a swap in any other present category, or
+// one more unit of RAM/Case Fans; GPU is deliberately handled separately
+// (see climbAndSnapshot's two phases below), never as one of these
+// candidates. A GPU-add is a single lump price jump (the card's whole
+// price) rather than a small step, so if it competed here on raw delta
+// size it would almost always lose to dozens of tiny swaps elsewhere and
+// only get added once every other category was already maxed out —
+// nowhere near where a customer would expect a graphics card to show up.
+function cheapestNextStep(parts, ctx, catalogByCategory) {
+  const candidates = [];
+
+  const cpuPart = parts.find((p) => p.category === "CPU");
+  const betterCpu = compatibleCpusForBoard(catalogByCategory, ctx.boardSocket)
+    .filter((c) => c.price > cpuPart.price)
+    .sort((a, b) => a.price - b.price)[0];
+  if (betterCpu) {
+    candidates.push({
+      delta: betterCpu.price - cpuPart.price,
+      apply: (p, c) => {
+        p[p.findIndex((x) => x.category === "CPU")] = partEntry("CPU", betterCpu);
+        c.cpu = betterCpu;
+        c.cpuSocket = detectSocket(betterCpu);
+      },
+    });
+  }
+
+  const boardPart = parts.find((p) => p.category === "Motherboard");
+  const betterBoard = compatibleBoardsForCpu(
+    catalogByCategory,
+    ctx.cpuSocket,
+    detectRamType(ctx.board),
+    detectFormFactor(ctx.board),
+  )
+    .filter((b) => b.price > boardPart.price)
+    .sort((a, b) => a.price - b.price)[0];
+  if (betterBoard) {
+    candidates.push({
+      delta: betterBoard.price - boardPart.price,
+      apply: (p, c) => {
+        p[p.findIndex((x) => x.category === "Motherboard")] = partEntry("Motherboard", betterBoard);
+        c.board = betterBoard;
+        c.boardSocket = detectSocket(betterBoard);
+      },
+    });
+  }
+
+  const gpuPart = parts.find((p) => p.category === "GPU");
+  if (gpuPart) {
+    const betterGpu = compatibleCandidates("GPU", catalogByCategory, ctx)
+      .filter((g) => g.price > gpuPart.price)[0];
+    if (betterGpu) {
+      candidates.push({
+        delta: betterGpu.price - gpuPart.price,
+        apply: (p, c) => {
+          p[p.findIndex((x) => x.category === "GPU")] = partEntry("GPU", betterGpu);
+          c.gpu = betterGpu;
+        },
+      });
+    }
+  }
+
+  ["RAM", "Storage", "PSU", "CPU Cooler", "Case", "Case Fans"].forEach((category) => {
+    const part = parts.find((p) => p.category === category);
+    if (!part) return;
+    const better = compatibleCandidates(category, catalogByCategory, ctx)
+      .filter((c) => c.price > part.price)
+      .sort((a, b) => a.price - b.price)[0];
+    if (better) {
+      candidates.push({
+        delta: (better.price - part.price) * (part.quantity || 1),
+        apply: (p) => {
+          const idx = p.findIndex((x) => x.category === category);
+          p[idx] = partEntry(category, better, p[idx].quantity);
+        },
+      });
+    }
+    const qtyCap = MAX_QUANTITY[category];
+    if (qtyCap) {
+      // RAM must stay in matched pairs once it has more than one stick —
+      // jump straight from 2 to 4 rather than an odd count that disables
+      // dual-channel operation.
+      const addAmount = category === "RAM" && part.quantity === 2 ? 2 : 1;
+      if (part.quantity + addAmount <= qtyCap) {
+        candidates.push({
+          delta: part.price * addAmount,
+          apply: (p) => {
+            const idx = p.findIndex((x) => x.category === category);
+            p[idx].quantity += addAmount;
+            p[idx].totalPrice = p[idx].price * p[idx].quantity;
+          },
+        });
+      }
+    }
+  });
+
+  if (!candidates.length) return null;
+  return candidates.reduce((a, b) => (a.delta <= b.delta ? a : b));
+}
+
+// Climbs from the cheapest complete build up to `budget` in two phases,
+// recording a snapshot whenever the price has moved far enough from the
+// last one to be worth showing as a distinct option (minGap scales with
+// the budget so a small and a large budget both get a handful of
+// meaningfully spaced options, not dozens of near-identical ones or one
+// fixed peso amount that's too coarse/fine depending on scale):
+//
+// Phase 1 — no GPU yet. Climbs every OTHER category via cheapestNextStep
+// while a GPU still wouldn't fit remaining budget, re-checking after each
+// step whether the cheapest compatible GPU now would. The moment it
+// would, that's the transition: the GPU gets added right there — not
+// competing against smaller swaps on raw price delta (see
+// cheapestNextStep's comment for why that would badly mis-time it), but
+// triggered specifically by "can we afford one yet".
+//
+// Phase 2 — GPU included. Keeps climbing (now including GPU swaps) the
+// same way up to the budget ceiling.
+function climbAndSnapshot(startFloor, catalogByCategory, budget) {
+  let parts = startFloor.parts.map((p) => ({ ...p }));
+  let ctx = { ...startFloor.ctx };
+  let total = parts.reduce((s, p) => s + p.totalPrice, 0);
+  const baseMissing = startFloor.missing;
+
+  // Once a GPU has actually been added during the climb, the floor's
+  // original "excluded_for_budget" GPU entry no longer describes this
+  // snapshot — dropping it here (rather than carrying it forward
+  // unchanged) is what keeps gpuExcludedForBudget accurate per-snapshot
+  // instead of stuck at whatever the very first build looked like.
+  const snapshot = () => {
+    const hasGpu = parts.some((p) => p.category === "GPU");
+    const missing = hasGpu ? baseMissing.filter((m) => m.category !== "GPU") : baseMissing;
+    return { parts: parts.map((p) => ({ ...p })), total, missing, ctx: { ...ctx } };
+  };
+
+  const applyStep = (step) => {
+    step.apply(parts, ctx);
+    const afterPsu = ensurePsuSufficient(
+      { parts, total: parts.reduce((s, p) => s + p.totalPrice, 0), missing: baseMissing, ctx },
+      catalogByCategory,
+      budget,
+    );
+    parts = afterPsu.parts;
+    total = afterPsu.total;
+  };
+
+  const snapshots = [snapshot()];
+  const minGap = Math.max(budget * 0.15, 2000);
+  let lastSnapshotTotal = total;
+  let guard = 0;
+  const maxGuard = 2000; // steps are cheap (a few array scans each) — this bounds runaway loops, not realistic catalogs
+
+  // Phase 1
+  while (guard < maxGuard) {
+    const cheapestGpu = compatibleCandidates("GPU", catalogByCategory, ctx)[0];
+    if (cheapestGpu && total + cheapestGpu.price <= budget) {
+      guard++;
+      applyStep({
+        apply: (p, c) => {
+          p.push(partEntry("GPU", cheapestGpu));
+          c.gpu = cheapestGpu;
+        },
+      });
+      // Always record the transition itself, regardless of minGap spacing
+      // — "a GPU just became available" is meaningful on its own even if
+      // the price barely moved.
+      snapshots.push(snapshot());
+      lastSnapshotTotal = total;
+      break;
+    }
+    if (total >= budget) break;
+    const step = cheapestNextStep(parts, ctx, catalogByCategory);
+    if (!step || total + step.delta > budget) break;
+    guard++;
+    applyStep(step);
+    if (total - lastSnapshotTotal >= minGap) {
+      snapshots.push(snapshot());
+      lastSnapshotTotal = total;
+    }
+  }
+
+  // Phase 2
+  while (total < budget && guard < maxGuard) {
+    guard++;
+    const step = cheapestNextStep(parts, ctx, catalogByCategory);
+    if (!step || total + step.delta > budget) break;
+    applyStep(step);
+    if (total - lastSnapshotTotal >= minGap) {
+      snapshots.push(snapshot());
+      lastSnapshotTotal = total;
+    }
+  }
+
+  // Always keep the final reached state — the priciest thing the store
+  // can actually offer within budget — even if it landed closer than
+  // minGap to the last recorded snapshot, since it's the ceiling and
+  // worth showing regardless of spacing.
+  if (snapshots[snapshots.length - 1].total !== total) {
+    snapshots.push(snapshot());
+  }
+
+  return snapshots;
+}
+
 function generateBuildsFromCatalog(products, budget) {
   const catalogByCategory = buildCatalogByCategory(products);
 
@@ -616,38 +821,25 @@ function generateBuildsFromCatalog(products, budget) {
   const requiredMissing = (floor) =>
     floor.missing.some((m) => REQUIRED_SET.has(m.category));
 
-  // One anchor per unique CPU (cheapest compatible board — see
-  // uniqueCheapestBoardPerCpu) rather than every CPU×board pair: board
-  // choice isn't a meaningful axis of "different build" to a customer,
-  // CPU is. Every build below is generated from one of these anchors,
-  // either with no GPU or with one specific GPU fixed in — that's what
-  // actually makes builds distinct, instead of a fixed Budget/Balanced/Max
-  // split that could leave a huge, meaningless gap between two tiers on a
-  // catalog with real variety, or silently collapse into duplicates on a
-  // catalog without much. Both dimensions are capped (cheapest+priciest N
-  // — see evaluablePairs) since they multiply: an uncapped catalog with,
-  // say, 100 CPUs and 100 GPUs would mean 10,000+ evaluations per request,
-  // measured at several seconds against a real catalog in testing. The
-  // true optimum for spreading across the price range is essentially
-  // always among the cheapest/priciest of each anyway.
-  const cpuAnchors = uniqueCheapestBoardPerCpu(evaluablePairs(pairs, 40));
-  // catalogByCategory's lists are already price-sorted ascending (see
-  // buildCatalogByCategory), so evaluablePairs can slice this directly.
-  const gpus = evaluablePairs(catalogByCategory.get("GPU") || [], 40);
-
-  const raw = [];
-  cpuAnchors.forEach((pair) => {
+  // The cheapest CPU+board pair that can even complete a full
+  // required-category build (pairs are already cost-sorted ascending —
+  // see compatiblePairs) becomes the floor the whole price ladder climbs
+  // from. Capped the same way evaluablePairs always has been — the true
+  // cheapest feasible pair is essentially always among the cheapest ones
+  // by raw cost.
+  const candidatePairs = evaluablePairs(pairs, 150);
+  let startFloor = null;
+  for (const pair of candidatePairs) {
     const noGpu = cheapestFillFromPair(catalogByCategory, pair, new Set(["GPU"]));
-    if (!requiredMissing(noGpu)) raw.push(noGpu);
-    gpus.forEach((gpu) => {
-      const withGpu = cheapestFillFromPair(catalogWithFixedGpu(catalogByCategory, gpu), pair);
-      if (!requiredMissing(withGpu)) raw.push(withGpu);
-    });
-  });
+    if (!requiredMissing(noGpu)) {
+      startFloor = noGpu;
+      break;
+    }
+  }
 
-  if (!raw.length) {
+  if (!startFloor) {
     const missingSet = new Map();
-    cpuAnchors.forEach((pair) => {
+    candidatePairs.forEach((pair) => {
       cheapestFillFromPair(catalogByCategory, pair, new Set(["GPU"])).missing.forEach((m) => {
         if (REQUIRED_SET.has(m.category)) missingSet.set(m.category, m.reason);
       });
@@ -662,18 +854,9 @@ function generateBuildsFromCatalog(products, budget) {
     return { canBuild: false, noBuildsReason, builds: [] };
   }
 
-  const withinBudget = raw
-    .map((floor) => ensurePsuSufficient(enforceBudgetCap(floor, catalogByCategory, budget), catalogByCategory, budget))
-    .filter((b) => b.total <= budget);
-
-  if (!withinBudget.length) {
-    // The GPU-optional no-GPU variant for every CPU is already part of
-    // `raw`, so this floor already reflects the true cheapest achievable
-    // build — no separate "try again without a GPU" pass needed, unlike
-    // the old fixed-tier version of this function.
-    const cheapest = raw.reduce((min, b) => (b.total < min.total ? b : min), raw[0]);
-    const cheapestTotal = Math.round(cheapest.total);
-    const shortfall = Math.round(cheapest.total - budget);
+  if (startFloor.total > budget) {
+    const cheapestTotal = Math.round(startFloor.total);
+    const shortfall = Math.round(startFloor.total - budget);
     return {
       canBuild: false,
       noBuildsReason: `The cheapest complete PC we can build from this store's inventory costs about ${cheapestTotal.toLocaleString()}, which is ${shortfall.toLocaleString()} more than your budget. Try increasing your budget, or ask the store to stock more affordable parts.`,
@@ -681,11 +864,22 @@ function generateBuildsFromCatalog(products, budget) {
     };
   }
 
-  withinBudget.sort((a, b) => a.total - b.total);
-  const selected = spreadAcrossRange(withinBudget, MAX_BUILDS_SHOWN);
+  // Climbs from that floor to the customer's budget, recording a
+  // snapshot at every meaningfully-priced step along the way (see
+  // climbAndSnapshot/cheapestNextStep) — a GPU gets introduced at
+  // whatever price point is genuinely the cheapest place to add one,
+  // rather than at a fixed budget percentage, so the customer sees the
+  // real range of what this store can build for their money instead of a
+  // fixed count of tiers that could leave a big, meaningless gap.
+  const snapshots = climbAndSnapshot(startFloor, catalogByCategory, budget);
+  // Safety net, not the normal path — minGap spacing inside
+  // climbAndSnapshot already keeps this well under the cap for any
+  // realistic catalog.
+  const selected = spreadAcrossRange(snapshots, MAX_BUILDS_SHOWN);
 
+  const anyBuildHasGpu = selected.some((b) => b.ctx?.gpu);
   const finalBuilds = selected.map((b, i) =>
-    finalizeBuild(b, i, selected.length, budget),
+    finalizeBuild(b, i, selected.length, budget, anyBuildHasGpu),
   );
 
   // Signals when the store's own inventory, not the customer's budget, is
@@ -693,7 +887,7 @@ function generateBuildsFromCatalog(products, budget) {
   // this store can assemble only reaches 98,000 leaves real headroom
   // unused, which reads as a glitch ("why only cheap options for such a
   // big budget?") unless it's explained.
-  const priciestAffordable = withinBudget[withinBudget.length - 1].total;
+  const priciestAffordable = snapshots[snapshots.length - 1].total;
   const inventoryCeilingNote =
     priciestAffordable < budget * 0.9
       ? `This store's best available build for your needs costs ${Math.round(priciestAffordable).toLocaleString()} — a bigger budget won't unlock anything more from their current inventory.`

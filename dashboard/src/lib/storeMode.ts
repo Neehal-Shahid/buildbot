@@ -3,6 +3,37 @@
 // the two tabs can never drift on the storage key or the default.
 export type WebsiteMode = "custom" | "woo";
 
+export type DataSource = "woo" | "ospos" | "manual";
+
+// Which data sources make sense for each website type chosen in Store &
+// Sync (Step 1). A custom (non-WordPress) site has no WooCommerce product
+// listing to ever sync from, so that option is excluded there — but a
+// WordPress site can still validly use Dashboard or OSPOS as its data
+// source instead of WooCommerce: the widget always gets its data from
+// BuildVolt's own catalog regardless of install method (script vs
+// plugin), so nothing about being on WordPress requires WooCommerce
+// specifically to be the source. Shared with DashboardApp.tsx (which uses
+// it to decide whether the Products/Install Widget steps can honestly
+// show as done) so the two can never drift on which sources are valid.
+export const ALLOWED_SOURCES: Record<WebsiteMode, DataSource[]> = {
+  custom: ["manual", "ospos"],
+  woo: ["woo", "ospos", "manual"],
+};
+
+// True once a data source has been confirmed but no longer fits the
+// current website type (e.g. website type was switched from WordPress to
+// Custom after WooCommerce was already chosen as the source) — in this
+// state the widget can't actually be trusted to serve real products even
+// if it was working before, until the store owner re-picks a source.
+export function isSourceMismatched(
+  storeId: string,
+  dataSource: DataSource,
+  dataSourceConfirmed: boolean,
+): boolean {
+  if (!dataSourceConfirmed) return false;
+  return !ALLOWED_SOURCES[getStoredMode(storeId)].includes(dataSource);
+}
+
 // Scoped per store, not one global key: this browser may have been used to
 // test more than one BuildVolt account (or will be, on a shared machine),
 // and a brand-new store must never inherit a previous account's leftover

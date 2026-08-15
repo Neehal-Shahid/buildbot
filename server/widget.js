@@ -840,37 +840,18 @@
         alert("Could not prepare your order — please try again.");
         return;
       }
+      // The itemized parts/total used to be spelled out here too, but
+      // that's exactly the customer-editable text the link below already
+      // makes unnecessary — the store owner opens the link and sees the
+      // real order regardless of what happens to everything else in this
+      // message. Keeping the message itself short also means there's less
+      // for a customer to bother editing before hitting Send in the first
+      // place.
+      const orderUrl = `${API.replace(/\/api$/, "")}/o/${orderId}/${orderSig}`;
       const lines = [
         `Hi! I'd like to order this PC build from ${WIDGET_TITLE}:`,
-        "",
+        orderUrl,
       ];
-      (orderedBuild.parts || []).forEach((p) => {
-        const qty = p.quantity || 1;
-        const total = p.totalPrice || p.price * qty;
-        lines.push(
-          `• ${p.category}: ${p.name}${qty > 1 ? ` × ${qty}` : ""} — ${_lastCurrency} ${Number(total).toLocaleString()}`,
-        );
-      });
-      lines.push(
-        "",
-        `Total: ${_lastCurrency} ${Number(orderedBuild.totalPrice).toLocaleString()}`,
-        `(${orderedBuild.buildName || orderedBuild.tier})`,
-      );
-      if (orderId && orderSig) {
-        // A link is still just text, so it's the one part of this message
-        // that survives being pre-filled into WhatsApp the same way the
-        // itemized lines above do — but unlike them, it carries no
-        // customer-editable data at all: it just points at a page the
-        // server renders straight from the same order_requests row. If the
-        // customer deletes it, the store owner still has the Orders tab;
-        // if it survives, they don't even need to open the dashboard.
-        const orderUrl = `${API}/order/${orderId}/${orderSig}`;
-        lines.push(
-          "",
-          `Verified order details (can't be edited): ${orderUrl}`,
-          `Order Ref: #${orderId}`,
-        );
-      }
       const waNumber = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
       const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
       window.open(waUrl, "_blank", "noopener");

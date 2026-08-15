@@ -39,6 +39,12 @@ app.use("/api", adminRoute);
 app.use("/api", pluginRoute);
 app.use("/api", osposRoute);
 
+// Verified order-view link sent in WhatsApp order messages (see
+// placeOrderForBuild in widget.js) — deliberately NOT under /api: this is
+// the one URL in the whole app a real person actually reads and taps, so
+// it stays short instead of carrying the API namespace along with it.
+app.get("/o/:id/:sig", recommendRoute.handleOrderView);
+
 // Serve widget script
 // Without an explicit charset, browsers can fall back to Latin-1 when
 // parsing the script, corrupting every non-ASCII character embedded in

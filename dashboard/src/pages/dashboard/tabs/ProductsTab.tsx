@@ -3,31 +3,16 @@ import { dashboardApi, type Product } from "../../../lib/dashboardApi";
 import { useStoreAuth } from "../../../context/StoreAuthContext";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { ApiError } from "../../../lib/api";
-import { getStoredMode, type WebsiteMode } from "../../../lib/storeMode";
+import { getStoredMode, ALLOWED_SOURCES, type DataSource, type WebsiteMode } from "../../../lib/storeMode";
 
 // Must stay identical to CANONICAL_CATEGORIES in server/lib/categories.js —
 // anything else is rejected by POST/PUT /product.
 const CATEGORIES = ["CPU", "Motherboard", "RAM", "Storage", "GPU", "PSU", "Case", "CPU Cooler", "Case Fans"];
 
-type DataSource = "woo" | "ospos" | "manual";
-
 const SOURCE_LABEL: Record<DataSource, string> = {
   woo: "WordPress / WooCommerce",
   ospos: "OSPOS",
   manual: "Dashboard",
-};
-
-// Which data sources make sense for each website type chosen in Store &
-// Sync (Step 1). A custom (non-WordPress) site has no WooCommerce product
-// listing to ever sync from, so that option is excluded there — but a
-// WordPress site can still validly use Dashboard or OSPOS as its data
-// source instead of WooCommerce: the widget always gets its data from
-// BuildVolt's own catalog regardless of install method (script vs
-// plugin), so nothing about being on WordPress requires WooCommerce
-// specifically to be the source.
-const ALLOWED_SOURCES: Record<WebsiteMode, DataSource[]> = {
-  custom: ["manual", "ospos"],
-  woo: ["woo", "ospos", "manual"],
 };
 
 const filterInputStyle = {

@@ -1162,8 +1162,11 @@ function escapeHtml(value) {
 // to find in the dashboard's Orders tab — reachable straight from the
 // WhatsApp chat, and immune to whatever the customer edited (or deleted)
 // in the message text around it, since the link itself carries no
-// customer-supplied data at all.
-router.get("/order/:id/:sig", async (req, res) => {
+// customer-supplied data at all. Registered directly on the app at a
+// short, un-prefixed path (see server/index.js) rather than under
+// /api/order/... — this is the one route whose URL a real person actually
+// reads and taps, so it's worth keeping off the API namespace.
+async function handleOrderView(req, res) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || req.params.sig !== signOrderId(id)) {
@@ -1172,9 +1175,6 @@ router.get("/order/:id/:sig", async (req, res) => {
 
   const order = await orderRequestDB.getByIdPublic(id);
   if (!order) return res.status(404).send("<p>Order not found.</p>");
-
-  const store = await storeDB.findById(order.store_id);
-  const storeName = escapeHtml(store?.name || "the store");
 
   const rows = (order.parts || [])
     .map((p) => {
@@ -1191,11 +1191,11 @@ router.get("/order/:id/:sig", async (req, res) => {
 
   res.send(`<!doctype html>
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Order #${id} — ${storeName}</title></head>
+<title>Order #${id}</title></head>
 <body style="font-family:'Inter',Arial,sans-serif; max-width:600px; margin:0 auto; padding:24px; color:#111;">
   <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Order #${id} — verified, unedited</div>
   <h1 style="font-size:20px; margin:6px 0 2px;">${escapeHtml(order.build_name)}</h1>
-  <div style="color:#666; font-size:13px; margin-bottom:16px;">For ${storeName} — placed ${escapeHtml(new Date(order.created_at).toLocaleString())}</div>
+  <div style="color:#666; font-size:13px; margin-bottom:16px;">Placed ${escapeHtml(new Date(order.created_at).toLocaleString())}</div>
   <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
     <thead><tr style="background:#f5f5f5;">
       <th style="padding:8px 10px; text-align:left; font-size:11px; text-transform:uppercase;">Category</th>
@@ -1207,9 +1207,10 @@ router.get("/order/:id/:sig", async (req, res) => {
   <div style="background:#edf7f2; border:1px solid #1a7a4a; color:#1a7a4a; border-radius:10px; padding:14px; display:flex; justify-content:space-between; font-weight:700;">
     <span>Total</span><span>${escapeHtml(order.currency)} ${Number(order.total_price).toLocaleString()}</span>
   </div>
-  <p style="color:#888; font-size:11px; margin-top:20px;">This page is generated directly from ${storeName}'s BuildVolt records and cannot be edited by the customer.</p>
+  <p style="color:#888; font-size:11px; margin-top:20px;">This page is generated directly from BuildVolt's records and cannot be edited by the customer.</p>
 </body></html>`);
-});
+}
 
 module.exports = router;
 module.exports.generateBuildsFromCatalog = generateBuildsFromCatalog;
+module.exports.handleOrderView = handleOrderView;

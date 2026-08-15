@@ -4,7 +4,7 @@ import { useToast } from "../../../components/ui/ToastProvider";
 import { getWidgetScriptUrl, API_ORIGIN } from "../../../lib/config";
 import { dashboardApi } from "../../../lib/dashboardApi";
 import { ApiError } from "../../../lib/api";
-import { getStoredMode, setStoredMode, type WebsiteMode } from "../../../lib/storeMode";
+import { getStoredMode, setStoredMode, isSourceMismatched, type WebsiteMode } from "../../../lib/storeMode";
 
 interface PluginStatus {
   hasKey: boolean;
@@ -65,6 +65,19 @@ export default function EmbedTab() {
   // already having products would be a deadlock: no products without the
   // plugin, no plugin without products.
   const pluginBringsOwnData = mode === "woo" && store?.dataSource === "woo";
+
+  // The confirmed data source no longer fits the website type chosen here
+  // in Step 1 (e.g. switched from WordPress to Custom after WooCommerce
+  // was already the source) — Products (Step 2) already surfaces this and
+  // lets the store owner re-pick, but without this check here too, a
+  // stale product count from the now-invalid source could still make this
+  // step look installable when the live widget wouldn't actually have
+  // real products to show.
+  const sourceMismatch = isSourceMismatched(
+    storeId,
+    store?.dataSource ?? "manual",
+    !!store?.dataSourceConfirmed,
+  );
 
   // The real signal, not a local flag: the widget only serves customers
   // when widget_enabled is on AND there's a way to actually order
@@ -131,14 +144,23 @@ export default function EmbedTab() {
         .
       </div>
 
-      {!hasProducts && productCount !== null && !pluginBringsOwnData && (
+      {sourceMismatch ? (
         <div className="alert alert-error show" style={{ marginBottom: 16 }}>
-          Your product catalog is empty — the widget can't be installed until it has something to recommend.
-          Go to <strong>Products</strong> (Step 2) and add products, upload a file, or import from OSPOS first.
+          Your data source no longer matches this website type. Go to <strong>Products</strong> (Step 2) and pick a
+          data source that fits before installing the widget.
         </div>
+      ) : (
+        !hasProducts &&
+        productCount !== null &&
+        !pluginBringsOwnData && (
+          <div className="alert alert-error show" style={{ marginBottom: 16 }}>
+            Your product catalog is empty — the widget can't be installed until it has something to recommend.
+            Go to <strong>Products</strong> (Step 2) and add products, upload a file, or import from OSPOS first.
+          </div>
+        )
       )}
 
-      {mode === "custom" ? (
+      {sourceMismatch ? null : mode === "custom" ? (
         <ScriptGuide
           snippet={snippet}
           canInstall={hasProducts}

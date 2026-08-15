@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useStoreAuth } from "../../context/StoreAuthContext";
 import { dashboardApi } from "../../lib/dashboardApi";
-import { hasChosenMode } from "../../lib/storeMode";
+import { hasChosenMode, isSourceMismatched } from "../../lib/storeMode";
 import { TopNav } from "./TopNav";
 import HomeTab from "./tabs/HomeTab";
 import StoreSyncTab from "./tabs/StoreSyncTab";
@@ -230,15 +230,28 @@ export default function DashboardApp() {
   }
 
   const hasOrderMethod = !!(store?.wooConnected || store?.whatsappVerified);
+  // A confirmed data source that no longer fits the website type (e.g.
+  // switched from WordPress to Custom after WooCommerce was already
+  // chosen — see Products tab's own picker) means the widget can't
+  // actually be trusted to serve real products anymore, even if it once
+  // did. Both Products and Install Widget must stop reading as "done"
+  // until the store owner re-picks a source, or the sidebar would keep
+  // claiming everything's ready while the live widget shows customers
+  // "no products yet".
+  const sourceMismatch = isSourceMismatched(
+    store?.storeId || "",
+    store?.dataSource ?? "manual",
+    !!store?.dataSourceConfirmed,
+  );
   const stepDone: Record<number, boolean> = {
     1: hasChosenMode(store?.storeId),
-    2: (productCount ?? 0) > 0,
+    2: (productCount ?? 0) > 0 && !sourceMismatch,
     // Both halves matter: widgetLastSeen is real evidence the snippet is
     // pasted and loading (not just "you could technically go live" — see
     // storeDB.touchWidgetSeen), and hasOrderMethod/widgetEnabled confirm
     // it's still actually able to take orders right now, in case it was
     // installed once and then turned off again.
-    3: !!store?.widgetLastSeen && hasOrderMethod && store?.widgetEnabled !== false,
+    3: !!store?.widgetLastSeen && hasOrderMethod && store?.widgetEnabled !== false && !sourceMismatch,
   };
 
   function renderTab(t: (typeof WORKSPACE_TABS)[number] | (typeof ACCOUNT_TABS)[number]) {

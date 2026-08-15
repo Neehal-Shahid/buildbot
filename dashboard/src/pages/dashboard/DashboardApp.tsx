@@ -148,6 +148,18 @@ export default function DashboardApp() {
   const [productCount, setProductCount] = useState<number | null>(null);
   const [unseenOrders, setUnseenOrders] = useState(0);
   const [latestOrderId, setLatestOrderId] = useState<string | number | null>(null);
+  // Website type (Step 1) lives in localStorage, not React state (see
+  // lib/storeMode.ts), so changing it doesn't naturally trigger a
+  // re-render here — without this, switching it from EmbedTab's "Wrong
+  // choice? Switch to..." link (which, unlike StoreSyncTab's own confirm
+  // flow, doesn't navigate anywhere afterward) left the sidebar's
+  // Products/Install Widget checkmarks showing the PRE-switch
+  // done/mismatched state until some unrelated re-render happened to
+  // come along. Passed down as onModeChange; bumping it forces this
+  // component to re-render and recompute sourceMismatch below against
+  // the now-current localStorage value.
+  const [, bumpModeVersion] = useState(0);
+  const onModeChange = () => bumpModeVersion((v) => v + 1);
 
   const initials = ((store?.email || "").trim().charAt(0) || "U").toUpperCase();
 
@@ -170,8 +182,15 @@ export default function DashboardApp() {
   }, [sidebarOpen]);
 
   // Powers the Step 2 (Products) completion badge — a lightweight count,
-  // not the full catalog, refreshed whenever the Products tab is left (so
-  // finishing Step 2 there updates the sidebar immediately).
+  // not the full catalog. Refreshed on mount, whenever the store's active
+  // data source changes (switching source, or confirming one for the
+  // first time, can move the count from 0 to non-zero or back without any
+  // tab navigation happening at all — see confirmDataSource in
+  // ProductsTab.tsx, which calls refresh() but has no way to reach into
+  // this component's own state), and on arriving at OR leaving the
+  // Products tab (see goTo below) so both "I just fixed this, does the
+  // sidebar agree" and "I changed something here, does the NEXT tab I
+  // open know" are covered.
   function loadProductCount() {
     if (!token) return;
     dashboardApi
@@ -179,7 +198,7 @@ export default function DashboardApp() {
       .then((data) => setProductCount(data.productCount?.count ?? 0))
       .catch(() => {});
   }
-  useEffect(loadProductCount, [token]);
+  useEffect(loadProductCount, [token, store?.dataSource]);
 
   // New-order notification: compares the newest order's id against what
   // was last seen (per store, in localStorage) to compute an unread count
@@ -216,16 +235,18 @@ export default function DashboardApp() {
   }, [token, store?.storeId]);
 
   function goTo(id: TabId) {
+    // Whichever of arriving at OR leaving Products (Step 2) is what just
+    // happened, the count may have changed — added/removed a product,
+    // imported from OSPOS, switched data source while already there (that
+    // path is also covered reactively above, but this catches everything
+    // else too, e.g. a plugin/OSPOS background sync that landed while the
+    // store owner was sitting on this tab).
+    if (id === "products" || tab === "products") loadProductCount();
     setTab(id);
     setSidebarOpen(false);
     if (id === "orders" && store && latestOrderId !== null) {
       localStorage.setItem(lastSeenOrderKey(store.storeId), String(latestOrderId));
       setUnseenOrders(0);
-    }
-    if (id === "products") {
-      // Coming FROM Products (Step 2) is when the count is most likely to
-      // have just changed — refresh so the sidebar badge reflects it.
-      loadProductCount();
     }
   }
 
@@ -373,12 +394,12 @@ export default function DashboardApp() {
           )}
 
           {tab === "home" && <HomeTab onNavigate={setTab} />}
-          {tab === "store" && <StoreSyncTab onNavigate={setTab} />}
+          {tab === "store" && <StoreSyncTab onNavigate={setTab} onModeChange={onModeChange} />}
           {tab === "products" && <ProductsTab onNavigate={setTab} />}
           {tab === "orders" && <OrdersTab />}
           {tab === "analytics" && <AnalyticsTab />}
           {tab === "settings" && <WidgetSettingsTab />}
-          {tab === "embed" && <EmbedTab />}
+          {tab === "embed" && <EmbedTab onModeChange={onModeChange} />}
           {tab === "account" && <AccountTab />}
           {tab === "help" && <HelpTab />}
         </div>

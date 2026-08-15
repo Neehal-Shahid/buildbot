@@ -20,7 +20,13 @@ const readonlyInputStyle = {
   color: "var(--text)",
 } as const;
 
-export default function StoreSyncTab({ onNavigate }: { onNavigate: (tab: "products") => void }) {
+export default function StoreSyncTab({
+  onNavigate,
+  onModeChange,
+}: {
+  onNavigate: (tab: "products") => void;
+  onModeChange: () => void;
+}) {
   const { store } = useStoreAuth();
   const toast = useToast();
   const storeId = store?.storeId || "";
@@ -55,6 +61,7 @@ export default function StoreSyncTab({ onNavigate }: { onNavigate: (tab: "produc
     setStoredMode(storeId, picked);
     setConfirmed(picked);
     setPicked(null);
+    onModeChange();
     onNavigate("products");
   }
 

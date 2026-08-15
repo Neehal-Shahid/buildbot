@@ -37,7 +37,7 @@ function StepCircle({ n, muted }: { n: number; muted?: boolean }) {
   );
 }
 
-export default function EmbedTab() {
+export default function EmbedTab({ onModeChange }: { onModeChange: () => void }) {
   const { token, store, refresh } = useStoreAuth();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -122,6 +122,7 @@ export default function EmbedTab() {
     if (!storeId) return;
     setMode(next);
     setStoredMode(storeId, next);
+    onModeChange();
   }
 
   return (

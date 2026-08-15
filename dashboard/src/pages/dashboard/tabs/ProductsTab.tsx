@@ -11,7 +11,6 @@ const CATEGORIES = ["CPU", "Motherboard", "RAM", "Storage", "GPU", "PSU", "Case"
 
 const SOURCE_LABEL: Record<DataSource, string> = {
   woo: "WordPress / WooCommerce",
-  ospos: "OSPOS",
   manual: "Dashboard",
 };
 
@@ -60,9 +59,8 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
 
   // Classic single-level "Undo last change" — not time limited like a
   // toast. The server snapshots the whole catalog right before every
-  // dashboard-initiated mutation (add/edit/stock toggle/delete/upload/
-  // import/data-source switch); this just reflects whether that snapshot
-  // currently exists. Never set by OSPOS's own background auto-sync.
+  // dashboard-initiated mutation (add/edit/stock toggle/delete/upload);
+  // this just reflects whether that snapshot currently exists.
   const [backup, setBackup] = useState<{ id: number; label: string; productCount: number; createdAt: string } | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
 
@@ -72,23 +70,30 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   }
   useEffect(loadBackupStatus, [token]);
 
-  const [osposOpen, setOsposOpen] = useState(false);
-  // "Host" doubles as "host:port" so Port never needs its own box — 3306
-  // is assumed unless a :port suffix is given.
-  const [osposHost, setOsposHost] = useState("");
-  const [osposPort, setOsposPort] = useState("");
-  const [osposDatabase, setOsposDatabase] = useState("");
-  const [osposUsername, setOsposUsername] = useState("");
-  const [osposPassword, setOsposPassword] = useState("");
-  const [osposImporting, setOsposImporting] = useState(false);
-  const [osposAutoSync, setOsposAutoSync] = useState<{ enabled: boolean; lastSync: string | null; productCount: number; host: string } | null>(null);
-  const [osposDisabling, setOsposDisabling] = useState(false);
-  const [osposSyncing, setOsposSyncing] = useState(false);
-
   // Asked whenever a second catalog method is used after the first
   // already put products in the list — never silently guessed. `run` is
-  // whichever of runUpload/runOsposImport was waiting on the answer.
+  // whichever upload was waiting on the answer.
   const [confirmMode, setConfirmMode] = useState<{ run: (mode: "replace" | "append") => void } | null>(null);
+
+  const [wooSyncing, setWooSyncing] = useState(false);
+  async function syncWooNow() {
+    if (!token || wooSyncing) return;
+    setWooSyncing(true);
+    try {
+      const result = await dashboardApi.plugin.syncNow(token);
+      if (result.success) {
+        toast.success("Synced", result.message || "Your WordPress site synced its products just now.");
+        load();
+        loadBackupStatus();
+      } else {
+        toast.error("Sync failed", result.error || "Could not sync from WordPress.");
+      }
+    } catch (err) {
+      toast.error("Error", err instanceof ApiError ? err.message : "Could not sync from WordPress.");
+    } finally {
+      setWooSyncing(false);
+    }
+  }
 
   // Where the widget's product data actually comes from — separate from
   // Store & Sync's website type and Install Widget's delivery method, but
@@ -107,46 +112,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   // in place.
   const sourceMismatch = dataSourceConfirmed && !allowedSources.includes(dataSource);
   const showPicker = !dataSourceConfirmed || switchingSource || sourceMismatch;
-
-  function loadOsposStatus() {
-    if (!token) return;
-    dashboardApi.products.osposAutoSyncStatus(token).then(setOsposAutoSync).catch(() => {});
-  }
-
-  useEffect(loadOsposStatus, [token]);
-
-  async function stopOsposAutoSync() {
-    if (!token) return;
-    setOsposDisabling(true);
-    try {
-      await dashboardApi.products.disableOsposAutoSync(token);
-      toast.success("Auto-sync stopped", "BuildVolt will no longer pull from OSPOS automatically.");
-      loadOsposStatus();
-    } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not stop auto-sync.");
-    } finally {
-      setOsposDisabling(false);
-    }
-  }
-
-  async function syncOsposNow() {
-    if (!token) return;
-    setOsposSyncing(true);
-    try {
-      const result = await dashboardApi.products.syncOsposNow(token);
-      if (result.success) {
-        toast.success("Synced", result.message || "Pulled the latest listing from OSPOS.");
-        load();
-        loadOsposStatus();
-      } else {
-        toast.error("Sync failed", result.error || "Could not sync from OSPOS.");
-      }
-    } catch (err) {
-      toast.error("Error", err instanceof ApiError ? err.message : "Could not sync from OSPOS.");
-    } finally {
-      setOsposSyncing(false);
-    }
-  }
 
   function load() {
     if (!token || !store) return;
@@ -321,56 +286,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
-  async function runOsposImport(mode: "replace" | "append") {
-    if (!token) return;
-
-    if (!osposHost.trim() || !osposDatabase.trim() || !osposUsername.trim()) {
-      toast.error("Missing fields", "Host, database name, and username are required.");
-      return;
-    }
-    const creds = {
-      host: osposHost.trim(),
-      port: osposPort.trim() || "3306",
-      database: osposDatabase.trim(),
-      username: osposUsername.trim(),
-      password: osposPassword,
-    };
-
-    setOsposImporting(true);
-    try {
-      const data = await dashboardApi.products.importFromOspos(token, creds, mode);
-      if (data.success) {
-        toast.success("Import complete", data.message || `${data.synced ?? 0} products imported.`);
-        setOsposOpen(false);
-        setOsposPassword("");
-        load();
-        loadOsposStatus();
-        loadBackupStatus();
-      } else {
-        toast.error("Import failed", data.error || "Could not import from OSPOS.");
-      }
-    } catch (err) {
-      toast.error("Import failed", err instanceof ApiError ? err.message : "Could not connect to OSPOS.");
-    } finally {
-      setOsposImporting(false);
-    }
-  }
-
-  // Runs when "Import now" is clicked — asks Add-vs-Replace first only if
-  // there's actually something that could be lost.
-  function handleOsposImportClick() {
-    if (!token) return;
-    if (products === null) {
-      toast.error("Still loading", "Your current catalog is still loading — try again in a moment.");
-      return;
-    }
-    if (products.length > 0) {
-      setConfirmMode({ run: runOsposImport });
-    } else {
-      runOsposImport("replace");
-    }
-  }
-
   async function confirmDataSource(source: DataSource) {
     if (!token || sourceBusy) return;
     setSourceBusy(true);
@@ -381,7 +296,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       await refresh();
       load();
       loadBackupStatus();
-      loadOsposStatus();
     } catch (err) {
       toast.error("Error", err instanceof ApiError ? err.message : "Could not set your data source.");
     } finally {
@@ -389,11 +303,11 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
-  // Read-only everywhere the data source isn't 'manual' — WooCommerce and
-  // OSPOS are each the single source of truth for their own products, so
-  // editing from the dashboard would just get silently overwritten by the
-  // next sync (and the server rejects these writes outright either way,
-  // see requireManualSource in server/routes/upload.js).
+  // Read-only everywhere the data source isn't 'manual' — WooCommerce is
+  // the single source of truth for its own products, so editing from the
+  // dashboard would just get silently overwritten by the next sync (and
+  // the server rejects these writes outright either way, see
+  // requireManualSource in server/routes/upload.js).
   const readOnly = dataSource !== "manual";
   const colCount = readOnly ? 4 : 6;
 
@@ -437,10 +351,21 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
               <h2>Managed from WordPress</h2>
               <p style={{ marginBottom: 12 }}>
                 Your catalog syncs automatically from your WooCommerce product listing — add, edit, or remove
-                products there, not here. Changes usually show up here within a few minutes of saving in WordPress.
+                products there, not here. Changes usually show up here within a few minutes of saving in WordPress,
+                and the whole catalog re-syncs every 6 hours regardless.
               </p>
               {store?.wooConnected ? (
-                <div className="badge badge-success">Plugin connected — syncing</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <div className="badge badge-success">Plugin connected — syncing</div>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${wooSyncing ? " is-loading" : ""}`}
+                    onClick={syncWooNow}
+                    disabled={wooSyncing}
+                  >
+                    {wooSyncing ? "Syncing…" : "Sync now"}
+                  </button>
+                </div>
               ) : (
                 <>
                   <div className="badge badge-warning" style={{ marginBottom: 10 }}>
@@ -488,144 +413,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
                 style={{ display: "none" }}
                 onChange={handleFileChosen}
               />
-            </div>
-          )}
-
-          {dataSource === "ospos" && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <h2 style={{ margin: 0 }}>Import from OSPOS</h2>
-                  <p style={{ margin: "4px 0 0" }}>
-                    {osposAutoSync?.enabled
-                      ? "Connected — BuildVolt keeps this catalog in sync with OSPOS automatically."
-                      : "Pull your catalog directly from Open Source Point of Sale — one click, nothing to install."}
-                  </p>
-                </div>
-                {!osposAutoSync?.enabled && (
-                  <button type="button" className="btn btn-sm" onClick={() => setOsposOpen((v) => !v)}>
-                    {osposOpen ? "Cancel" : "Import from OSPOS"}
-                  </button>
-                )}
-              </div>
-
-              {osposAutoSync?.enabled ? (
-                <div style={{ marginTop: 16 }}>
-                  <div
-                    style={{
-                      marginBottom: 14,
-                      padding: "5px 14px",
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      display: "inline-block",
-                      background: "rgba(5,150,105,0.12)",
-                      color: "var(--success)",
-                      border: "1px solid rgba(5,150,105,0.3)",
-                    }}
-                  >
-                    ● Auto-sync ON
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))", gap: 12, marginBottom: 16 }}>
-                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Database Host</div>
-                      <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500, wordBreak: "break-all" }}>{osposAutoSync.host || "—"}</div>
-                    </div>
-                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Products Synced</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--success)" }}>{osposAutoSync.productCount}</div>
-                    </div>
-                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Last Synced</div>
-                      <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>
-                        {osposAutoSync.lastSync ? new Date(osposAutoSync.lastSync).toLocaleString() : "Never"}
-                      </div>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-                    Runs automatically every 3 hours — no need to re-import when your OSPOS listing changes. This
-                    always merges (updates existing items, adds new ones) and never deletes anything, unless you
-                    explicitly choose "Replace" on a manual re-import.
-                  </p>
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <button
-                      type="button"
-                      className={`btn btn-sm${osposSyncing ? " is-loading" : ""}`}
-                      onClick={syncOsposNow}
-                      disabled={osposSyncing || osposDisabling}
-                    >
-                      {osposSyncing ? "Syncing…" : "Sync now"}
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn btn-sm${osposDisabling ? " is-loading" : ""}`}
-                      onClick={stopOsposAutoSync}
-                      disabled={osposDisabling || osposSyncing}
-                      style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid var(--danger-border)" }}
-                    >
-                      {osposDisabling ? "Stopping…" : "Stop auto-sync"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                osposOpen && (
-                  <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
-                      Enter your OSPOS database details below. BuildVolt then keeps your catalog synced
-                      automatically — no need to come back and re-import.
-                    </p>
-
-                    <details style={{ marginBottom: 14, fontSize: 12, color: "var(--muted)" }}>
-                      <summary style={{ cursor: "pointer", color: "var(--accent)", fontWeight: 600 }}>
-                        Where do I find these? (shared/cPanel hosting)
-                      </summary>
-                      <ul style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.7 }}>
-                        <li>cPanel → <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> → allow BuildVolt to connect.</li>
-                        <li>cPanel → <strong style={{ color: "var(--text)" }}>MySQL Databases</strong> → your database name, username, password.</li>
-                        <li>Host: your host's database address (not <code>localhost</code> — e.g. <code>db.yourdomain.com</code>).</li>
-                      </ul>
-                    </details>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
-                      <div>
-                        <label className="form-label" htmlFor="ospos-host">Host</label>
-                        <input
-                          id="ospos-host"
-                          type="text"
-                          placeholder="db.yourdomain.com"
-                          value={osposHost}
-                          onChange={(e) => setOsposHost(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label" htmlFor="ospos-port">Port</label>
-                        <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="form-label" htmlFor="ospos-db">Database Name</label>
-                        <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="form-label" htmlFor="ospos-user">Username</label>
-                        <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="form-label" htmlFor="ospos-pass">Password</label>
-                        <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={`btn btn-primary btn-sm${osposImporting ? " is-loading" : ""}`}
-                      onClick={handleOsposImportClick}
-                      disabled={osposImporting}
-                    >
-                      {osposImporting ? "Importing…" : "Import now"}
-                    </button>
-                  </div>
-                )
-              )}
             </div>
           )}
 
@@ -986,16 +773,6 @@ const SOURCE_CARDS: { value: DataSource; title: string; desc: string; bullets: s
     bullets: [
       "Full control: add, edit, delete, undo, right in this tab",
       "Best if you don't already have a product list somewhere else",
-    ],
-  },
-  {
-    value: "ospos",
-    title: "OSPOS",
-    desc: "Pull your catalog from Open Source Point of Sale, kept in sync automatically from then on.",
-    bullets: [
-      "One-click connect, then BuildVolt keeps pulling updates on its own",
-      "Works whether your widget installs via script or the WordPress plugin",
-      "Managed from OSPOS — not editable here once connected",
     ],
   },
   {

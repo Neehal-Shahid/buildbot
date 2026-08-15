@@ -40,7 +40,7 @@ export interface StoreSession {
   // deliberately separate from wooConnected (which just means the
   // WordPress plugin is authenticated, and stays true regardless of data
   // source, since it's also what delivers the widget). See ProductsTab.tsx.
-  dataSource?: "woo" | "ospos" | "manual";
+  dataSource?: "woo" | "manual";
   // False until the store owner has actually gone through the Products
   // tab's "choose a data source" step — dataSource defaults to 'manual'
   // server-side, but that default must never be shown as if it were an

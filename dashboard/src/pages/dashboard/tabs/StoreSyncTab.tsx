@@ -161,7 +161,7 @@ export default function StoreSyncTab({
           bullets={[
             "You paste one script tag yourself (Step 3 gives you the exact snippet)",
             "Works on literally any site that lets you edit the page HTML",
-            "Products come from the methods in Step 2 — add manually, upload a file, or import from OSPOS",
+            "Products come from the methods in Step 2 — add manually or upload a file",
           ]}
         />
         <OptionCard
@@ -198,8 +198,8 @@ export default function StoreSyncTab({
             <h2 style={{ fontSize: 16, marginBottom: 6 }}>Next: add your products</h2>
             <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
               Head to the <strong style={{ color: "var(--text)" }}>Products</strong> tab (Step 2) — add products
-              manually, upload a CSV/Excel/Word/PDF file, or import from OSPOS. You can use more than one method;
-              we'll ask whether to add to your list or replace it whenever that matters.
+              manually, or upload a CSV/Excel/Word/PDF file. You can use more than one method; we'll ask whether to
+              add to your list or replace it whenever that matters.
             </p>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate("products")}>
               Continue to Products →

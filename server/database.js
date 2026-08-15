@@ -179,8 +179,11 @@ async function initDB() {
   created_at TEXT DEFAULT (datetime('now'))
 )`,
     `INSERT OR IGNORE INTO platform_config (key, value) VALUES ('budget_presets', '50000,80000,120000,200000')`,
-    // OSPOS (Open Source Point of Sale) catalog import — a one-click,
-    // Products-tab action (server/routes/ospos.js POST /ospos/import).
+    // OSPOS (Open Source Point of Sale) catalog import — removed, planned
+    // as future work. These columns are left in place (unused) rather
+    // than dropped, since no code writes to them anymore and dropping
+    // columns from a live production table is a needless risk for a
+    // feature that may come back.
     `ALTER TABLE stores ADD COLUMN ospos_last_sync TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_product_count INTEGER DEFAULT 0`,
     `ALTER TABLE products ADD COLUMN ospos_item_id INTEGER DEFAULT NULL`,
@@ -198,10 +201,11 @@ async function initDB() {
     `ALTER TABLE stores ADD COLUMN ospos_db_name TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_db_user TEXT DEFAULT ''`,
     `ALTER TABLE stores ADD COLUMN ospos_db_password TEXT DEFAULT ''`,
-    // Which method added a given product row — "manual" | "csv" | "ospos" |
-    // "woo". Lets an automatic background sync (OSPOS auto-sync, the
-    // WooCommerce plugin's cron/hooks) refresh only the rows it owns
-    // without wiping out products added a different way. Existing rows
+    // Which method added a given product row — "manual" | "csv" | "woo"
+    // (plus legacy "ospos" rows from before that source was removed).
+    // Lets an automatic background sync (the WooCommerce plugin's
+    // cron/hooks) refresh only the rows it owns without wiping out
+    // products added a different way. Existing rows
     // predate this column and default to 'manual'; that's a reasonable
     // guess for a mixed manual/CSV history and doesn't affect anything
     // since neither of those two sources runs as a background job that
@@ -259,12 +263,9 @@ async function initDB() {
     )`,
     // "Where does my widget's product data come from" — deliberately a
     // separate setting from Store & Sync's website type / Install Widget's
-    // delivery method. A WordPress store might still want OSPOS (not
-    // WooCommerce) as its data source, or vice versa on a custom site —
-    // the WordPress plugin stays connected purely to deliver the widget
-    // either way. 'manual' covers both hand-added products and file
+    // delivery method. 'manual' covers both hand-added products and file
     // uploads. See storeDB.setDataSource and the gating in
-    // routes/upload.js, routes/ospos.js, routes/plugin.js.
+    // routes/upload.js, routes/plugin.js.
     `ALTER TABLE stores ADD COLUMN data_source TEXT DEFAULT 'manual'`,
     // Whether the store owner has actually gone through the Products tab's
     // "choose a data source" step, vs. just sitting on the 'manual'
@@ -559,68 +560,6 @@ const storeDB = {
     });
   },
 
-  // Records the result of every OSPOS import — manual (Products tab) or
-  // scheduled (auto-sync) alike.
-  updateOsposLastImport: async (storeId, productCount) => {
-    const now = new Date().toISOString();
-    return await client.execute({
-      sql: `UPDATE stores SET ospos_last_sync = ?, ospos_product_count = ?
-             WHERE store_id = ?`,
-      args: [now, productCount, storeId],
-    });
-  },
-
-  // Called once, right after a manual import succeeds, so BuildVolt can
-  // reconnect on its own from then on. ospos_db_password is expected to
-  // already be encrypted (server/lib/crypto.js) by the caller.
-  saveOsposCredentials: async (storeId, { host, port, database, username, encryptedPassword }) => {
-    return await client.execute({
-      sql: `UPDATE stores SET
-              ospos_auto_sync = 1,
-              ospos_db_host = ?, ospos_db_port = ?, ospos_db_name = ?,
-              ospos_db_user = ?, ospos_db_password = ?
-            WHERE store_id = ?`,
-      args: [host, String(port || ""), database, username, encryptedPassword, storeId],
-    });
-  },
-
-  getOsposAutoSyncStatus: async (storeId) => {
-    const res = await client.execute({
-      sql: `SELECT ospos_auto_sync, ospos_last_sync, ospos_product_count, ospos_db_host
-             FROM stores WHERE store_id = ?`,
-      args: [storeId],
-    });
-    return res.rows[0] || null;
-  },
-
-  // Every store with auto-sync on, for the scheduled job — includes the
-  // encrypted password so the job can decrypt-and-reconnect per store.
-  // data_source = 'ospos' is belt-and-suspenders: switching a store's data
-  // source away from OSPOS already calls disableOsposAutoSync, but this
-  // means the scheduled job can never write products for a store that
-  // isn't actually sourcing its catalog from OSPOS anymore, even if that
-  // flag were somehow left on.
-  getAllOsposAutoSyncStores: async () => {
-    const res = await client.execute(
-      `SELECT store_id, ospos_db_host, ospos_db_port, ospos_db_name,
-              ospos_db_user, ospos_db_password
-       FROM stores
-       WHERE ospos_auto_sync = 1 AND data_source = 'ospos' AND plan_status != 'disabled'`,
-    );
-    return res.rows;
-  },
-
-  disableOsposAutoSync: async (storeId) => {
-    return await client.execute({
-      sql: `UPDATE stores SET
-              ospos_auto_sync = 0,
-              ospos_db_host = '', ospos_db_port = '', ospos_db_name = '',
-              ospos_db_user = '', ospos_db_password = ''
-            WHERE store_id = ?`,
-      args: [storeId],
-    });
-  },
-
   flagConnectionAbuse: async (storeId, note) => {
     return await client.execute({
       sql: `UPDATE stores SET
@@ -752,12 +691,11 @@ const productDB = {
   // store owner means when they explicitly choose "replace" over "add to
   // existing" in the dashboard. mode: "append" never deletes anything, it
   // only adds. `source` tags every inserted row ("manual" | "csv" |
-  // "ospos" | "woo") so *automatic* background syncs (OSPOS auto-sync,
-  // the WooCommerce plugin's cron/hooks) can later refresh only the rows
-  // they themselves own without silently wiping out what came from a
-  // different method — see server/routes/ospos.js and
-  // server/routes/plugin.js, which both scope their own deletes to a
-  // single source rather than calling this in "replace" mode.
+  // "woo") so an *automatic* background sync (the WooCommerce plugin's
+  // cron/hooks) can later refresh only the rows it itself owns without
+  // silently wiping out what came from a different method — see
+  // server/routes/plugin.js, which scopes its own deletes to a single
+  // source rather than calling this in "replace" mode.
   bulkInsert: async (storeId, products, { source = "manual", mode = "replace", backupLabel } = {}) => {
     // Always a dashboard-initiated action (there's no automatic background
     // caller of bulkInsert), so it always sets the undo point — see
@@ -874,17 +812,16 @@ const productDB = {
   // ─── UNDO (product_backups) ───────────────────────────────
   // Classic single-level undo, like Ctrl+Z: before EVERY dashboard-
   // initiated change to the catalog (add, edit, stock toggle, delete
-  // single/selected/all, a CSV/Excel upload, or a manual OSPOS import —
-  // append or replace alike), the store's ENTIRE current product list is
-  // snapshotted here first, overwriting whatever was saved before. Undo
-  // always means "make my catalog look exactly like it did right before
-  // my last change" — a full wipe-and-reinsert of that one snapshot, not a
-  // partial merge, and only ever one step back (no redo, no history list).
+  // single/selected/all, a CSV/Excel upload — append or replace alike),
+  // the store's ENTIRE current product list is snapshotted here first,
+  // overwriting whatever was saved before. Undo always means "make my
+  // catalog look exactly like it did right before my last change" — a
+  // full wipe-and-reinsert of that one snapshot, not a partial merge, and
+  // only ever one step back (no redo, no history list).
   //
-  // Deliberately NOT called from the unattended scheduled OSPOS auto-sync
-  // job (mode "auto" in server/routes/ospos.js) — only actions the store
-  // owner actually took from the dashboard should ever be undoable, and
-  // auto-sync running in the background must never silently consume or
+  // Deliberately NOT called from any unattended background sync — only
+  // actions the store owner actually took from the dashboard should ever
+  // be undoable, and a background sync must never silently consume or
   // overwrite the undo slot the owner might still want for something else.
   saveBackup: async (storeId, label) => {
     const current = await client.execute({

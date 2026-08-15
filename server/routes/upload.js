@@ -27,7 +27,7 @@ const uploadLimiter = rateLimit({
   message: { error: "Too many uploads. Please try again later." },
 });
 
-const DATA_SOURCE_LABEL = { woo: "WordPress / WooCommerce", ospos: "OSPOS", manual: "Dashboard" };
+const DATA_SOURCE_LABEL = { woo: "WordPress / WooCommerce", manual: "Dashboard" };
 
 // Shared guard for every manual-catalog route below (add/edit/stock/
 // delete/upload) — req.store is just the JWT payload (authMiddleware
@@ -425,8 +425,8 @@ router.post(
       // "replace" (default) wipes the store's whole catalog first, exactly
       // like before this option existed. "append" is opt-in — the store
       // owner is asked in the dashboard whenever they already have
-      // products from a different method (manual entry, OSPOS import),
-      // so uploading a second file never silently destroys the first.
+      // products from a different method (manual entry), so uploading a
+      // second file never silently destroys the first.
       const mode = req.body.mode === "append" ? "append" : "replace";
       const count = await productDB.bulkInsert(storeId, validProducts, {
         source: "csv",
@@ -460,8 +460,8 @@ router.post(
 // ─── PRODUCT BACKUP (persistent, single-slot undo) ─────────
 // Not time-limited like a toast-style undo — the snapshot taken right
 // before the store's most recent destructive change (a delete, or a
-// "replace" mode CSV/OSPOS import) stays restorable until either it's
-// used or another destructive change replaces it. See
+// "replace" mode CSV import) stays restorable until either it's used
+// or another destructive change replaces it. See
 // productDB.saveBackup/getBackup/restoreBackup. There is deliberately no
 // "discard" action — the only way this option goes away is by being used,
 // or by another destructive change overwriting it with a newer snapshot.
@@ -509,35 +509,27 @@ router.post("/products/backup/restore", authMiddleware, async (req, res) => {
 
 // ─── DATA SOURCE (where the widget's products actually come from) ──
 // Deliberately separate from Store & Sync's website type and Install
-// Widget's delivery method — a WordPress site might source its catalog
-// from OSPOS instead of WooCommerce, or vice versa on a custom site. Only
-// one source is ever authoritative at a time; the manual add/edit/delete/
-// upload routes below, POST /ospos/import, and the WooCommerce plugin
-// sync routes in routes/plugin.js all check this before writing anything.
+// Widget's delivery method. Only one source is ever authoritative at a
+// time; the manual add/edit/delete/upload routes below and the
+// WooCommerce plugin sync routes in routes/plugin.js all check this
+// before writing anything.
 router.post("/data-source", authMiddleware, async (req, res) => {
   const { source } = req.body || {};
-  if (!["woo", "ospos", "manual"].includes(source)) {
-    return res.status(400).json({ error: "source must be 'woo', 'ospos', or 'manual'." });
+  if (!["woo", "manual"].includes(source)) {
+    return res.status(400).json({ error: "source must be 'woo' or 'manual'." });
   }
   try {
     const store = await storeDB.findById(req.store.storeId);
     if (!store) return res.status(404).json({ error: "Store not found" });
 
-    const sourceLabel = { woo: "WordPress / WooCommerce", ospos: "OSPOS", manual: "Dashboard" }[source];
+    const sourceLabel = { woo: "WordPress / WooCommerce", manual: "Dashboard" }[source];
     const switching = !!store.data_source_confirmed && store.data_source !== source;
 
     // The old source's rows are NOT deleted — they're just tagged with
     // their own `source` value (see productDB.getByStore), so they simply
     // stop being shown/used while another source is active. Switching back
     // to a source used before shows exactly what it had, with nothing to
-    // re-import or undo. Saved OSPOS credentials are left alone here too
-    // (not wiped) so switching back to OSPOS later reconnects immediately
-    // instead of asking for a fresh import — the scheduled auto-sync job
-    // already only polls stores where data_source is currently 'ospos'
-    // (see pullAllAutoSyncStores), so dormant credentials for an inactive
-    // source don't cause any background activity. Explicitly clicking
-    // "Stop auto-sync" in Products is the only thing that actually forgets
-    // the credentials — this switch is not that.
+    // re-import or undo.
     await storeDB.setDataSource(req.store.storeId, source);
     await storeDB.touchCatalog(req.store.storeId);
     res.json({

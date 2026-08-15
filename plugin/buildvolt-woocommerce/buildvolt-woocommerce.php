@@ -3,7 +3,7 @@
  * Plugin Name: BuildVolt PC Build Recommender
  * Plugin URI:  https://buildvolt.online
  * Description: Connects your WooCommerce store to BuildVolt — syncs products automatically so customers get instant PC build recommendations.
- * Version:     1.9.0
+ * Version:     1.10.0
  * Author:      BuildVolt
  * Author URI:  https://buildvolt.online
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDVOLT_API',     'https://buildbot-production-3f70.up.railway.app/api');
-define('BUILDVOLT_VERSION', '1.9.0');
+define('BUILDVOLT_VERSION', '1.10.0');
 define('BUILDVOLT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
@@ -368,6 +368,42 @@ function buildvolt_full_sync() {
       update_option('buildvolt_woo_url',       get_site_url());
     }
   }
+}
+
+// ─── REMOTE SYNC TRIGGER (dashboard "Sync Now" button) ────
+// Lets the BuildVolt dashboard ask this site to sync right now instead of
+// waiting for the 6-hourly cron. Secret-authenticated the same way as
+// every other BuildVolt<->plugin exchange (X-BuildVolt-Secret header), so
+// this is a stateless server-to-server call — no WordPress login/nonce
+// needed, since only whoever already holds this store's secret key (i.e.
+// BuildVolt itself) can trigger it.
+add_action('rest_api_init', 'buildvolt_register_rest_routes');
+function buildvolt_register_rest_routes() {
+  register_rest_route('buildvolt/v1', '/trigger-sync', [
+    'methods'             => 'POST',
+    'callback'            => 'buildvolt_rest_trigger_sync',
+    'permission_callback' => 'buildvolt_rest_check_secret',
+  ]);
+}
+
+function buildvolt_rest_check_secret($request) {
+  $secret = $request->get_header('x_buildvolt_secret');
+  $stored = get_option('buildvolt_secret_key');
+  return $secret && $stored && hash_equals($stored, $secret);
+}
+
+function buildvolt_rest_trigger_sync($request) {
+  if (!get_option('buildvolt_connected')) {
+    return new WP_REST_Response(['success' => false, 'error' => 'Not connected to BuildVolt'], 400);
+  }
+  if (!class_exists('WooCommerce')) {
+    return new WP_REST_Response(['success' => false, 'error' => 'WooCommerce not active'], 400);
+  }
+  buildvolt_full_sync();
+  return new WP_REST_Response([
+    'success' => true,
+    'synced'  => (int) get_option('buildvolt_product_count', 0),
+  ], 200);
 }
 
 // ─── ADMIN MENU ───────────────────────────────────────────

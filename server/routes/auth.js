@@ -784,13 +784,12 @@ router.get("/me", authMiddleware, asyncHandler(async (req, res) => {
   if (!store) return res.status(404).json({ error: "Store not found" });
 
   // /me's contract is "your profile" — strip auth secrets (password,
-  // plugin_secret) and the OSPOS database connection blob (host/port/
-  // name/user, plus the encrypted password ciphertext) along with it.
-  // None of it is ever read by the dashboard from this response (OSPOS
-  // status has its own endpoint, GET /ospos/auto-sync-status, which
-  // returns only what the UI actually needs), so there's no reason a
-  // leaked JWT or an XSS on the dashboard should also hand over a full
-  // set of infra credentials.
+  // plugin_secret) along with it. The ospos_db_* columns are leftover
+  // from the OSPOS integration (removed, planned as future work) — no
+  // code writes to them anymore, but any row that still has them from
+  // before should never leak a database host/user/encrypted-password
+  // blob through a profile response just because the columns still
+  // exist.
   const {
     password,
     plugin_secret,

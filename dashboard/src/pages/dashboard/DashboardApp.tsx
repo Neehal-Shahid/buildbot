@@ -237,10 +237,10 @@ export default function DashboardApp() {
   function goTo(id: TabId) {
     // Whichever of arriving at OR leaving Products (Step 2) is what just
     // happened, the count may have changed — added/removed a product,
-    // imported from OSPOS, switched data source while already there (that
-    // path is also covered reactively above, but this catches everything
-    // else too, e.g. a plugin/OSPOS background sync that landed while the
-    // store owner was sitting on this tab).
+    // switched data source while already there (that path is also
+    // covered reactively above, but this catches everything else too,
+    // e.g. a plugin background sync that landed while the store owner
+    // was sitting on this tab).
     if (id === "products" || tab === "products") loadProductCount();
     setTab(id);
     setSidebarOpen(false);

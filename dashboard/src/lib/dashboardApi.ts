@@ -224,9 +224,8 @@ export const dashboardApi = {
       }),
     // Classic single-level "Undo last change" — not time-limited. A
     // snapshot is taken right before every dashboard-initiated catalog
-    // mutation (add/edit/stock toggle/delete/upload/import), never by
-    // OSPOS's own background auto-sync; it stays restorable until either
-    // it's used or another change overwrites it.
+    // mutation (add/edit/stock toggle/delete/upload); it stays restorable
+    // until either it's used or another change overwrites it.
     backupStatus: (token: string) =>
       apiFetch<{
         success: boolean;
@@ -255,57 +254,12 @@ export const dashboardApi = {
         error?: string;
       }>("/upload", { method: "POST", formData, token });
     },
-    // One-click OSPOS import (server/routes/ospos.js) — connects directly
-    // to the store's OSPOS MySQL database with the credentials given here,
-    // imports, and disconnects, all in this one request. On success the
-    // (encrypted) credentials are saved server-side so BuildVolt can keep
-    // pulling automatically afterwards — see osposAutoSyncStatus below.
-    // Later automatic pulls only ever refresh OSPOS's own rows regardless
-    // of the mode used here (see server/routes/ospos.js "auto" mode).
-    importFromOspos: (
-      token: string,
-      creds: { host: string; port?: string; database: string; username: string; password?: string },
-      mode: "replace" | "append" = "replace",
-    ) =>
-      apiFetch<{
-        success: boolean;
-        message?: string;
-        error?: string;
-        autoSyncEnabled?: boolean;
-        synced?: number;
-        skipped?: number;
-        skippedCategory?: number;
-      }>("/ospos/import", { method: "POST", body: { ...creds, mode }, ...auth(token) }),
-    osposAutoSyncStatus: (token: string) =>
-      apiFetch<{
-        success: boolean;
-        enabled: boolean;
-        lastSync: string | null;
-        productCount: number;
-        host: string;
-      }>("/ospos/auto-sync-status", auth(token)),
-    disableOsposAutoSync: (token: string) =>
-      apiFetch<{ success: boolean; message: string }>("/ospos/auto-sync-disable", {
-        method: "POST",
-        ...auth(token),
-      }),
-    // Pulls the latest OSPOS listing right now, reusing the credentials
-    // already saved from the original import — for when a store owner just
-    // changed something in OSPOS and doesn't want to wait for the next
-    // scheduled auto-sync run.
-    syncOsposNow: (token: string) =>
-      apiFetch<{
-        success: boolean;
-        message?: string;
-        error?: string;
-        synced?: number;
-      }>("/ospos/sync-now", { method: "POST", ...auth(token) }),
     // Where the widget's product data comes from — separate from which
     // install method (script vs plugin) delivers the widget itself.
     // Switching to a different source (once one's already been chosen)
     // wipes the current catalog server-side after snapshotting it, so
     // "Undo last change" can bring it back if needed.
-    setDataSource: (token: string, source: "woo" | "ospos" | "manual") =>
+    setDataSource: (token: string, source: "woo" | "manual") =>
       apiFetch<{ success: boolean; message: string; error?: string }>("/data-source", {
         method: "POST",
         body: { source },
@@ -336,5 +290,13 @@ export const dashboardApi = {
         method: "POST",
         ...auth(token),
       }),
+    // Asks the WordPress site itself to sync right now (see the route's
+    // comment in server/routes/plugin.js for why this has to be a
+    // reverse trigger rather than BuildVolt pulling directly).
+    syncNow: (token: string) =>
+      apiFetch<{ success: boolean; message?: string; error?: string; synced?: number }>(
+        "/plugin/sync-now-trigger",
+        { method: "POST", ...auth(token) },
+      ),
   },
 };

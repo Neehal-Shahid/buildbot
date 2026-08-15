@@ -55,8 +55,8 @@ async function authenticatePlugin(req, res) {
 // products, because nothing upstream of the data-source guard in each
 // handler ever actually set it to "woo". Once a source HAS been
 // confirmed, this must never auto-switch it back — a store deliberately
-// using OSPOS or the dashboard instead must never have its catalog
-// silently overwritten just because the plugin stays connected for
+// using the dashboard instead must never have its catalog silently
+// overwritten just because the plugin stays connected for
 // widget delivery (see EmbedTab's pluginBringsOwnData on the dashboard
 // side). Mutates the passed-in store object so callers can immediately
 // continue using store.data_source.
@@ -201,6 +201,68 @@ router.get("/plugin/status", async (req, res) => {
   }
 });
 
+// ─── SYNC NOW (dashboard-authenticated) ────────────────────
+// The dashboard has no way to pull from WooCommerce directly — the plugin
+// pushes data OUT to BuildVolt, never the other way round, so BuildVolt
+// can never reach into an arbitrary customer site's database. Instead
+// this asks the SITE ITSELF to sync right now: an outbound call to a REST
+// route the plugin exposes (see buildvolt_rest_trigger_sync in the
+// plugin), authenticated with the same secret used for every other
+// exchange. store.woo_url is only ever set by the plugin's own prior
+// sync calls (never client-supplied here), so this never reaches an
+// address the store owner didn't already prove they control.
+router.post("/plugin/sync-now-trigger", pluginLimiter, async (req, res) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token" });
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  const store = await storeDB.findById(decoded.storeId);
+  if (!store) return res.status(404).json({ error: "Store not found" });
+  if (!store.woo_connected || !store.woo_url || !store.plugin_secret) {
+    return res.status(400).json({
+      success: false,
+      error: "The WordPress plugin isn't connected yet — connect it in Install Widget (Step 3) first.",
+    });
+  }
+
+  try {
+    const target = `${store.woo_url.replace(/\/$/, "")}/wp-json/buildvolt/v1/trigger-sync`;
+    const response = await fetch(target, {
+      method: "POST",
+      headers: { "X-BuildVolt-Secret": store.plugin_secret },
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (!response.ok) {
+      return res.json({
+        success: false,
+        error: `Your WordPress site didn't confirm the sync (HTTP ${response.status}). Make sure the BuildVolt plugin is updated to the latest version.`,
+      });
+    }
+
+    const data = await response.json().catch(() => ({}));
+    res.json({
+      success: true,
+      message:
+        typeof data.synced === "number"
+          ? `${data.synced} product${data.synced === 1 ? "" : "s"} synced from WordPress just now.`
+          : "Sync triggered on your WordPress site.",
+      synced: typeof data.synced === "number" ? data.synced : undefined,
+    });
+  } catch (err) {
+    res.json({
+      success: false,
+      error: `Could not reach your WordPress site: ${err.message}. Make sure it's online and the BuildVolt plugin is active and up to date.`,
+    });
+  }
+});
+
 // ─── DISCONNECT WOOCOMMERCE (dashboard-authenticated) ─────
 router.post("/plugin/disconnect", async (req, res) => {
   const token = req.headers["authorization"]?.split(" ")[1];
@@ -284,8 +346,8 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
   // The plugin connection itself is what delivers the widget, so it stays
   // authenticated and this call still succeeds either way — but only
   // actually writes products into the catalog when WooCommerce is the
-  // store's chosen data source. A store using OSPOS or the dashboard
-  // instead must never have its catalog silently overwritten by the
+  // store's chosen data source. A store using the dashboard instead must
+  // never have its catalog silently overwritten by the
   // plugin's own unattended 6-hourly cron sync just because the plugin
   // happens to still be connected for widget delivery.
   if (store.data_source !== "woo") {
@@ -303,8 +365,8 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
     // is called both for the initial connection AND every unattended
     // 6-hourly WP-Cron sync (buildvolt_full_sync in the plugin), so it
     // must never wipe out products the store owner separately added
-    // manually, via CSV, or via OSPOS import — only refresh WooCommerce's
-    // own previously-synced rows.
+    // manually or via CSV — only refresh WooCommerce's own
+    // previously-synced rows.
     await client.execute({
       sql: "DELETE FROM products WHERE store_id = ? AND source = 'woo'",
       args: [store.store_id],

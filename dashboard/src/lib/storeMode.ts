@@ -3,21 +3,21 @@
 // the two tabs can never drift on the storage key or the default.
 export type WebsiteMode = "custom" | "woo";
 
-export type DataSource = "woo" | "ospos" | "manual";
+export type DataSource = "woo" | "manual";
 
 // Which data sources make sense for each website type chosen in Store &
 // Sync (Step 1). A custom (non-WordPress) site has no WooCommerce product
-// listing to ever sync from, so that option is excluded there — but a
-// WordPress site can still validly use Dashboard or OSPOS as its data
-// source instead of WooCommerce: the widget always gets its data from
-// BuildVolt's own catalog regardless of install method (script vs
-// plugin), so nothing about being on WordPress requires WooCommerce
-// specifically to be the source. Shared with DashboardApp.tsx (which uses
-// it to decide whether the Products/Install Widget steps can honestly
-// show as done) so the two can never drift on which sources are valid.
+// listing to ever sync from, so that option is excluded there — it can
+// only use the Dashboard. A WordPress site can still validly use the
+// Dashboard instead of WooCommerce: the widget always gets its data from
+// BuildVolt's own catalog regardless of install method, so nothing about
+// being on WordPress requires WooCommerce specifically to be the source.
+// Shared with DashboardApp.tsx (which uses it to decide whether the
+// Products/Install Widget steps can honestly show as done) so the two can
+// never drift on which sources are valid.
 export const ALLOWED_SOURCES: Record<WebsiteMode, DataSource[]> = {
-  custom: ["manual", "ospos"],
-  woo: ["woo", "ospos", "manual"],
+  custom: ["manual"],
+  woo: ["woo", "manual"],
 };
 
 // True once a data source has been confirmed but no longer fits the

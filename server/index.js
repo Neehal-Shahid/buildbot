@@ -11,7 +11,6 @@ const { router: authRoute } = require("./routes/auth");
 const analyticsRoute = require("./routes/analytics");
 const adminRoute = require("./routes/admin");
 const pluginRoute = require("./routes/plugin");
-const osposRoute = require("./routes/ospos");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,7 +36,6 @@ app.use("/api", recommendRoute);
 app.use("/api", analyticsRoute);
 app.use("/api", adminRoute);
 app.use("/api", pluginRoute);
-app.use("/api", osposRoute);
 
 // Verified order-view link sent in WhatsApp order messages (see
 // placeOrderForBuild in widget.js) — deliberately NOT under /api: this is
@@ -174,38 +172,7 @@ initDB().then(async () => {
       60 * 60 * 1000,
     );
 
-    // ─── SCHEDULED OSPOS AUTO-SYNC JOB ─────────────────────────
-    // Keeps every store that has completed at least one manual OSPOS
-    // import (Products tab) current automatically from then on — see
-    // server/routes/ospos.js. OSPOS has no webhook/API to push changes to
-    // BuildVolt (unlike the WooCommerce plugin, which syncs instantly on
-    // every product save — see server/routes/plugin.js), so polling on an
-    // interval is the only option; three hours balances freshness against
-    // the load repeated connections put on the store's own (often
-    // shared-hosting) database.
-    const { pullAllAutoSyncStores } = require("./routes/ospos");
-
-    setTimeout(async () => {
-      try {
-        const results = await pullAllAutoSyncStores();
-        if (results.length > 0) console.log("OSPOS auto-sync (startup):", results);
-      } catch (e) {
-        console.error("Startup OSPOS auto-sync error:", e.message);
-      }
-    }, 45 * 1000);
-
-    setInterval(
-      async () => {
-        try {
-          const results = await pullAllAutoSyncStores();
-          if (results.length > 0) console.log("OSPOS auto-sync (scheduled):", results);
-        } catch (e) {
-          console.error("Scheduled OSPOS auto-sync error:", e.message);
-        }
-      },
-      3 * 60 * 60 * 1000,
-    );
   } else {
-    console.log("Email + OSPOS auto-sync cron disabled (CRON_ENABLED=false)");
+    console.log("Email cron disabled (CRON_ENABLED=false)");
   }
 });

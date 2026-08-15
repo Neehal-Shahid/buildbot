@@ -59,7 +59,7 @@ export default function EmbedTab({ onModeChange }: { onModeChange: () => void })
   const snippet = store ? getWidgetScriptUrl(store.storeId) : "";
   const hasProducts = (productCount ?? 0) > 0;
   // "Add products first" makes sense when the catalog is something the
-  // owner fills in via Products (manual/file/OSPOS) — but when WooCommerce
+  // owner fills in via Products (manual/file) — but when WooCommerce
   // IS the data source, connecting the plugin below is exactly how
   // products show up in the first place. Gating that connection step on
   // already having products would be a deadlock: no products without the
@@ -156,7 +156,7 @@ export default function EmbedTab({ onModeChange }: { onModeChange: () => void })
         !pluginBringsOwnData && (
           <div className="alert alert-error show" style={{ marginBottom: 16 }}>
             Your product catalog is empty — the widget can't be installed until it has something to recommend.
-            Go to <strong>Products</strong> (Step 2) and add products, upload a file, or import from OSPOS first.
+            Go to <strong>Products</strong> (Step 2) and add products or upload a file first.
           </div>
         )
       )}
@@ -390,9 +390,8 @@ function WooGuide({
             }}
           >
             The plugin is connected and delivering the widget, but your{" "}
-            <strong>data source</strong> in Products (Step 2) is set to {store.dataSource === "ospos" ? "OSPOS" : "Dashboard"},
-            not WooCommerce — so products aren't syncing from here. That's expected if you're deliberately sourcing
-            your catalog elsewhere.
+            <strong>data source</strong> in Products (Step 2) is set to Dashboard, not WooCommerce — so products
+            aren't syncing from here. That's expected if you're deliberately sourcing your catalog elsewhere.
           </div>
         )}
 

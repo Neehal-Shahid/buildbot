@@ -47,6 +47,26 @@ async function authenticatePlugin(req, res) {
   return store;
 }
 
+// A brand-new store (data source never confirmed) doing anything through
+// the plugin — full sync, or a single product's real-time update — is, in
+// practice, choosing WooCommerce as its source. Without this, a fresh
+// install's first sync (or even its first single-product edit, if that
+// happens to fire before "Sync Now" is ever clicked) silently wrote zero
+// products, because nothing upstream of the data-source guard in each
+// handler ever actually set it to "woo". Once a source HAS been
+// confirmed, this must never auto-switch it back — a store deliberately
+// using OSPOS or the dashboard instead must never have its catalog
+// silently overwritten just because the plugin stays connected for
+// widget delivery (see EmbedTab's pluginBringsOwnData on the dashboard
+// side). Mutates the passed-in store object so callers can immediately
+// continue using store.data_source.
+async function ensureWooChosenOnFirstConnect(store) {
+  if (store.data_source_confirmed) return;
+  await storeDB.setDataSource(store.store_id, "woo");
+  store.data_source = "woo";
+  store.data_source_confirmed = 1;
+}
+
 async function validateWooSiteBinding(store, storeUrl, res) {
   const incoming = normalizeWooUrl(storeUrl);
   if (!incoming) return true;
@@ -73,10 +93,24 @@ async function validateWooSiteBinding(store, storeUrl, res) {
 // uploaded catalog land in identical categories — category is null when
 // nothing matches, and the sync/update routes skip those products rather
 // than storing a category the recommendation engine doesn't recognize.
+// Picks the first candidate that parses to a real positive number — plain
+// `||` chaining breaks on an explicit "0" sale price, because the STRING
+// "0" is JS-truthy (unlike PHP, where the plugin's own `?:` correctly
+// treats "0" as falsy and falls through to regular_price). That mismatch
+// meant a product on a $0.00 sale — a real, if unusual, WooCommerce state
+// (e.g. leftover from clearing a promotion) — priced as free here and got
+// silently dropped by the price<=0 check below, while the PHP side had
+// already decided it had a valid price and sent it.
+function firstPositivePrice(...candidates) {
+  for (const c of candidates) {
+    const n = parseFloat(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
 function mapProduct(wooProduct) {
-  const price = parseFloat(
-    wooProduct.sale_price || wooProduct.regular_price || wooProduct.price || 0,
-  );
+  const price = firstPositivePrice(wooProduct.sale_price, wooProduct.regular_price, wooProduct.price);
 
   const description = (
     wooProduct.short_description ||
@@ -245,6 +279,8 @@ router.post("/plugin/sync", pluginLimiter, async (req, res) => {
 
   if (!(await validateWooSiteBinding(store, storeUrl, res))) return;
 
+  await ensureWooChosenOnFirstConnect(store);
+
   // The plugin connection itself is what delivers the widget, so it stays
   // authenticated and this call still succeeds either way — but only
   // actually writes products into the catalog when WooCommerce is the
@@ -337,6 +373,8 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
 
+  await ensureWooChosenOnFirstConnect(store);
+
   // See the matching check in /plugin/sync above — this fires on every
   // WooCommerce product save while the plugin is connected, regardless of
   // data source, so it must stay a no-op unless WooCommerce is actually
@@ -369,12 +407,18 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
     // Fallback to matching by name if woo_id not found (for backwards
     // compatibility) — scoped to source='woo' so this can never match (and
     // silently overwrite) a manually-added or CSV-uploaded product that
-    // happens to share the same name.
+    // happens to share the same name. Only trusted when it matches exactly
+    // one row: two distinct WooCommerce products can share an identical
+    // name (duplicated-then-renamed products, common with "Duplicate"
+    // plugins), and picking rows[0] in that case would silently reassign
+    // an unrelated product's row to whichever one synced first — safer to
+    // fall through and insert a new row than guess wrong.
     if (!existing || existing.rows.length === 0) {
-      existing = await client.execute({
+      const byName = await client.execute({
         sql: "SELECT id FROM products WHERE store_id = ? AND name = ? AND source = 'woo'",
         args: [store.store_id, p.name],
       });
+      if (byName.rows.length === 1) existing = byName;
     }
 
     if (existing && existing.rows.length > 0) {
@@ -423,6 +467,8 @@ router.post("/plugin/product/update", pluginLimiter, async (req, res) => {
 router.post("/plugin/product/delete", pluginLimiter, async (req, res) => {
   const store = await authenticatePlugin(req, res);
   if (!store) return;
+
+  await ensureWooChosenOnFirstConnect(store);
 
   // See the matching check in /plugin/sync above.
   if (store.data_source !== "woo") {

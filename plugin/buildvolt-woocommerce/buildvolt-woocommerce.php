@@ -49,6 +49,25 @@ function buildvolt_deactivate() {
   wp_clear_scheduled_hook('buildvolt_auto_sync');
 }
 
+// ─── UNINSTALL ────────────────────────────────────────────
+// Deactivation alone leaves every wp_options row behind — including the
+// plaintext secret key — so a full "Delete" from the plugins list (which
+// WordPress always deactivates before allowing) needs its own cleanup, or
+// a reinstall finds the old store_id/secret still populated instead of a
+// clean slate.
+register_uninstall_hook(__FILE__, 'buildvolt_uninstall');
+function buildvolt_uninstall() {
+  $options = [
+    'buildvolt_connected', 'buildvolt_store_id', 'buildvolt_secret_key',
+    'buildvolt_last_sync', 'buildvolt_product_count', 'buildvolt_woo_url',
+    'buildvolt_is_pc_store', 'buildvolt_category_stats', 'buildvolt_unmapped_count',
+    'buildvolt_widget_enabled',
+  ];
+  foreach ($options as $option) {
+    delete_option($option);
+  }
+}
+
 // ─── CUSTOM CRON SCHEDULE ─────────────────────────────────
 add_filter('cron_schedules', 'buildvolt_cron_schedules');
 function buildvolt_cron_schedules($schedules) {
@@ -236,7 +255,14 @@ function buildvolt_get_all_products() {
     $product = wc_get_product($post->ID);
     if (!$product) continue;
 
-    // Skip variable products with no price
+    // A variable product's parent has no single purchasable ID — WooCommerce
+    // requires a specific variation ID to add to cart, which BuildVolt has
+    // no way to pick (each variation can have its own price/attributes
+    // this plugin doesn't sync as separate catalog entries). Recommending
+    // it anyway would let a customer pick this build, then have "Order
+    // This Build" silently fail to add it at checkout with no explanation.
+    if ($product->is_type('variable')) continue;
+
     $price = floatval(
       $product->get_sale_price()
       ?: $product->get_regular_price()
@@ -518,8 +544,19 @@ function buildvolt_get_admin_js() {
             nonce:         buildvoltNonce
           })
         });
-        window.buildvoltShowNotice(syncData.synced + ' products synced! Reloading...', 'success');
-        setTimeout(function(){ location.reload(); }, 2000);
+        var noticeMsg = syncData.synced + ' product' + (syncData.synced === 1 ? '' : 's') + ' synced!';
+        var skippedTotal = (syncData.skipped || 0) + (syncData.skippedCategory || 0);
+        if (skippedTotal > 0) {
+          noticeMsg += ' (' + skippedTotal + ' skipped — missing a price or not a recognized PC-part category.)';
+        }
+        if (syncData.message && syncData.synced === 0 && skippedTotal === 0) {
+          // e.g. "Skipped — this store's data source isn't set to WooCommerce."
+          // — a real reason, not just "0 products", so it's shown as-is
+          // instead of a bare zero count that looks like success.
+          noticeMsg = syncData.message;
+        }
+        window.buildvoltShowNotice(noticeMsg + ' Reloading...', syncData.synced > 0 ? 'success' : 'warning');
+        setTimeout(function(){ location.reload(); }, 2500);
       } else {
         window.buildvoltShowNotice('Sync failed: ' + (syncData.error || 'Unknown error'), 'error');
       }
@@ -969,8 +1006,36 @@ function buildvolt_disconnect_ajax() {
 // Note: nonce is now defined inline in the admin page script
 
 // ─── REAL-TIME HOOKS ──────────────────────────────────────
+// Sends the delete POST — shared by the trash hook below and by the
+// update hook whenever a product is saved in a non-published state (see
+// buildvolt_hook_product_update), so a product moved to Draft/Private
+// stops recommending it immediately instead of staying live until the
+// next 6-hourly cron sync happens to notice it no longer qualifies.
+function buildvolt_send_delete($post_id, $product_name = null) {
+  $store_id = get_option('buildvolt_store_id');
+  $secret   = get_option('buildvolt_secret_key');
+  if (!$store_id || !$secret) return;
+  if (!$product_name) {
+    $product = wc_get_product($post_id);
+    $product_name = $product ? $product->get_name() : get_the_title($post_id);
+  }
+  if (!$product_name) $product_name = 'Deleted product';
+  wp_remote_post(BUILDVOLT_API . '/plugin/product/delete', [
+    'headers'  => ['Content-Type' => 'application/json', 'X-BuildVolt-Store-ID' => $store_id, 'X-BuildVolt-Secret' => $secret],
+    'body'     => json_encode(['productName' => $product_name, 'wooId' => $post_id]),
+    'timeout'  => 10,
+    'blocking' => false
+  ]);
+}
+
 add_action('woocommerce_update_product', 'buildvolt_hook_product_update');
 add_action('woocommerce_new_product',    'buildvolt_hook_product_update');
+// A product coming back out of Trash fires this with its restored status
+// (normally 'publish') — reusing the same update hook means it's treated
+// exactly like any other save: re-added if publish, still skipped/removed
+// otherwise. Without this, a restored product stayed absent from
+// BuildVolt until the next 6-hourly cron sync.
+add_action('untrashed_post', 'buildvolt_hook_product_update');
 function buildvolt_hook_product_update($product_id) {
   if (!get_option('buildvolt_connected')) return;
   $store_id = get_option('buildvolt_store_id');
@@ -979,6 +1044,23 @@ function buildvolt_hook_product_update($product_id) {
 
   $product = wc_get_product($product_id);
   if (!$product) return;
+
+  // Only a published product should ever reach customers — without this,
+  // saving a still-in-progress Draft, or switching a product to Private/
+  // Pending review, pushed it to BuildVolt exactly like a live listing.
+  // Actively removing it (rather than just not-adding it) matters for the
+  // common case of un-publishing something that WAS already synced.
+  if (get_post_status($product_id) !== 'publish') {
+    buildvolt_send_delete($product_id, $product->get_name());
+    return;
+  }
+
+  // See the matching check in buildvolt_get_all_products() — a variable
+  // product's parent has no single purchasable ID.
+  if ($product->is_type('variable')) {
+    buildvolt_send_delete($product_id, $product->get_name());
+    return;
+  }
 
   $terms    = get_the_terms($product_id, 'product_cat');
   $woo_cats = [];
@@ -1012,19 +1094,10 @@ add_action('wp_trash_post', 'buildvolt_hook_product_delete');
 function buildvolt_hook_product_delete($post_id) {
   if (get_post_type($post_id) !== 'product') return;
   if (!get_option('buildvolt_connected')) return;
-  $store_id = get_option('buildvolt_store_id');
-  $secret   = get_option('buildvolt_secret_key');
-  if (!$store_id || !$secret) return;
   // wc_get_product() can be null here depending on trash timing; fall back to post title.
   $product = wc_get_product($post_id);
   $product_name = $product ? $product->get_name() : get_the_title($post_id);
-  if (!$product_name) $product_name = 'Deleted product';
-  wp_remote_post(BUILDVOLT_API . '/plugin/product/delete', [
-    'headers'  => ['Content-Type' => 'application/json', 'X-BuildVolt-Store-ID' => $store_id, 'X-BuildVolt-Secret' => $secret],
-    'body'     => json_encode(['productName' => $product_name, 'wooId' => $post_id]),
-    'timeout'  => 10,
-    'blocking' => false
-  ]);
+  buildvolt_send_delete($post_id, $product_name);
 }
 
 // ─── TIME AGO HELPER ──────────────────────────────────────

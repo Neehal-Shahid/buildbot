@@ -23,7 +23,7 @@
   let CURRENCY = "PKR";
   let WIDGET_TITLE = "BuildVolt";
   let WELCOME_MSG =
-    "Tell me your budget and what you need — I will find the best parts from this store for you.";
+    "Tell me your budget — I'll show you every compatible PC build this store can offer, from the cheapest option up to your max.";
   let BUTTON_TEXT = "Get Started";
 
   // Store build data for PDF access
@@ -228,7 +228,7 @@
             <input class="bb-input" id="bb-budget" type="number" placeholder="e.g. 80000" style="margin:0;flex:1;"/>
           </div>
           <div class="bb-field-error" id="bb-budget-error"></div>
-          <div class="bb-input-hint">Enter your total budget in ${escapeHtml(CURRENCY)}. You'll get 3 builds to choose from.</div>
+          <div class="bb-input-hint">Enter your total budget in ${escapeHtml(CURRENCY)}. You'll see every compatible build this store can offer within it, from cheapest to max.</div>
           <div class="bb-label">Quick select</div>
           <div class="bb-chips" id="bb-budget-chips"></div>
           <button class="bb-btn" id="bb-next-s2">Next →</button>
@@ -239,7 +239,7 @@
           <button class="bb-back" id="bb-back-s4">← Back</button>
           <div class="bb-step-label">Step 2 of 2</div>
           <div class="bb-screen-title" style="font-size:17px;">Ready to build your PC?</div>
-          <div class="bb-screen-body">BuildVolt will use the store inventory to create 3 compatible PC builds that fit your budget — a Budget, a Balanced, and a Max-Spend option.</div>
+          <div class="bb-screen-body">BuildVolt will scan the store's inventory and show you every compatible PC build within your budget — starting from the cheapest option and climbing up to the most your budget allows.</div>
           <button class="bb-btn" id="bb-build-btn">⚡ Build My PC</button>
         </div>
 
@@ -264,7 +264,6 @@
           <div id="bb-results"></div>
           <div class="bb-actions">
             <button class="bb-restart" id="bb-restart-btn">↩ Start Over</button>
-            <button class="bb-download" id="bb-download-btn" style="display:none;">📄 Download PDF</button>
           </div>
         </div>
 
@@ -284,7 +283,6 @@
       <div id="bb-modal-panel">
         <div id="bb-modal-header">
           <div>
-            <div id="bb-modal-tier-badge"></div>
             <div id="bb-modal-title"></div>
             <div id="bb-modal-tagline"></div>
           </div>
@@ -492,14 +490,6 @@
       goTo("s6", "s1", 0);
     };
 
-    $("bb-download-btn").onclick = async () => {
-      await generatePDF(
-        _lastBuilds,
-        _lastCurrency,
-        $("bb-download-btn"),
-        false,
-      );
-    };
     // Modal close button
     const modalClose = document.getElementById("bb-modal-close");
     if (modalClose) {
@@ -520,12 +510,7 @@
     if (modalDownload) {
       modalDownload.onclick = async () => {
         if (_currentBuild) {
-          await generatePDF(
-            [_currentBuild],
-            _lastCurrency,
-            modalDownload,
-            true,
-          );
+          await generatePDF(_currentBuild, _lastCurrency, modalDownload);
         }
       };
     }
@@ -573,21 +558,22 @@
             💡 Try increasing your budget, or contact the store directly — they may be able to help you find the right parts.
           </div>
         </div>`;
-      document.getElementById("bb-download-btn").style.display = "none";
       return;
     }
 
     // ── Build cards ──
+    // Sorted cheapest → priciest already (buildIndex order); no ranking
+    // badges — the price itself and the position in the list communicate
+    // that, and a "Best Available" label on a build that happens to be
+    // GPU-less because that's genuinely the priciest thing the store's
+    // stock allows would read as a recommendation it isn't.
+    const anyBuildHasGpu = builds.some((b) =>
+      (b.parts || []).some((p) => p.category === "GPU"),
+    );
     const cardsHtml = builds
       .map((build, i) => {
-        // With a dynamic, potentially long list of genuinely distinct
-        // builds (no more fixed Budget/Balanced/Max), the cheapest option
-        // is the one universally sensible thing to draw attention to as a
-        // default starting point.
         const isFeatured = i === 0;
         const isOver = !build.withinBudget;
-        const badgeText =
-          i === 0 ? "Most Affordable" : i === builds.length - 1 ? "Best Available" : `Option ${i + 1}`;
 
         // Parts preview — show first 4 categories as pills
         const previewParts = (build.parts || [])
@@ -598,7 +584,6 @@
         return `
         <div class="bb-build-card ${isFeatured ? "featured" : ""}" data-build-idx="${i}">
           <div class="bb-card-top">
-            <span class="bb-card-tier-badge">${badgeText}</span>
             <span class="bb-card-price">${currency} ${Number(build.totalPrice || 0).toLocaleString()}</span>
           </div>
           <div class="bb-card-name">${escapeHtml(build.buildName) || "Custom PC Build"}</div>
@@ -614,7 +599,11 @@
           </span>
           ${
             build.gpuExcludedForBudget
-              ? `<span class="bb-card-gpu-warn" style="display:inline-block;margin-top:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#fff3cd;color:#8a6100;">⚠️ No graphics card (didn't fit your budget)</span>`
+              ? `<span class="bb-card-gpu-warn" style="display:inline-block;margin-top:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#fff3cd;color:#8a6100;">⚠️ ${
+                  anyBuildHasGpu
+                    ? "No graphics card in this option — see pricier builds below for one with a GPU"
+                    : "No graphics card — this store's current stock can't fit one in any build within your budget"
+                }</span>`
               : ""
           }
           <div class="bb-card-parts-preview">${previewParts}</div>
@@ -638,8 +627,6 @@
       </div>
       <div class="bb-build-cards">${cardsHtml}</div>`;
 
-    document.getElementById("bb-download-btn").style.display = "flex";
-
     // ── Bind card click → open modal ──
     container.querySelectorAll(".bb-build-card").forEach((card) => {
       card.onclick = () => {
@@ -659,9 +646,6 @@
     _currentBuild = build;
 
     // Header
-    const idx = build.buildIndex ?? 0;
-    document.getElementById("bb-modal-tier-badge").textContent =
-      idx === 0 ? "Most Affordable" : idx === _lastBuilds.length - 1 ? "Best Available" : `Option ${idx + 1}`;
     document.getElementById("bb-modal-title").textContent =
       build.buildName || "Custom PC Build";
     document.getElementById("bb-modal-tagline").textContent =
@@ -873,8 +857,8 @@
     }
   }
 
-  // ─── PDF GENERATION ───────────────────────────────────────
-  async function generatePDF(builds, currency, btn, singleBuild = false) {
+  // ─── PDF GENERATION (single build, from the detail modal) ──
+  async function generatePDF(build, currency, btn) {
     // Wait for html2pdf to be loaded
     if (!window.html2pdf) {
       btn.innerHTML = "⏳ Loading…";
@@ -901,20 +885,7 @@
     try {
       let htmlContent = "";
 
-      if (!singleBuild) {
-        // Cover page for all builds
-        htmlContent += `
-          <div style="padding: 60px 40px; font-family: 'Inter', sans-serif; color: #111111; background: #ffffff;">
-            <div style="text-align: center; margin-bottom: 60px;">
-              <h1 style="font-size: 32px; font-weight: 700; color: #111111; margin-bottom: 20px;">Your PC Build Report</h1>
-              <p style="font-size: 16px; color: #666666; margin: 0;">Generated by BuildVolt</p>
-            </div>
-          </div>
-        `;
-      }
-
-      // Generate each build
-      builds.forEach((build, index) => {
+      {
         const isCompatible = build.compatible !== false;
         // Same three states as the modal badge — see the comment there.
         const compatibilityBadge = !isCompatible
@@ -971,13 +942,10 @@
           : "background: #fef3e2; border: 1px solid #b45309; color: #b45309;";
 
         htmlContent += `
-          <div style="padding: 26px 28px; font-family: 'Inter', sans-serif; color: #111111; background: #ffffff; ${!singleBuild && index > 0 ? "page-break-before: always;" : ""}">
+          <div style="padding: 26px 28px; font-family: 'Inter', sans-serif; color: #111111; background: #ffffff;">
             <!-- Build Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
               <div>
-                <div style="background: rgba(124, 106, 247, 0.1); color: #7c6af7; border: 1px solid rgba(124, 106, 247, 0.2); padding: 3px 10px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 8px;">
-                  ${index === 0 ? "Most Affordable" : index === builds.length - 1 ? "Best Available" : `Option ${index + 1}`}
-                </div>
                 <h2 style="font-size: 20px; font-weight: 700; color: #111111; margin: 0 0 4px 0;">${escapeHtml(build.buildName)}</h2>
                 <p style="font-size: 12px; color: #666666; margin: 0; line-height: 1.4;">${escapeHtml(build.tagline) || escapeHtml(build.summary) || ""}</p>
               </div>
@@ -1061,11 +1029,9 @@
             </div>
           </div>
         `;
-      });
+      }
 
-      const filename = singleBuild
-        ? `BuildVolt_${builds[0]?.buildName?.replace(/[^a-zA-Z0-9]/g, "_") || "Build"}.pdf`
-        : "BuildVolt_All_Builds.pdf";
+      const filename = `BuildVolt_${build.buildName?.replace(/[^a-zA-Z0-9]/g, "_") || "Build"}.pdf`;
 
       // html2pdf's .from(htmlString) path hands the string to html2canvas
       // with no real layout context, so its width gets inferred rather
@@ -1140,7 +1106,6 @@
         <div class="bb-no-builds-suggestion">Please try again later or contact the store directly.</div>
         ${!limitReached ? '<button class="bb-btn bb-retry-btn" style="margin-top: 16px;">Try Again</button>' : ""}
       </div>`;
-    document.getElementById("bb-download-btn").style.display = "none";
 
     const retryBtn = document.querySelector(".bb-retry-btn");
     if (retryBtn && onRetry) retryBtn.onclick = onRetry;

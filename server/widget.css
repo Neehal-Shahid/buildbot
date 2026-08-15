@@ -474,20 +474,6 @@
   flex-shrink: 0;
   background: #ffffff;
 }
-#bb-modal-tier-badge {
-  display: inline-block;
-  background: rgba(var(--bb-brand-rgb), 0.1);
-  border: 1px solid rgba(var(--bb-brand-rgb), 0.2);
-  color: var(--bb-brand);
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 100px;
-  margin-bottom: 10px;
-}
 #bb-modal-title {
   font-family: 'Inter', sans-serif;
   font-size: 20px;
@@ -625,19 +611,8 @@
 .bb-card-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 8px;
-}
-.bb-card-tier-badge {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--bb-brand);
-  background: rgba(var(--bb-brand-rgb), 0.1);
-  padding: 3px 10px;
-  border-radius: 100px;
 }
 .bb-card-price {
   font-family: 'Inter', sans-serif;
@@ -763,22 +738,6 @@
   color: var(--bb-text);
   border-color: var(--bb-border-hover);
 }
-.bb-download {
-  flex: 1;
-  padding: 12px;
-  background: var(--bb-brand);
-  color: var(--bb-btn-text);
-  border: none;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 16px;
-}
-.bb-download:hover { filter: brightness(1.1); }
-
 /* No Builds */
 .bb-no-builds {
   text-align: center;

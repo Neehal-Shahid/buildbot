@@ -35,7 +35,6 @@
   // same build fresh (see placeOrderForBuild) — never trust prices already
   // sitting in the page by the time the customer clicks order.
   let _lastBudget = null;
-  let _lastPurpose = "";
 
   // Ordering: WooCommerce-connected stores get one-click cart checkout;
   // everyone else falls back to a WhatsApp order handoff if the store set
@@ -455,7 +454,6 @@
         _lastBuilds = data.builds || [];
         _lastCurrency = data.currency || CURRENCY;
         _lastBudget = budget;
-        _lastPurpose = selectedPurpose;
         renderResults(
           data.builds || [],
           data.currency || CURRENCY,
@@ -582,12 +580,14 @@
     // ── Build cards ──
     const cardsHtml = builds
       .map((build, i) => {
-        // Balanced is the natural highlight when present; with only 2
-        // builds (Balanced/Max collapsed together — see
-        // inventoryCeilingNote) there's no meaningful "middle" option
-        // anymore, so nothing is singled out as featured.
-        const isFeatured = build.tier === "Balanced Build";
+        // With a dynamic, potentially long list of genuinely distinct
+        // builds (no more fixed Budget/Balanced/Max), the cheapest option
+        // is the one universally sensible thing to draw attention to as a
+        // default starting point.
+        const isFeatured = i === 0;
         const isOver = !build.withinBudget;
+        const badgeText =
+          i === 0 ? "Most Affordable" : i === builds.length - 1 ? "Best Available" : `Option ${i + 1}`;
 
         // Parts preview — show first 4 categories as pills
         const previewParts = (build.parts || [])
@@ -598,7 +598,7 @@
         return `
         <div class="bb-build-card ${isFeatured ? "featured" : ""}" data-build-idx="${i}">
           <div class="bb-card-top">
-            <span class="bb-card-tier-badge">${escapeHtml(build.tier) || "Build " + (i + 1)}</span>
+            <span class="bb-card-tier-badge">${badgeText}</span>
             <span class="bb-card-price">${currency} ${Number(build.totalPrice || 0).toLocaleString()}</span>
           </div>
           <div class="bb-card-name">${escapeHtml(build.buildName) || "Custom PC Build"}</div>
@@ -659,8 +659,9 @@
     _currentBuild = build;
 
     // Header
+    const idx = build.buildIndex ?? 0;
     document.getElementById("bb-modal-tier-badge").textContent =
-      build.tier || "Recommended Build";
+      idx === 0 ? "Most Affordable" : idx === _lastBuilds.length - 1 ? "Best Available" : `Option ${idx + 1}`;
     document.getElementById("bb-modal-title").textContent =
       build.buildName || "Custom PC Build";
     document.getElementById("bb-modal-tagline").textContent =
@@ -802,8 +803,7 @@
         body: JSON.stringify({
           storeId: STORE_ID,
           budget: _lastBudget,
-          purpose: _lastPurpose,
-          tier: build.tier,
+          buildIndex: build.buildIndex,
           orderMethod: ORDER_METHOD,
         }),
       });
@@ -976,7 +976,7 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
               <div>
                 <div style="background: rgba(124, 106, 247, 0.1); color: #7c6af7; border: 1px solid rgba(124, 106, 247, 0.2); padding: 3px 10px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 8px;">
-                  ${escapeHtml(build.tier) || `Build ${index + 1}`}
+                  ${index === 0 ? "Most Affordable" : index === builds.length - 1 ? "Best Available" : `Option ${index + 1}`}
                 </div>
                 <h2 style="font-size: 20px; font-weight: 700; color: #111111; margin: 0 0 4px 0;">${escapeHtml(build.buildName)}</h2>
                 <p style="font-size: 12px; color: #666666; margin: 0; line-height: 1.4;">${escapeHtml(build.tagline) || escapeHtml(build.summary) || ""}</p>

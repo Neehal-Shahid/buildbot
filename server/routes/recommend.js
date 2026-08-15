@@ -37,91 +37,6 @@ const REQUIRED_CATEGORIES = [
 ];
 const REQUIRED_SET = new Set(REQUIRED_CATEGORIES);
 
-// Rough real-world PC budget allocation, used as a starting point that
-// gets nudged by the customer's chosen usecase (see getPurposeProfile).
-const BASELINE_WEIGHTS = {
-  CPU: 0.2,
-  Motherboard: 0.1,
-  GPU: 0.25,
-  RAM: 0.09,
-  Storage: 0.09,
-  PSU: 0.08,
-  "CPU Cooler": 0.05,
-  Case: 0.1,
-  "Case Fans": 0.04,
-};
-
-// Realistic per-category quantity ceilings — a real PC has 2-4 RAM slots
-// and room for a handful of case fans, never dozens.
-const MAX_QUANTITY = { RAM: 4, "Case Fans": 6 };
-
-function getPurposeProfile(purpose) {
-  const text = String(purpose || "").toLowerCase();
-  if (text.includes("gaming"))
-    return {
-      gpuBias: 1.25,
-      cpuBias: 1.1,
-      ramBias: 1.15,
-      storageBias: 1.05,
-      tag: "Gaming",
-    };
-  if (text.includes("video") || text.includes("edit"))
-    return {
-      gpuBias: 1.1,
-      cpuBias: 1.1,
-      ramBias: 1.2,
-      storageBias: 1.2,
-      tag: "Editing",
-    };
-  if (text.includes("coding") || text.includes("developer"))
-    return {
-      gpuBias: 0.95,
-      cpuBias: 1.1,
-      ramBias: 1.15,
-      storageBias: 1.1,
-      tag: "Coding",
-    };
-  if (text.includes("design") || text.includes("studio"))
-    return {
-      gpuBias: 1.1,
-      cpuBias: 1.05,
-      ramBias: 1.15,
-      storageBias: 1.1,
-      tag: "Design",
-    };
-  if (text.includes("stream"))
-    return {
-      gpuBias: 1.1,
-      cpuBias: 1.1,
-      ramBias: 1.12,
-      storageBias: 1.08,
-      tag: "Streaming",
-    };
-  if (text.includes("office"))
-    return {
-      gpuBias: 0.6,
-      cpuBias: 1.0,
-      ramBias: 1.05,
-      storageBias: 1.15,
-      tag: "Office",
-    };
-  if (text.includes("stud"))
-    return {
-      gpuBias: 0.7,
-      cpuBias: 1.0,
-      ramBias: 1.1,
-      storageBias: 1.05,
-      tag: "Studies",
-    };
-  return {
-    gpuBias: 1.0,
-    cpuBias: 1.0,
-    ramBias: 1.0,
-    storageBias: 1.0,
-    tag: "General",
-  };
-}
-
 // ─── Spec inference from free text (name + description) ──────────
 // Store owners only give us name/category/price/description, so we
 // pull out compatibility hints (socket, RAM generation, wattage, form
@@ -354,6 +269,49 @@ function evaluablePairs(pairs, limitEachEnd) {
   return [...pairs.slice(0, limitEachEnd), ...pairs.slice(-limitEachEnd)];
 }
 
+// Reduces a pair list to one entry per unique CPU — the cheapest board
+// that CPU is compatible with. Board brand/model isn't something a
+// customer thinks of as "a different build"; CPU (and, separately, GPU —
+// see catalogWithFixedGpu) is what actually varies the offering. Uses the
+// CPU object itself as the map key, which works because every pair
+// sharing a CPU references the exact same object from catalogByCategory's
+// CPU list (see compatiblePairs), not a copy.
+function uniqueCheapestBoardPerCpu(pairs) {
+  const byCpu = new Map();
+  pairs.forEach((pair) => {
+    const existing = byCpu.get(pair.cpu);
+    if (!existing || pair.board.price < existing.board.price) {
+      byCpu.set(pair.cpu, pair);
+    }
+  });
+  return [...byCpu.values()];
+}
+
+// Lets cheapestFillFromPair's existing "always pick compatibleCandidates[0]"
+// logic pick a SPECIFIC GPU rather than skipping the category or picking
+// the cheapest — by handing it a catalog where GPU has exactly one
+// candidate. Cheap to build (shallow Map clone) and avoids duplicating
+// cheapestFillFromPair's fill logic just to force one category's choice.
+function catalogWithFixedGpu(catalogByCategory, gpu) {
+  const clone = new Map(catalogByCategory);
+  clone.set("GPU", [gpu]);
+  return clone;
+}
+
+// Picks up to `max` builds spread evenly across a price-sorted list rather
+// than just the `max` cheapest — a customer's budget should see the full
+// range of what's achievable (cheapest through priciest-still-affordable),
+// not a cluster of near-identical cheap options with nothing above them.
+function spreadAcrossRange(sorted, max) {
+  if (sorted.length <= max) return sorted;
+  const picked = [];
+  for (let i = 0; i < max; i++) {
+    const idx = Math.round((i * (sorted.length - 1)) / (max - 1));
+    picked.push(sorted[idx]);
+  }
+  return [...new Set(picked)];
+}
+
 function compatibleCandidates(category, catalogByCategory, ctx) {
   const list = catalogByCategory.get(category) || [];
   switch (category) {
@@ -374,46 +332,6 @@ function compatibleCandidates(category, catalogByCategory, ctx) {
     default:
       return list; // GPU, Storage, Case Fans have no modeled cross-dependency
   }
-}
-
-function computeWeights(purposeProfile) {
-  const biasMap = {
-    CPU: purposeProfile.cpuBias,
-    GPU: purposeProfile.gpuBias,
-    RAM: purposeProfile.ramBias,
-    Storage: purposeProfile.storageBias,
-  };
-  const raw = {};
-  let sum = 0;
-  Object.entries(BASELINE_WEIGHTS).forEach(([cat, w]) => {
-    raw[cat] = w * (biasMap[cat] || 1);
-    sum += raw[cat];
-  });
-  const weights = {};
-  Object.entries(raw).forEach(([cat, w]) => {
-    weights[cat] = sum > 0 ? w / sum : 0;
-  });
-  return weights;
-}
-
-// CPU/Motherboard upgrades during the hill-climb (see climbToward) must keep
-// the anchor pair itself compatible, so they get their own lookup instead of
-// going through compatibleCandidates (which assumes a fixed anchor).
-function compatibleCpusForBoard(catalogByCategory, boardSocket) {
-  return (catalogByCategory.get("CPU") || []).filter((c) =>
-    socketsMatch(detectSocket(c), boardSocket),
-  );
-}
-
-function compatibleBoardsForCpu(catalogByCategory, cpuSocket, ramType, formFactor) {
-  return (catalogByCategory.get("Motherboard") || []).filter((b) => {
-    if (!socketsMatch(detectSocket(b), cpuSocket)) return false;
-    const bRam = detectRamType(b);
-    if (ramType && bRam && bRam !== ramType) return false;
-    const bFF = detectFormFactor(b);
-    if (formFactor && bFF && bFF !== formFactor) return false;
-    return true;
-  });
 }
 
 function partReason(category) {
@@ -459,9 +377,9 @@ const FILL_ORDER = [
 ];
 
 // The cheapest fully compatible build for a fixed CPU+Motherboard anchor —
-// every category just takes its cheapest compatible option. This is used
-// both to find the Budget tier and, during the feasibility scan, to find
-// which anchor pairs can even form a complete build at all.
+// every category just takes its cheapest compatible option (or, with a
+// fixed-GPU catalog — see catalogWithFixedGpu — that one specific GPU).
+// This is what every build in generateBuildsFromCatalog is built from.
 function cheapestFillFromPair(catalogByCategory, pair, skipCategories) {
   const skip = skipCategories || EMPTY_SKIP_SET;
   const ctx = {
@@ -542,107 +460,10 @@ function enforceBudgetCap(result, catalogByCategory, budget) {
   return { ...result, parts, total };
 }
 
-// Finds the single next upgrade for one category: either the next pricier
-// compatible part, or (for RAM/Case Fans, up to MAX_QUANTITY) one more unit
-// of what's already chosen. Returns null once nothing more is available.
-function nextUpgradeFor(category, part, catalogByCategory, ctx) {
-  let swapOption = null;
-  if (category === "CPU") {
-    const better = compatibleCpusForBoard(catalogByCategory, ctx.boardSocket)
-      .filter((c) => c.price > part.price)
-      .sort((a, b) => a.price - b.price)[0];
-    if (better) swapOption = { item: better, delta: better.price - part.price };
-  } else if (category === "Motherboard") {
-    const ramType = detectRamType(ctx.board);
-    const formFactor = detectFormFactor(ctx.board);
-    const better = compatibleBoardsForCpu(catalogByCategory, ctx.cpuSocket, ramType, formFactor)
-      .filter((b) => b.price > part.price)
-      .sort((a, b) => a.price - b.price)[0];
-    if (better) swapOption = { item: better, delta: better.price - part.price };
-  } else {
-    const better = compatibleCandidates(category, catalogByCategory, ctx)
-      .filter((c) => c.price > part.price)
-      .sort((a, b) => a.price - b.price)[0];
-    if (better) {
-      // Swapping a >1-quantity part (e.g. RAM already bumped to 2 sticks)
-      // changes the total by the per-unit delta times how many are bought.
-      swapOption = { item: better, delta: (better.price - part.price) * (part.quantity || 1) };
-    }
-  }
-
-  const qtyCap = MAX_QUANTITY[category];
-  // RAM must stay in matched pairs once it has more than one stick — 3
-  // sticks fits a 4-slot board's quantity cap fine but disables
-  // dual-channel operation, which defeats the point of using quantity as
-  // an upgrade lever here at all. Jump straight from 2 to 4 rather than
-  // ever landing on the odd count in between; every other category (Case
-  // Fans) still adds one unit at a time.
-  const addAmount = category === "RAM" && part.quantity === 2 ? 2 : 1;
-  const addOption =
-    qtyCap && part.quantity + addAmount <= qtyCap
-      ? { addQuantity: true, addAmount, delta: part.price * addAmount }
-      : null;
-
-  // Prefer whichever costs less — both move the same category forward.
-  const options = [swapOption, addOption].filter(Boolean);
-  if (!options.length) return null;
-  return options.reduce((a, b) => (a.delta <= b.delta ? a : b));
-}
-
-// Starting from a known-good complete build, visits categories highest
-// purpose-weight first (e.g. GPU for Gaming) and climbs each one — next
-// upgrade after next upgrade — as far as `ceiling` allows before moving to
-// the next category. This mirrors how PC builders actually spend: get the
-// best GPU you can justify first, then spend what's left on everything
-// else, rather than nickel-and-diming the cheapest upgrade available at
-// every step (which would waste a Gaming budget on extra case fans while
-// leaving the GPU untouched). Balanced (ceiling ≈ 82% of budget) and Max
-// (ceiling = budget) both climb from the same Budget-tier build, so Max
-// simply continues further than Balanced — keeping totals naturally
-// ordered Budget ≤ Balanced ≤ Max.
-function climbToward(build, catalogByCategory, budget, ceiling, weights) {
-  const parts = build.parts.map((p) => ({ ...p }));
-  const ctx = { ...build.ctx };
-  let total = parts.reduce((s, p) => s + p.totalPrice, 0);
-  const cap = Math.min(budget, ceiling);
-
-  const categoryOrder = Object.keys(weights).sort(
-    (a, b) => (weights[b] || 0) - (weights[a] || 0),
-  );
-
-  categoryOrder.forEach((category) => {
-    const idx = parts.findIndex((p) => p.category === category);
-    if (idx === -1) return; // not part of this build (missing from inventory)
-    let guard = 0;
-    while (total < cap && guard < 30) {
-      guard++;
-      const upgrade = nextUpgradeFor(category, parts[idx], catalogByCategory, ctx);
-      if (!upgrade || total + upgrade.delta > cap) break;
-      if (upgrade.addQuantity) {
-        parts[idx].quantity += upgrade.addAmount || 1;
-        parts[idx].totalPrice = parts[idx].price * parts[idx].quantity;
-      } else {
-        parts[idx] = partEntry(category, upgrade.item, parts[idx].quantity);
-        if (category === "CPU") {
-          ctx.cpu = upgrade.item;
-          ctx.cpuSocket = detectSocket(upgrade.item);
-        }
-        if (category === "Motherboard") {
-          ctx.board = upgrade.item;
-          ctx.boardSocket = detectSocket(upgrade.item);
-        }
-        if (category === "GPU") ctx.gpu = upgrade.item;
-      }
-      total = parts.reduce((s, p) => s + p.totalPrice, 0);
-    }
-  });
-
-  return { parts, total, missing: build.missing, ctx };
-}
-
-// After CPU/GPU upgrades during the climb, the previously-chosen PSU could
-// in principle no longer cover the new wattage draw — check once more and
-// swap in the cheapest still-affordable PSU that does, if needed.
+// The final PSU choice (cheapest compatible, from cheapestFillFromPair)
+// could in principle not cover the actual CPU+GPU wattage draw if
+// psuSufficient's estimate and the plain price-sort disagree — check once
+// more and swap in the cheapest still-affordable PSU that does, if needed.
 function ensurePsuSufficient(result, catalogByCategory, budget) {
   const psuIdx = result.parts.findIndex((p) => p.category === "PSU");
   if (psuIdx === -1) return result;
@@ -659,7 +480,11 @@ function ensurePsuSufficient(result, catalogByCategory, budget) {
   return enforceBudgetCap({ ...result, parts, total }, catalogByCategory, budget);
 }
 
-function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
+// `rank`/`count` replace the old fixed "Budget/Balanced/Max" tier concept —
+// there's no longer a fixed number of builds, so naming/messaging is
+// derived from where this build actually falls (cheapest, priciest-
+// affordable, or in between) among however many came back this time.
+function finalizeBuild(b, rank, count, budget) {
   const totalPrice = Math.round(b.total);
   const withinBudget = totalPrice <= budget;
   const budgetRemaining = budget - totalPrice;
@@ -682,26 +507,27 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
   // just assumed.
   const socketVerified = !!(b.ctx?.cpuSocket && b.ctx?.boardSocket);
 
-  const buildName =
-    tier === "Budget Build"
-      ? `${purposeProfile.tag} Value Build`
-      : tier === "Balanced Build"
-        ? `${purposeProfile.tag} Balanced Build`
-        : `${purposeProfile.tag} Max Build`;
+  const isCheapest = rank === 0;
+  const isPriciest = rank === count - 1;
+  const cpuName = b.ctx?.cpu?.name || "this CPU";
+  const gpuName = b.ctx?.gpu?.name || null;
 
-  const tagline =
-    tier === "Budget Build"
-      ? "Best value for money"
-      : tier === "Balanced Build"
-        ? "Balanced and reliable"
-        : "Maximum performance within budget";
+  // Named for what actually distinguishes it (its CPU/GPU) rather than a
+  // fixed tier label, since two builds a customer is choosing between are
+  // most often actually differentiated by exactly those two parts.
+  const buildName = gpuName ? `${cpuName} + ${gpuName}` : `${cpuName} (No GPU)`;
 
-  const summaryBase =
-    tier === "Budget Build"
-      ? "The most economical complete build for your needs, using this store's cheapest compatible parts."
-      : tier === "Balanced Build"
-        ? "A balanced build that puts extra budget where it matters most, without maxing out your spend."
-        : "A premium build that uses the best compatible parts this store can offer, as close to your full budget as possible.";
+  const tagline = isCheapest
+    ? "Most affordable option"
+    : isPriciest
+      ? "Best this store can offer within your budget"
+      : "Compatible option within your budget";
+
+  const summaryBase = isCheapest
+    ? "The most economical complete build for your needs, using this store's cheapest compatible parts."
+    : isPriciest
+      ? "The best combination of parts this store can offer, as close to your full budget as possible."
+      : `A step up from the cheapest option, built around a ${gpuName ? "different GPU" : "different CPU"} this store has in stock.`;
 
   const missingNote = missingCategories.length
     ? ` Not available in the store's current inventory: ${missingCategories.join(", ")}.`
@@ -735,7 +561,7 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     .join("");
 
   return {
-    tier,
+    buildIndex: rank,
     tagline,
     buildName,
     totalPrice,
@@ -752,12 +578,11 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
     missingCategories,
     gpuExcludedForBudget,
     summary: summaryBase + missingNote + gpuBudgetNote + notNeededNote,
-    tips:
-      tier === "Budget Build"
-        ? "Every part here was picked to keep cost as low as possible while staying compatible."
-        : tier === "Balanced Build"
-          ? `Extra budget was prioritized toward ${purposeProfile.tag.toLowerCase()} performance.`
-          : "This build spends as much of your budget as possible on better parts, while staying compatible and within budget.",
+    tips: isCheapest
+      ? "Every part here was picked to keep cost as low as possible while staying compatible."
+      : isPriciest
+        ? "This build spends as much of your budget as possible on better parts, while staying compatible and within budget."
+        : `A different ${gpuName ? "GPU" : "CPU"} choice than the cheapest option, still fully compatible and within your budget.`,
     budgetAdvice:
       budgetRemaining > 0
         ? `${Math.round(budgetRemaining).toLocaleString()} left over from your budget.`
@@ -765,10 +590,14 @@ function finalizeBuild(b, tier, budget, purpose, purposeProfile) {
   };
 }
 
-function generateBuildsFromCatalog(products, budget, purpose) {
+// Max number of distinct builds ever returned in one response — not a
+// target to fill, just a ceiling so a large, varied catalog doesn't hand
+// the customer a scroll of 40 near-identical cards. Real catalogs with
+// modest variety will naturally return fewer.
+const MAX_BUILDS_SHOWN = 12;
+
+function generateBuildsFromCatalog(products, budget) {
   const catalogByCategory = buildCatalogByCategory(products);
-  const purposeProfile = getPurposeProfile(purpose);
-  const weights = computeWeights(purposeProfile);
 
   const cpus = catalogByCategory.get("CPU") || [];
   const boards = catalogByCategory.get("Motherboard") || [];
@@ -784,24 +613,45 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     return { canBuild: false, noBuildsReason, builds: [] };
   }
 
-  const candidatePairs = evaluablePairs(pairs, 150);
-  const evaluated = candidatePairs.map((pair) => ({
-    pair,
-    floor: cheapestFillFromPair(catalogByCategory, pair),
-  }));
-
   const requiredMissing = (floor) =>
     floor.missing.some((m) => REQUIRED_SET.has(m.category));
 
-  const feasible = evaluated.filter((e) => !requiredMissing(e.floor));
+  // One anchor per unique CPU (cheapest compatible board — see
+  // uniqueCheapestBoardPerCpu) rather than every CPU×board pair: board
+  // choice isn't a meaningful axis of "different build" to a customer,
+  // CPU is. Every build below is generated from one of these anchors,
+  // either with no GPU or with one specific GPU fixed in — that's what
+  // actually makes builds distinct, instead of a fixed Budget/Balanced/Max
+  // split that could leave a huge, meaningless gap between two tiers on a
+  // catalog with real variety, or silently collapse into duplicates on a
+  // catalog without much. Both dimensions are capped (cheapest+priciest N
+  // — see evaluablePairs) since they multiply: an uncapped catalog with,
+  // say, 100 CPUs and 100 GPUs would mean 10,000+ evaluations per request,
+  // measured at several seconds against a real catalog in testing. The
+  // true optimum for spreading across the price range is essentially
+  // always among the cheapest/priciest of each anyway.
+  const cpuAnchors = uniqueCheapestBoardPerCpu(evaluablePairs(pairs, 40));
+  // catalogByCategory's lists are already price-sorted ascending (see
+  // buildCatalogByCategory), so evaluablePairs can slice this directly.
+  const gpus = evaluablePairs(catalogByCategory.get("GPU") || [], 40);
 
-  if (!feasible.length) {
+  const raw = [];
+  cpuAnchors.forEach((pair) => {
+    const noGpu = cheapestFillFromPair(catalogByCategory, pair, new Set(["GPU"]));
+    if (!requiredMissing(noGpu)) raw.push(noGpu);
+    gpus.forEach((gpu) => {
+      const withGpu = cheapestFillFromPair(catalogWithFixedGpu(catalogByCategory, gpu), pair);
+      if (!requiredMissing(withGpu)) raw.push(withGpu);
+    });
+  });
+
+  if (!raw.length) {
     const missingSet = new Map();
-    evaluated.forEach((e) =>
-      e.floor.missing.forEach((m) => {
+    cpuAnchors.forEach((pair) => {
+      cheapestFillFromPair(catalogByCategory, pair, new Set(["GPU"])).missing.forEach((m) => {
         if (REQUIRED_SET.has(m.category)) missingSet.set(m.category, m.reason);
-      }),
-    );
+      });
+    });
     const names = [...missingSet.keys()];
     const notInInventory = names.filter(
       (n) => missingSet.get(n) === "not_in_inventory",
@@ -812,62 +662,18 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     return { canBuild: false, noBuildsReason, builds: [] };
   }
 
-  let cheapestEntry = feasible.reduce(
-    (min, e) => (e.floor.total < min.floor.total ? e : min),
-    feasible[0],
-  );
+  const withinBudget = raw
+    .map((floor) => ensurePsuSufficient(enforceBudgetCap(floor, catalogByCategory, budget), catalogByCategory, budget))
+    .filter((b) => b.total <= budget);
 
-  // If even the cheapest build (including a discrete GPU) blows the budget,
-  // try again with the GPU dropped — a cheaper CPU+board+RAM+storage+PSU+case
-  // build without a graphics card may still fit, and is more useful to the
-  // customer than a flat "can't build" refusal. Only worth trying when a
-  // GPU was actually part of what pushed the cost over.
-  if (
-    cheapestEntry.floor.total > budget &&
-    cheapestEntry.floor.parts.some((p) => p.category === "GPU")
-  ) {
-    const gpuSkip = new Set(["GPU"]);
-    const noGpuOptions = candidatePairs
-      .map((pair) => ({
-        pair,
-        floor: cheapestFillFromPair(catalogByCategory, pair, gpuSkip),
-      }))
-      .filter((e) => !requiredMissing(e.floor));
-
-    if (noGpuOptions.length) {
-      const noGpuFeasible = noGpuOptions.filter((e) => e.floor.total <= budget);
-      if (noGpuFeasible.length) {
-        // Prefer anchor pairs whose CPU is known/likely to have integrated
-        // graphics (so the customer still gets a display out of the box);
-        // among equally-confident options, pick the cheapest.
-        const igpuRank = { present: 2, unknown: 1, none: 0 };
-        noGpuFeasible.sort((a, b) => {
-          const rank =
-            igpuRank[integratedGraphicsStatus(b.pair.cpu)] -
-            igpuRank[integratedGraphicsStatus(a.pair.cpu)];
-          return rank !== 0 ? rank : a.floor.total - b.floor.total;
-        });
-        cheapestEntry = noGpuFeasible[0];
-      } else {
-        // Doesn't fit budget even without a GPU either — but it's still a
-        // truer "cheapest possible" floor than the with-GPU price below,
-        // since a real customer could choose to skip the GPU. Using the
-        // with-GPU total here would overstate the shortfall shown in the
-        // no-builds-possible message.
-        const cheapestNoGpu = noGpuOptions.reduce(
-          (min, e) => (e.floor.total < min.floor.total ? e : min),
-          noGpuOptions[0],
-        );
-        if (cheapestNoGpu.floor.total < cheapestEntry.floor.total) {
-          cheapestEntry = cheapestNoGpu;
-        }
-      }
-    }
-  }
-
-  if (cheapestEntry.floor.total > budget) {
-    const cheapestTotal = Math.round(cheapestEntry.floor.total);
-    const shortfall = Math.round(cheapestEntry.floor.total - budget);
+  if (!withinBudget.length) {
+    // The GPU-optional no-GPU variant for every CPU is already part of
+    // `raw`, so this floor already reflects the true cheapest achievable
+    // build — no separate "try again without a GPU" pass needed, unlike
+    // the old fixed-tier version of this function.
+    const cheapest = raw.reduce((min, b) => (b.total < min.total ? b : min), raw[0]);
+    const cheapestTotal = Math.round(cheapest.total);
+    const shortfall = Math.round(cheapest.total - budget);
     return {
       canBuild: false,
       noBuildsReason: `The cheapest complete PC we can build from this store's inventory costs about ${cheapestTotal.toLocaleString()}, which is ${shortfall.toLocaleString()} more than your budget. Try increasing your budget, or ask the store to stock more affordable parts.`,
@@ -875,65 +681,23 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     };
   }
 
-  const budgetResult = ensurePsuSufficient(
-    enforceBudgetCap(cheapestEntry.floor, catalogByCategory, budget),
-    catalogByCategory,
-    budget,
+  withinBudget.sort((a, b) => a.total - b.total);
+  const selected = spreadAcrossRange(withinBudget, MAX_BUILDS_SHOWN);
+
+  const finalBuilds = selected.map((b, i) =>
+    finalizeBuild(b, i, selected.length, budget),
   );
 
-  // Balanced and Max both climb from the same Budget-tier build (see
-  // climbToward), upgrading the customer's highest-usecase-priority parts
-  // first. Balanced stops at ~82% of budget; Max keeps climbing all the
-  // way to the full budget. Because Max simply continues past where
-  // Balanced stopped, Budget ≤ Balanced ≤ Max holds by construction, and
-  // each tier naturally spends more on whatever the usecase weighs most
-  // (e.g. GPU for Gaming, CPU/RAM for Coding).
-  const balancedResult = ensurePsuSufficient(
-    climbToward(budgetResult, catalogByCategory, budget, budget * 0.82, weights),
-    catalogByCategory,
-    budget,
-  );
-
-  const maxResult = ensurePsuSufficient(
-    climbToward(budgetResult, catalogByCategory, budget, budget, weights),
-    catalogByCategory,
-    budget,
-  );
-
-  // Balanced (ceiling ≈82% of budget) and Max (ceiling = budget) both climb
-  // from the same Budget build until nothing costs less than the ceiling
-  // left to upgrade to (see climbToward/nextUpgradeFor) — with a small
-  // catalog (e.g. only one GPU or one CPU in stock), that ceiling is often
-  // this store's own inventory, not the customer's budget: every category
-  // gets maxed out well under 82% of a generous budget, so Balanced and
-  // Max independently arrive at the exact same build. Showing that as two
-  // "different" cards with identical parts and prices is actively
-  // misleading — reads like a bug even though the math is right — so
-  // they're collapsed into one build here whenever that happens, labeled
-  // as the store's best available rather than a fake "balanced" stop
-  // along the way to something bigger that was never actually there.
-  const balancedMaxedOut = Math.round(balancedResult.total) === Math.round(maxResult.total);
-
-  let builds, tierMeta;
-  if (balancedMaxedOut) {
-    builds = [budgetResult, maxResult];
-    tierMeta = ["Budget Build", "Max Build"];
-  } else {
-    builds = [budgetResult, balancedResult, maxResult];
-    tierMeta = ["Budget Build", "Balanced Build", "Max Build"];
-  }
-  builds.sort((a, b) => a.total - b.total);
-
-  const finalBuilds = builds.map((b, i) =>
-    finalizeBuild(b, tierMeta[i], budget, purpose, purposeProfile),
-  );
-
-  // Only meaningful when a build was actually capped by the store's own
-  // inventory (not the customer's budget) — lets the widget explain why
-  // fewer than 3 builds showed up instead of it looking like a glitch.
-  const inventoryCeilingNote = balancedMaxedOut
-    ? `This store's best available build for your needs costs ${Math.round(maxResult.total).toLocaleString()} — a bigger budget won't unlock anything more from their current inventory.`
-    : "";
+  // Signals when the store's own inventory, not the customer's budget, is
+  // what capped the list — e.g. a 200,000 budget where the priciest build
+  // this store can assemble only reaches 98,000 leaves real headroom
+  // unused, which reads as a glitch ("why only cheap options for such a
+  // big budget?") unless it's explained.
+  const priciestAffordable = withinBudget[withinBudget.length - 1].total;
+  const inventoryCeilingNote =
+    priciestAffordable < budget * 0.9
+      ? `This store's best available build for your needs costs ${Math.round(priciestAffordable).toLocaleString()} — a bigger budget won't unlock anything more from their current inventory.`
+      : "";
 
   return { canBuild: true, noBuildsReason: "", builds: finalBuilds, inventoryCeilingNote };
 }
@@ -958,11 +722,12 @@ router.post("/recommend", async (req, res) => {
   ipRequests.set(ip, currentRequests + 1);
 
   const { budget, purpose: rawPurpose, extras, storeId } = req.body;
-  // Both are freeform request-body fields that end up echoed back into
-  // finalizeBuild()'s summary text (and cached/persisted via
-  // analyticsDB.logRecommendation) — typed and length-capped the same way
-  // regardless of what the caller sends, since nothing downstream should
-  // ever see a non-string or an unbounded string here.
+  // Both are freeform request-body fields, typed and length-capped the
+  // same way regardless of what the caller sends since nothing downstream
+  // should ever see a non-string or an unbounded string here. purpose no
+  // longer affects build generation itself (see generateBuildsFromCatalog)
+  // — it's kept only because analyticsDB.logRecommendation persists it for
+  // the dashboard's "Popular Purposes" stat.
   const safeExtras = (typeof extras === "string" ? extras : "").trim().slice(0, 200);
   const purpose = (typeof rawPurpose === "string" ? rawPurpose : "").trim().slice(0, 100);
 
@@ -1027,14 +792,27 @@ router.post("/recommend", async (req, res) => {
       purpose,
       safeExtras,
     );
-    if (cachedRec) {
+    // A cache entry from before builds switched from fixed tiers to
+    // buildIndex (see generateBuildsFromCatalog) would serve builds here
+    // that /order-request can no longer correctly match — it regenerates
+    // fresh and looks up by array position, which isn't guaranteed to
+    // line up with whatever an old-format cached list showed the
+    // customer. Treating it as a miss rather than serving it self-heals
+    // the moment this runs (a fresh entry gets cached in the new format
+    // below), instead of staying wrong until the store's catalog happens
+    // to change.
+    const cacheIsCurrentFormat =
+      cachedRec &&
+      (!Array.isArray(cachedRec.builds) ||
+        cachedRec.builds.every((b) => typeof b.buildIndex === "number"));
+
+    if (cachedRec && cacheIsCurrentFormat) {
       const buildsToServe = Array.isArray(cachedRec.builds)
         ? cachedRec.builds
         : cachedRec.buildName
           ? [
               {
                 ...cachedRec,
-                tier: cachedRec.tier || "Recommended Build",
                 tagline:
                   cachedRec.tagline || "Previously generated recommendation",
               },
@@ -1052,11 +830,7 @@ router.post("/recommend", async (req, res) => {
       });
     }
 
-    const generated = generateBuildsFromCatalog(
-      products,
-      parsedBudget,
-      purpose,
-    );
+    const generated = generateBuildsFromCatalog(products, parsedBudget);
     const payload = {
       success: true,
       builds: generated.builds,
@@ -1103,14 +877,12 @@ router.post("/order-request", async (req, res) => {
   }
   ipRequests.set(ip, currentRequests + 1);
 
-  const { storeId, budget, purpose: rawPurpose, tier, orderMethod } = req.body;
-  // Same reasoning as /recommend above — purpose is freeform and flows
-  // into finalizeBuild()'s summary text.
-  const purpose = (typeof rawPurpose === "string" ? rawPurpose : "").trim().slice(0, 100);
-  if (!storeId || !budget || !purpose || !tier) {
+  const { storeId, budget, buildIndex, orderMethod } = req.body;
+  const parsedIndex = Number(buildIndex);
+  if (!storeId || !budget || !Number.isInteger(parsedIndex) || parsedIndex < 0) {
     return res
       .status(400)
-      .json({ error: "storeId, budget, purpose and tier are required" });
+      .json({ error: "storeId, budget and buildIndex are required" });
   }
 
   const parsedBudget = Number(budget);
@@ -1139,7 +911,7 @@ router.post("/order-request", async (req, res) => {
       });
     }
 
-    const generated = generateBuildsFromCatalog(products, parsedBudget, purpose);
+    const generated = generateBuildsFromCatalog(products, parsedBudget);
     if (!generated.canBuild) {
       return res.status(400).json({
         error: "Could not recreate this build — the store's inventory may have changed.",
@@ -1147,11 +919,18 @@ router.post("/order-request", async (req, res) => {
       });
     }
 
-    const matched = generated.builds.find((b) => b.tier === tier);
+    // Builds are regenerated fresh from the real catalog here — never
+    // trusting parts/price the client might send — so buildIndex only
+    // needs to identify WHICH of the fresh results the customer picked,
+    // the same way it did in the response /recommend just gave them
+    // (same storeId+budget deterministically produces the same sorted
+    // list). If the catalog changed in between, the index may no longer
+    // match the same build the customer actually saw — caught below.
+    const matched = generated.builds[parsedIndex];
     if (!matched) {
       return res
         .status(400)
-        .json({ error: "Could not find that build tier.", customerMessage: true });
+        .json({ error: "Could not find that build.", customerMessage: true });
     }
 
     const method = orderMethod === "woo" ? "woo" : "whatsapp";

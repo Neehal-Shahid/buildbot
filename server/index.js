@@ -40,14 +40,19 @@ app.use("/api", pluginRoute);
 app.use("/api", osposRoute);
 
 // Serve widget script
+// Without an explicit charset, browsers can fall back to Latin-1 when
+// parsing the script, corrupting every non-ASCII character embedded in
+// its string literals (arrows, emoji, curly quotes) into mojibake —
+// most visible in generated PDFs, since html2canvas renders exactly what
+// the page actually parsed, not what the source file's bytes intended.
 app.get("/widget.js", (req, res) => {
-  res.setHeader("Content-Type", "application/javascript");
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
   res.sendFile(path.join(__dirname, "widget.js"));
 });
 
 // Serve widget styles
 app.get("/widget.css", (req, res) => {
-  res.setHeader("Content-Type", "text/css");
+  res.setHeader("Content-Type", "text/css; charset=utf-8");
   res.sendFile(path.join(__dirname, "widget.css"));
 });
 
@@ -166,8 +171,12 @@ initDB().then(async () => {
     // ─── SCHEDULED OSPOS AUTO-SYNC JOB ─────────────────────────
     // Keeps every store that has completed at least one manual OSPOS
     // import (Products tab) current automatically from then on — see
-    // server/routes/ospos.js. Same six-hour cadence as the WooCommerce
-    // plugin's own auto-sync.
+    // server/routes/ospos.js. OSPOS has no webhook/API to push changes to
+    // BuildVolt (unlike the WooCommerce plugin, which syncs instantly on
+    // every product save — see server/routes/plugin.js), so polling on an
+    // interval is the only option; three hours balances freshness against
+    // the load repeated connections put on the store's own (often
+    // shared-hosting) database.
     const { pullAllAutoSyncStores } = require("./routes/ospos");
 
     setTimeout(async () => {
@@ -188,7 +197,7 @@ initDB().then(async () => {
           console.error("Scheduled OSPOS auto-sync error:", e.message);
         }
       },
-      6 * 60 * 60 * 1000,
+      3 * 60 * 60 * 1000,
     );
   } else {
     console.log("Email + OSPOS auto-sync cron disabled (CRON_ENABLED=false)");

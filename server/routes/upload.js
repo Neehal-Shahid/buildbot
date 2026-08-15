@@ -530,16 +530,14 @@ router.post("/data-source", authMiddleware, async (req, res) => {
     // their own `source` value (see productDB.getByStore), so they simply
     // stop being shown/used while another source is active. Switching back
     // to a source used before shows exactly what it had, with nothing to
-    // re-import or undo. OSPOS is the one exception: it's a pure data
-    // source with no other role, so leaving it also disables auto-sync —
-    // BuildVolt shouldn't keep holding credentials for (or polling) a
-    // database the store owner no longer wants used. WooCommerce is
-    // different — the plugin connection stays alive regardless of data
-    // source, since it's also what delivers the widget itself.
-    if (switching && store.data_source === "ospos") {
-      await storeDB.disableOsposAutoSync(req.store.storeId);
-    }
-
+    // re-import or undo. Saved OSPOS credentials are left alone here too
+    // (not wiped) so switching back to OSPOS later reconnects immediately
+    // instead of asking for a fresh import — the scheduled auto-sync job
+    // already only polls stores where data_source is currently 'ospos'
+    // (see pullAllAutoSyncStores), so dormant credentials for an inactive
+    // source don't cause any background activity. Explicitly clicking
+    // "Stop auto-sync" in Products is the only thing that actually forgets
+    // the credentials — this switch is not that.
     await storeDB.setDataSource(req.store.storeId, source);
     await storeDB.touchCatalog(req.store.storeId);
     res.json({

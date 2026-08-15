@@ -91,6 +91,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
   // "Host" doubles as "host:port" so Port never needs its own box — 3306
   // is assumed unless a :port suffix is given.
   const [osposHost, setOsposHost] = useState("");
+  const [osposPort, setOsposPort] = useState("");
   const [osposDatabase, setOsposDatabase] = useState("");
   const [osposUsername, setOsposUsername] = useState("");
   const [osposPassword, setOsposPassword] = useState("");
@@ -335,17 +336,6 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
     }
   }
 
-  // Accepts "host" or "host:port" in the single Host box, so Port never
-  // needs a field of its own — 3306 is assumed when no port is given.
-  function splitHostPort(input: string): { host: string; port: string } {
-    const trimmed = input.trim();
-    const lastColon = trimmed.lastIndexOf(":");
-    if (lastColon > 0 && /^\d+$/.test(trimmed.slice(lastColon + 1))) {
-      return { host: trimmed.slice(0, lastColon), port: trimmed.slice(lastColon + 1) };
-    }
-    return { host: trimmed, port: "3306" };
-  }
-
   async function runOsposImport(mode: "replace" | "append") {
     if (!token) return;
 
@@ -353,8 +343,13 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
       toast.error("Missing fields", "Host, database name, and username are required.");
       return;
     }
-    const { host, port } = splitHostPort(osposHost);
-    const creds = { host, port, database: osposDatabase.trim(), username: osposUsername.trim(), password: osposPassword };
+    const creds = {
+      host: osposHost.trim(),
+      port: osposPort.trim() || "3306",
+      database: osposDatabase.trim(),
+      username: osposUsername.trim(),
+      password: osposPassword,
+    };
 
     setOsposImporting(true);
     try {
@@ -563,7 +558,7 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
                     </div>
                   </div>
                   <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-                    Runs automatically every few hours — no need to re-import when your OSPOS listing changes. This
+                    Runs automatically every 3 hours — no need to re-import when your OSPOS listing changes. This
                     always merges (updates existing items, adds new ones) and never deletes anything, unless you
                     explicitly choose "Replace" on a manual re-import.
                   </p>
@@ -590,67 +585,47 @@ export default function ProductsTab({ onNavigate }: { onNavigate: (tab: "embed")
               ) : (
                 osposOpen && (
                   <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 14 }}>
-                      Connect your OSPOS database below — your host or whoever set up OSPOS can give you these
-                      details; on shared hosting (cPanel), check for a{" "}
-                      <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> setting to allow the
-                      connection.{" "}
-                      <strong style={{ color: "var(--text)" }}>
-                        After this first import, BuildVolt securely stores these details (encrypted) and keeps your
-                        catalog in sync with OSPOS automatically
-                      </strong>{" "}
-                      — you can turn that off any time below.
+                    <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.55, marginBottom: 12 }}>
+                      Enter your OSPOS database details below. BuildVolt then keeps your catalog synced
+                      automatically — no need to come back and re-import.
                     </p>
 
                     <details style={{ marginBottom: 14, fontSize: 12, color: "var(--muted)" }}>
                       <summary style={{ cursor: "pointer", color: "var(--accent)", fontWeight: 600 }}>
-                        Not sure where to find these details? (shared/cPanel hosting)
+                        Where do I find these? (shared/cPanel hosting)
                       </summary>
-                      <ol style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.7 }}>
-                        <li>Log in to your hosting account's <strong style={{ color: "var(--text)" }}>cPanel</strong>.</li>
-                        <li>
-                          Open <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> (under the Databases
-                          section) and add <code>%</code> — or, if your host requires a specific address instead of a
-                          wildcard, ask their support for BuildVolt's connecting IP — to allow outside connections.
-                        </li>
-                        <li>
-                          Open <strong style={{ color: "var(--text)" }}>MySQL Databases</strong> to see your database
-                          name and username, and reset the password there if you don't already know it.
-                        </li>
-                        <li>
-                          The host is usually your domain or the one your host gave you for databases (e.g.{" "}
-                          <code>localhost</code> only works if BuildVolt were running on the same server as
-                          OSPOS — from here you need the external one, like{" "}
-                          <code>db.yourdomain.com</code>).
-                        </li>
-                        <li>Enter those four values above and select Import Now.</li>
-                      </ol>
+                      <ul style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.7 }}>
+                        <li>cPanel → <strong style={{ color: "var(--text)" }}>Remote MySQL</strong> → allow BuildVolt to connect.</li>
+                        <li>cPanel → <strong style={{ color: "var(--text)" }}>MySQL Databases</strong> → your database name, username, password.</li>
+                        <li>Host: your host's database address (not <code>localhost</code> — e.g. <code>db.yourdomain.com</code>).</li>
+                      </ul>
                     </details>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
                       <div>
-                        <label className="form-label" htmlFor="ospos-host">1. Database Host</label>
+                        <label className="form-label" htmlFor="ospos-host">Host</label>
                         <input
                           id="ospos-host"
                           type="text"
-                          placeholder="e.g. localhost or db.hostingsite.com"
+                          placeholder="db.yourdomain.com"
                           value={osposHost}
                           onChange={(e) => setOsposHost(e.target.value)}
                         />
-                        <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-                          Not on port 3306? Add it here too, e.g. <code>db.host.com:3307</code>.
-                        </p>
                       </div>
                       <div>
-                        <label className="form-label" htmlFor="ospos-db">2. Database Name</label>
+                        <label className="form-label" htmlFor="ospos-port">Port</label>
+                        <input id="ospos-port" type="text" placeholder="3306" value={osposPort} onChange={(e) => setOsposPort(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="form-label" htmlFor="ospos-db">Database Name</label>
                         <input id="ospos-db" type="text" value={osposDatabase} onChange={(e) => setOsposDatabase(e.target.value)} />
                       </div>
                       <div>
-                        <label className="form-label" htmlFor="ospos-user">3. Username</label>
+                        <label className="form-label" htmlFor="ospos-user">Username</label>
                         <input id="ospos-user" type="text" value={osposUsername} onChange={(e) => setOsposUsername(e.target.value)} />
                       </div>
                       <div>
-                        <label className="form-label" htmlFor="ospos-pass">4. Password</label>
+                        <label className="form-label" htmlFor="ospos-pass">Password</label>
                         <input id="ospos-pass" type="password" value={osposPassword} onChange={(e) => setOsposPassword(e.target.value)} />
                       </div>
                     </div>

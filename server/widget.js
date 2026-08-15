@@ -783,6 +783,7 @@
     btn.textContent = "Please wait…";
 
     let orderId = null;
+    let orderSig = null;
     let orderedBuild = build;
     try {
       const res = await fetch(`${API}/order-request`, {
@@ -799,6 +800,7 @@
       const data = await res.json();
       if (data.success) {
         orderId = data.orderId;
+        orderSig = data.orderSig;
         orderedBuild = data.build;
       }
     } catch (err) {
@@ -854,10 +856,19 @@
         `Total: ${_lastCurrency} ${Number(orderedBuild.totalPrice).toLocaleString()}`,
         `(${orderedBuild.buildName || orderedBuild.tier})`,
       );
-      if (orderId) {
+      if (orderId && orderSig) {
+        // A link is still just text, so it's the one part of this message
+        // that survives being pre-filled into WhatsApp the same way the
+        // itemized lines above do — but unlike them, it carries no
+        // customer-editable data at all: it just points at a page the
+        // server renders straight from the same order_requests row. If the
+        // customer deletes it, the store owner still has the Orders tab;
+        // if it survives, they don't even need to open the dashboard.
+        const orderUrl = `${API}/order/${orderId}/${orderSig}`;
         lines.push(
           "",
-          `Order Ref: #${orderId} (saved in the store's BuildVolt dashboard — please don't edit this message)`,
+          `Verified order details (can't be edited): ${orderUrl}`,
+          `Order Ref: #${orderId}`,
         );
       }
       const waNumber = WHATSAPP_NUMBER.replace(/[^\d]/g, "");

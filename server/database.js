@@ -933,9 +933,21 @@ const productDB = {
     return rows.length;
   },
 
+  // Counts only the store's CURRENTLY ACTIVE data source, same filtering
+  // as productDB.getByStore — this feeds the "Products" onboarding step's
+  // done/pending badge (see DashboardApp.tsx), so counting dormant rows
+  // from a source that isn't active anymore would show the step as done
+  // (and let "Install Widget" unlock) when the live catalog is actually
+  // empty and the widget would fail for real customers.
   getCount: async (storeId) => {
     const res = await client.execute({
-      sql: "SELECT COUNT(*) as count FROM products WHERE store_id = ?",
+      sql: `SELECT COUNT(*) as count FROM products p
+            JOIN stores s ON s.store_id = p.store_id
+            WHERE p.store_id = ?
+              AND (
+                (s.data_source = 'manual' AND p.source IN ('manual', 'csv'))
+                OR (s.data_source != 'manual' AND p.source = s.data_source)
+              )`,
       args: [storeId],
     });
     return res.rows[0];
@@ -1414,6 +1426,19 @@ const orderRequestDB = {
       args: [storeId, limit],
     });
     return res.rows.map((r) => ({ ...r, parts: JSON.parse(r.parts || "[]") }));
+  },
+
+  // Used only by the signed public order-view link (see signOrderId in
+  // routes/recommend.js) — the signature itself is what stands in for the
+  // storeId check getById() below normally does.
+  getByIdPublic: async (id) => {
+    const res = await client.execute({
+      sql: "SELECT * FROM order_requests WHERE id = ?",
+      args: [id],
+    });
+    const row = res.rows[0];
+    if (!row) return null;
+    return { ...row, parts: JSON.parse(row.parts || "[]") };
   },
 
   getById: async (id, storeId) => {

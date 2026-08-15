@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const {
   productDB,
   storeDB,
@@ -7,8 +8,18 @@ const {
   orderRequestDB,
 } = require("../database");
 const { normalizeCategory } = require("../lib/categories");
+const { JWT_SECRET } = require("../lib/secrets");
 
 const router = express.Router();
+
+// Order-view links (sent in the WhatsApp message) need to be guessable-proof
+// without adding a database column — order_requests.id is a small sequential
+// autoincrement, so a bare /order/:id link would let anyone page through
+// every store's orders. Signing the id with the server's own secret makes
+// the link unforgeable without needing per-order storage.
+function signOrderId(id) {
+  return crypto.createHmac("sha256", JWT_SECRET).update(String(id)).digest("hex").slice(0, 16);
+}
 
 // ─── Build engine ───────────────────────────────────────────────
 // Everything below is deterministic (no AI call, no arithmetic risk):
@@ -816,25 +827,41 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     cheapestEntry.floor.parts.some((p) => p.category === "GPU")
   ) {
     const gpuSkip = new Set(["GPU"]);
-    const noGpuFeasible = candidatePairs
+    const noGpuOptions = candidatePairs
       .map((pair) => ({
         pair,
         floor: cheapestFillFromPair(catalogByCategory, pair, gpuSkip),
       }))
-      .filter((e) => !requiredMissing(e.floor) && e.floor.total <= budget);
+      .filter((e) => !requiredMissing(e.floor));
 
-    if (noGpuFeasible.length) {
-      // Prefer anchor pairs whose CPU is known/likely to have integrated
-      // graphics (so the customer still gets a display out of the box);
-      // among equally-confident options, pick the cheapest.
-      const igpuRank = { present: 2, unknown: 1, none: 0 };
-      noGpuFeasible.sort((a, b) => {
-        const rank =
-          igpuRank[integratedGraphicsStatus(b.pair.cpu)] -
-          igpuRank[integratedGraphicsStatus(a.pair.cpu)];
-        return rank !== 0 ? rank : a.floor.total - b.floor.total;
-      });
-      cheapestEntry = noGpuFeasible[0];
+    if (noGpuOptions.length) {
+      const noGpuFeasible = noGpuOptions.filter((e) => e.floor.total <= budget);
+      if (noGpuFeasible.length) {
+        // Prefer anchor pairs whose CPU is known/likely to have integrated
+        // graphics (so the customer still gets a display out of the box);
+        // among equally-confident options, pick the cheapest.
+        const igpuRank = { present: 2, unknown: 1, none: 0 };
+        noGpuFeasible.sort((a, b) => {
+          const rank =
+            igpuRank[integratedGraphicsStatus(b.pair.cpu)] -
+            igpuRank[integratedGraphicsStatus(a.pair.cpu)];
+          return rank !== 0 ? rank : a.floor.total - b.floor.total;
+        });
+        cheapestEntry = noGpuFeasible[0];
+      } else {
+        // Doesn't fit budget even without a GPU either — but it's still a
+        // truer "cheapest possible" floor than the with-GPU price below,
+        // since a real customer could choose to skip the GPU. Using the
+        // with-GPU total here would overstate the shortfall shown in the
+        // no-builds-possible message.
+        const cheapestNoGpu = noGpuOptions.reduce(
+          (min, e) => (e.floor.total < min.floor.total ? e : min),
+          noGpuOptions[0],
+        );
+        if (cheapestNoGpu.floor.total < cheapestEntry.floor.total) {
+          cheapestEntry = cheapestNoGpu;
+        }
+      }
     }
   }
 
@@ -1102,7 +1129,12 @@ router.post("/order-request", async (req, res) => {
     const buildWithCurrency = { ...matched, currency: store.currency || "PKR" };
     const orderId = await orderRequestDB.create(storeId, buildWithCurrency, method);
 
-    res.json({ success: true, orderId, build: buildWithCurrency });
+    res.json({
+      success: true,
+      orderId,
+      orderSig: signOrderId(orderId),
+      build: buildWithCurrency,
+    });
   } catch (err) {
     console.error("Order-request handler error:", err.message || err);
     if (!res.headersSent) {
@@ -1112,6 +1144,71 @@ router.post("/order-request", async (req, res) => {
       });
     }
   }
+});
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[ch]);
+}
+
+// ─── ORDER VIEW (public, signed link) ────────────────────────────
+// What the WhatsApp message's link points to. Renders the exact same
+// server-computed order_requests row a store owner would otherwise have
+// to find in the dashboard's Orders tab — reachable straight from the
+// WhatsApp chat, and immune to whatever the customer edited (or deleted)
+// in the message text around it, since the link itself carries no
+// customer-supplied data at all.
+router.get("/order/:id/:sig", async (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || req.params.sig !== signOrderId(id)) {
+    return res.status(404).send("<p>Order not found.</p>");
+  }
+
+  const order = await orderRequestDB.getByIdPublic(id);
+  if (!order) return res.status(404).send("<p>Order not found.</p>");
+
+  const store = await storeDB.findById(order.store_id);
+  const storeName = escapeHtml(store?.name || "the store");
+
+  const rows = (order.parts || [])
+    .map((p) => {
+      const qty = p.quantity || 1;
+      const total = p.totalPrice || p.price * qty;
+      return `
+        <tr style="border-bottom:1px solid #e0e0e0;">
+          <td style="padding:8px 10px; color:#666; font-size:11px; text-transform:uppercase;">${escapeHtml(p.category)}</td>
+          <td style="padding:8px 10px;">${escapeHtml(p.name)}${qty > 1 ? ` × ${qty}` : ""}</td>
+          <td style="padding:8px 10px; text-align:right; font-weight:600;">${escapeHtml(order.currency)} ${Number(total).toLocaleString()}</td>
+        </tr>`;
+    })
+    .join("");
+
+  res.send(`<!doctype html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order #${id} — ${storeName}</title></head>
+<body style="font-family:'Inter',Arial,sans-serif; max-width:600px; margin:0 auto; padding:24px; color:#111;">
+  <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Order #${id} — verified, unedited</div>
+  <h1 style="font-size:20px; margin:6px 0 2px;">${escapeHtml(order.build_name)}</h1>
+  <div style="color:#666; font-size:13px; margin-bottom:16px;">For ${storeName} — placed ${escapeHtml(new Date(order.created_at).toLocaleString())}</div>
+  <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+    <thead><tr style="background:#f5f5f5;">
+      <th style="padding:8px 10px; text-align:left; font-size:11px; text-transform:uppercase;">Category</th>
+      <th style="padding:8px 10px; text-align:left; font-size:11px; text-transform:uppercase;">Part</th>
+      <th style="padding:8px 10px; text-align:right; font-size:11px; text-transform:uppercase;">Price</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="background:#edf7f2; border:1px solid #1a7a4a; color:#1a7a4a; border-radius:10px; padding:14px; display:flex; justify-content:space-between; font-weight:700;">
+    <span>Total</span><span>${escapeHtml(order.currency)} ${Number(order.total_price).toLocaleString()}</span>
+  </div>
+  <p style="color:#888; font-size:11px; margin-top:20px;">This page is generated directly from ${storeName}'s BuildVolt records and cannot be edited by the customer.</p>
+</body></html>`);
 });
 
 module.exports = router;

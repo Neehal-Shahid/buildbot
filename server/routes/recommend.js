@@ -900,15 +900,42 @@ function generateBuildsFromCatalog(products, budget, purpose) {
     budget,
   );
 
-  let builds = [budgetResult, balancedResult, maxResult];
+  // Balanced (ceiling ≈82% of budget) and Max (ceiling = budget) both climb
+  // from the same Budget build until nothing costs less than the ceiling
+  // left to upgrade to (see climbToward/nextUpgradeFor) — with a small
+  // catalog (e.g. only one GPU or one CPU in stock), that ceiling is often
+  // this store's own inventory, not the customer's budget: every category
+  // gets maxed out well under 82% of a generous budget, so Balanced and
+  // Max independently arrive at the exact same build. Showing that as two
+  // "different" cards with identical parts and prices is actively
+  // misleading — reads like a bug even though the math is right — so
+  // they're collapsed into one build here whenever that happens, labeled
+  // as the store's best available rather than a fake "balanced" stop
+  // along the way to something bigger that was never actually there.
+  const balancedMaxedOut = Math.round(balancedResult.total) === Math.round(maxResult.total);
+
+  let builds, tierMeta;
+  if (balancedMaxedOut) {
+    builds = [budgetResult, maxResult];
+    tierMeta = ["Budget Build", "Max Build"];
+  } else {
+    builds = [budgetResult, balancedResult, maxResult];
+    tierMeta = ["Budget Build", "Balanced Build", "Max Build"];
+  }
   builds.sort((a, b) => a.total - b.total);
 
-  const tierMeta = ["Budget Build", "Balanced Build", "Max Build"];
   const finalBuilds = builds.map((b, i) =>
     finalizeBuild(b, tierMeta[i], budget, purpose, purposeProfile),
   );
 
-  return { canBuild: true, noBuildsReason: "", builds: finalBuilds };
+  // Only meaningful when a build was actually capped by the store's own
+  // inventory (not the customer's budget) — lets the widget explain why
+  // fewer than 3 builds showed up instead of it looking like a glitch.
+  const inventoryCeilingNote = balancedMaxedOut
+    ? `This store's best available build for your needs costs ${Math.round(maxResult.total).toLocaleString()} — a bigger budget won't unlock anything more from their current inventory.`
+    : "";
+
+  return { canBuild: true, noBuildsReason: "", builds: finalBuilds, inventoryCeilingNote };
 }
 
 // Simple In-Memory IP Rate Limiter (15 requests per hour per IP)
@@ -1019,6 +1046,7 @@ router.post("/recommend", async (req, res) => {
         builds: buildsToServe,
         canBuild: cachedRec.canBuild !== false,
         noBuildsReason: cachedRec.noBuildsReason || "",
+        inventoryCeilingNote: cachedRec.inventoryCeilingNote || "",
         currency,
         cached: true,
       });
@@ -1034,6 +1062,7 @@ router.post("/recommend", async (req, res) => {
       builds: generated.builds,
       canBuild: generated.canBuild,
       noBuildsReason: generated.noBuildsReason,
+      inventoryCeilingNote: generated.inventoryCeilingNote || "",
       currency,
     };
 

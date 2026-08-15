@@ -250,7 +250,7 @@
             <div class="bb-loading-ring">
               <div class="bb-ring-inner"></div>
             </div>
-            <div class="bb-loading-title">Designing 3 builds for you</div>
+            <div class="bb-loading-title">Designing your builds</div>
             <div class="bb-loading-steps" id="bb-loading-steps">
               <div class="bb-load-step active" id="lsA">📦 Scanning your catalog...</div>
               <div class="bb-load-step" id="lsB">🧠 Matching parts to your budget...</div>
@@ -461,6 +461,7 @@
           data.currency || CURRENCY,
           data.canBuild !== false,
           data.noBuildsReason || "",
+          data.inventoryCeilingNote || "",
         );
       } catch {
         if (bbTimer) clearInterval(bbTimer);
@@ -557,8 +558,8 @@
     });
   }
 
-  // ─── RENDER THREE BUILD CARDS ─────────────────────────────
-  function renderResults(builds, currency, canBuild, noBuildsReason) {
+  // ─── RENDER BUILD CARDS (2 or 3, depending on inventory) ──
+  function renderResults(builds, currency, canBuild, noBuildsReason, inventoryCeilingNote) {
     const container = document.getElementById("bb-results");
 
     // ── No builds possible ──
@@ -581,7 +582,11 @@
     // ── Build cards ──
     const cardsHtml = builds
       .map((build, i) => {
-        const isFeatured = i === 1; // Middle build = featured / "Balanced"
+        // Balanced is the natural highlight when present; with only 2
+        // builds (Balanced/Max collapsed together — see
+        // inventoryCeilingNote) there's no meaningful "middle" option
+        // anymore, so nothing is singled out as featured.
+        const isFeatured = build.tier === "Balanced Build";
         const isOver = !build.withinBudget;
 
         // Parts preview — show first 4 categories as pills
@@ -625,6 +630,11 @@
       <div class="bb-results-header">
         <div class="bb-results-title">⚡ ${builds.length} Builds Ready</div>
         <div class="bb-results-sub">Tap any build to see full details, parts list, and prices.</div>
+        ${
+          inventoryCeilingNote
+            ? `<div class="bb-inventory-ceiling-note">💡 ${escapeHtml(inventoryCeilingNote)}</div>`
+            : ""
+        }
       </div>
       <div class="bb-build-cards">${cardsHtml}</div>`;
 

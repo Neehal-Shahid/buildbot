@@ -228,7 +228,7 @@
             <input class="bb-input" id="bb-budget" type="number" placeholder="e.g. 80000" style="margin:0;flex:1;"/>
           </div>
           <div class="bb-field-error" id="bb-budget-error"></div>
-          <div class="bb-input-hint">Enter your total budget in ${escapeHtml(CURRENCY)}. You'll see every compatible build this store can offer within it, from cheapest to max.</div>
+          <div class="bb-input-hint">Enter your total budget in ${escapeHtml(CURRENCY)}. You'll see up to 10 compatible builds this store can offer, all close to your budget.</div>
           <div class="bb-label">Quick select</div>
           <div class="bb-chips" id="bb-budget-chips"></div>
           <button class="bb-btn" id="bb-next-s2">Next →</button>
@@ -239,7 +239,7 @@
           <button class="bb-back" id="bb-back-s4">← Back</button>
           <div class="bb-step-label">Step 2 of 2</div>
           <div class="bb-screen-title" style="font-size:17px;">Ready to build your PC?</div>
-          <div class="bb-screen-body">BuildVolt will scan the store's inventory and show you every compatible PC build within your budget — starting from the cheapest option and climbing up to the most your budget allows.</div>
+          <div class="bb-screen-body">BuildVolt will scan the store's inventory and show you up to 10 compatible PC builds, all priced close to your budget.</div>
           <button class="bb-btn" id="bb-build-btn">⚡ Build My PC</button>
         </div>
 

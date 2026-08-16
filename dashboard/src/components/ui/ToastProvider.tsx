@@ -62,12 +62,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="fixed top-4 right-4 z-[999999] flex flex-col gap-2.5 w-[22rem] max-w-[90vw]">
+      <div className="fixed top-4 right-4 z-[999999] flex flex-col gap-2.5 w-100 max-w-[calc(100vw-2rem)]">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="flex items-start gap-3 rounded-xl bg-white px-4 py-3.5 shadow-lg"
-            style={{ boxShadow: "0 8px 24px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.08)" }}
+            className="bb-toast-in flex items-start gap-3 rounded-xl bg-white px-4 py-3.5 border border-neutral-200/80"
+            style={{ boxShadow: "0 12px 28px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.08)" }}
           >
             <div
               className="flex h-8 w-8 flex-none items-center justify-center rounded-full"
@@ -77,7 +77,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             </div>
             <div className="min-w-0 flex-1 pt-0.5">
               <div className="text-[13px] font-semibold leading-snug text-neutral-900">{t.title}</div>
-              {t.message && <div className="mt-0.5 text-[12px] leading-snug text-neutral-500">{t.message}</div>}
+              {t.message && (
+                <div className="mt-1 max-h-34 overflow-y-auto pr-1 text-[12px] leading-relaxed text-neutral-500">
+                  {t.message}
+                </div>
+              )}
             </div>
             <button
               onClick={() => remove(t.id)}

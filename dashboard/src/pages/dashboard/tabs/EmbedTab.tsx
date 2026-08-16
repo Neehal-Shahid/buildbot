@@ -457,6 +457,17 @@ function WooGuide({
                 <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
                   Paste your Store ID and this key into the plugin's settings page.
                 </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "uppercase" }}>Store ID</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200, padding: "10px 12px", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 12, wordBreak: "break-all" }}>
+                      {store?.storeId || ""}
+                    </div>
+                    <button type="button" className="btn btn-sm" onClick={() => onCopy(store?.storeId || "", "Store ID")}>
+                      Copy
+                    </button>
+                  </div>
+                </div>
                 <button type="button" className={`btn btn-primary btn-sm${generating ? " is-loading" : ""}`} onClick={generateKey} disabled={generating || !canConnect}>
                   {generating ? "Generating…" : status?.hasKey ? "Generate new key" : "Generate key"}
                 </button>

@@ -21,7 +21,8 @@
   bottom: 96px;
   right: 24px;
   width: 380px;
-  max-height: 640px;
+  max-width: calc(100vw - 32px);
+  max-height: min(640px, calc(100vh - 120px));
   background: #ffffff;
   border: 1px solid var(--bb-border);
   border-radius: 20px;

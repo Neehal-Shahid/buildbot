@@ -269,20 +269,6 @@ function evaluablePairs(pairs, limitEachEnd) {
   return [...pairs.slice(0, limitEachEnd), ...pairs.slice(-limitEachEnd)];
 }
 
-// Picks up to `max` builds spread evenly across a price-sorted list rather
-// than just the `max` cheapest — a customer's budget should see the full
-// range of what's achievable (cheapest through priciest-still-affordable),
-// not a cluster of near-identical cheap options with nothing above them.
-function spreadAcrossRange(sorted, max) {
-  if (sorted.length <= max) return sorted;
-  const picked = [];
-  for (let i = 0; i < max; i++) {
-    const idx = Math.round((i * (sorted.length - 1)) / (max - 1));
-    picked.push(sorted[idx]);
-  }
-  return [...new Set(picked)];
-}
-
 function compatibleCandidates(category, catalogByCategory, ctx) {
   const list = catalogByCategory.get(category) || [];
   switch (category) {
@@ -571,11 +557,13 @@ function finalizeBuild(b, rank, count, budget, anyPricierBuildHasGpu) {
   };
 }
 
-// Max number of distinct builds ever returned in one response — not a
-// target to fill, just a ceiling so a large, varied catalog doesn't hand
-// the customer a scroll of 40 near-identical cards. Real catalogs with
-// modest variety will naturally return fewer.
-const MAX_BUILDS_SHOWN = 12;
+// How many builds a customer sees, all clustered close to their stated
+// budget rather than spread down to this store's cheapest possible build —
+// the priciest-affordable build anchors the top, and each one below it
+// steps down from there. A target, not a guarantee: a catalog with little
+// price variety near the top of the customer's budget will naturally
+// return fewer, rather than padding the list with the same build repeated.
+const TARGET_BUILDS_NEAR_BUDGET = 10;
 
 // Realistic per-category quantity ceilings — a real PC has 2-4 RAM slots
 // and room for a handful of case fans, never dozens.
@@ -701,9 +689,12 @@ function cheapestNextStep(parts, ctx, catalogByCategory) {
 // Climbs from the cheapest complete build up to `budget` in two phases,
 // recording a snapshot whenever the price has moved far enough from the
 // last one to be worth showing as a distinct option (minGap scales with
-// the budget so a small and a large budget both get a handful of
-// meaningfully spaced options, not dozens of near-identical ones or one
-// fixed peso amount that's too coarse/fine depending on scale):
+// the budget so a small and a large budget both get finely spaced options,
+// not one fixed peso amount that's too coarse/fine depending on scale).
+// Deliberately fine-grained across the whole climb — generateBuildsFromCatalog
+// only keeps the tail end closest to budget, so this needs enough recorded
+// steps near the top for that tail to actually contain distinct builds
+// rather than one or two coarse jumps:
 //
 // Phase 1 — no GPU yet. Climbs every OTHER category via cheapestNextStep
 // while a GPU still wouldn't fit remaining budget, re-checking after each
@@ -744,7 +735,7 @@ function climbAndSnapshot(startFloor, catalogByCategory, budget) {
   };
 
   const snapshots = [snapshot()];
-  const minGap = Math.max(budget * 0.15, 2000);
+  const minGap = Math.max(budget * 0.015, 500);
   let lastSnapshotTotal = total;
   let guard = 0;
   const maxGuard = 2000; // steps are cheap (a few array scans each) — this bounds runaway loops, not realistic catalogs
@@ -868,14 +859,17 @@ function generateBuildsFromCatalog(products, budget) {
   // snapshot at every meaningfully-priced step along the way (see
   // climbAndSnapshot/cheapestNextStep) — a GPU gets introduced at
   // whatever price point is genuinely the cheapest place to add one,
-  // rather than at a fixed budget percentage, so the customer sees the
-  // real range of what this store can build for their money instead of a
-  // fixed count of tiers that could leave a big, meaningless gap.
+  // rather than at a fixed budget percentage.
   const snapshots = climbAndSnapshot(startFloor, catalogByCategory, budget);
-  // Safety net, not the normal path — minGap spacing inside
-  // climbAndSnapshot already keeps this well under the cap for any
-  // realistic catalog.
-  const selected = spreadAcrossRange(snapshots, MAX_BUILDS_SHOWN);
+  // Customer-facing builds are the tail end of the climb — the ones
+  // closest to (and including) the priciest-affordable build — rather
+  // than a spread across the whole floor-to-budget range: a 50,000 budget
+  // should see build options that are all genuinely close to 50,000, not
+  // one at 50,000 next to another at 12,000. `snapshots` is already in
+  // ascending price order, so this is just its last N entries; if the
+  // climb produced fewer than that near the top, slice() naturally
+  // returns however many genuinely exist rather than padding the count.
+  const selected = snapshots.slice(-TARGET_BUILDS_NEAR_BUDGET);
 
   const anyBuildHasGpu = selected.some((b) => b.ctx?.gpu);
   const finalBuilds = selected.map((b, i) =>

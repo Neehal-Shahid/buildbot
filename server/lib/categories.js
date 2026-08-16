@@ -101,16 +101,30 @@ function detectCategory(rawText) {
   )
     return "RAM";
 
+  // An optical/disc drive (DVD/Blu-ray writer) isn't build-relevant Storage
+  // in the sense this engine means it — a boot/data drive — even though its
+  // own name and description are full of the word "drive"; excluded here
+  // the same way "cooler master" is excluded from the CPU Cooler rule
+  // above, rather than letting a DVD writer get picked as a build's SSD/HDD.
+  const isOpticalDrive =
+    text.includes("optical drive") ||
+    text.includes("dvd") ||
+    text.includes("blu-ray") ||
+    text.includes("blu ray") ||
+    text.includes("cd-rom") ||
+    text.includes("cd rom") ||
+    text.includes("disc drive");
   if (
-    text.includes("storage") ||
-    text.includes("ssd") ||
-    text.includes("hdd") ||
-    text.includes("nvme") ||
-    text.includes("disk") ||
-    text.includes("drive") ||
-    text.includes("solid state") ||
-    text.includes("m.2") ||
-    text.includes("sata")
+    !isOpticalDrive &&
+    (text.includes("storage") ||
+      text.includes("ssd") ||
+      text.includes("hdd") ||
+      text.includes("nvme") ||
+      text.includes("disk") ||
+      text.includes("drive") ||
+      text.includes("solid state") ||
+      text.includes("m.2") ||
+      text.includes("sata"))
   )
     return "Storage";
 
@@ -134,12 +148,27 @@ function detectCategory(rawText) {
   return null;
 }
 
-// Tries the category field first, then falls back to the product name —
-// covers files where the category column is missing, blank, or garbled
-// (common in freeform PDF/Word uploads) but the product name still gives
-// away what it is (e.g. name "RTX 3060 Graphics Card" with no category).
+// Falls back to guessing from the product name ONLY when there's no
+// category text to work with at all — covers files where the category
+// column itself is missing, blank, or garbled (common in freeform PDF/Word
+// uploads), where the product name is the only thing left to go on (e.g.
+// name "RTX 3060 Graphics Card" with no category).
+//
+// When category text IS present but doesn't match one of our nine
+// supported categories, that's a real, explicit classification (e.g.
+// "Keyboard", "Monitor", "Thermal Paste") — not a missing value — and
+// must be respected as "this store's item genuinely isn't a category the
+// build engine understands", never overridden by re-guessing from the
+// name. Guessing from the name in that case previously misfired on brand
+// names and shared component words the name happens to contain even
+// though the item is something else entirely — e.g. "GPU Support
+// Bracket" (an accessory) absorbed into GPU, "Fantech ... Mouse" absorbed
+// into Case Fans via the brand name containing "fan", "Noctua ... Thermal
+// Paste" absorbed into CPU Cooler via the brand also making coolers.
 function normalizeCategory(categoryText, nameText) {
-  return detectCategory(categoryText) || detectCategory(nameText) || null;
+  const catText = String(categoryText || "").trim();
+  if (catText) return detectCategory(catText);
+  return detectCategory(nameText) || null;
 }
 
 module.exports = {

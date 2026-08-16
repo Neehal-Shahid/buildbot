@@ -3,7 +3,7 @@
  * Plugin Name: BuildVolt PC Build Recommender
  * Plugin URI:  https://buildvolt.online
  * Description: Connects your WooCommerce store to BuildVolt — syncs products automatically so customers get instant PC build recommendations.
- * Version:     1.10.0
+ * Version:     1.10.1
  * Author:      BuildVolt
  * Author URI:  https://buildvolt.online
  * License:     GPL v2 or later
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
 // ─── CONSTANTS ────────────────────────────────────────────
 define('BUILDVOLT_API',     'https://buildbot-production-3f70.up.railway.app/api');
-define('BUILDVOLT_VERSION', '1.10.0');
+define('BUILDVOLT_VERSION', '1.10.1');
 define('BUILDVOLT_UPDATE_URL', 'https://buildbot-production-3f70.up.railway.app/plugin-update.json');
 
 // ─── CHECK WOOCOMMERCE ON ACTIVATION ─────────────────────
@@ -196,16 +196,31 @@ function buildvolt_detect_category($text) {
     strpos($text, 'ripjaws') !== false
   ) return 'RAM';
 
+  // An optical/disc drive isn't build-relevant Storage in the sense this
+  // plugin means it (a boot/data drive) even though its own name is full
+  // of the word "drive" — excluded the same way "cooler master" is
+  // excluded from the CPU Cooler check above.
+  $is_optical_drive = (
+    strpos($text, 'optical drive') !== false ||
+    strpos($text, 'dvd') !== false ||
+    strpos($text, 'blu-ray') !== false ||
+    strpos($text, 'blu ray') !== false ||
+    strpos($text, 'cd-rom') !== false ||
+    strpos($text, 'cd rom') !== false ||
+    strpos($text, 'disc drive') !== false
+  );
   if (
-    strpos($text, 'storage') !== false ||
-    strpos($text, 'ssd') !== false ||
-    strpos($text, 'hdd') !== false ||
-    strpos($text, 'nvme') !== false ||
-    strpos($text, 'disk') !== false ||
-    strpos($text, 'drive') !== false ||
-    strpos($text, 'solid state') !== false ||
-    strpos($text, 'm.2') !== false ||
-    strpos($text, 'sata') !== false
+    !$is_optical_drive && (
+      strpos($text, 'storage') !== false ||
+      strpos($text, 'ssd') !== false ||
+      strpos($text, 'hdd') !== false ||
+      strpos($text, 'nvme') !== false ||
+      strpos($text, 'disk') !== false ||
+      strpos($text, 'drive') !== false ||
+      strpos($text, 'solid state') !== false ||
+      strpos($text, 'm.2') !== false ||
+      strpos($text, 'sata') !== false
+    )
   ) return 'Storage';
 
   if (
@@ -226,13 +241,31 @@ function buildvolt_detect_category($text) {
 }
 
 function buildvolt_map_category($woo_categories, $product_name = '') {
-  if (!empty($woo_categories)) {
-    foreach ($woo_categories as $cat) {
+  // "Uncategorized" is WooCommerce's own default bucket for a product the
+  // store owner never assigned a real category to — not an intentional
+  // classification the way "Keyboards" or "Monitors" is, so it doesn't
+  // count as having real category text below.
+  $real_categories = array_filter($woo_categories ?: [], function ($cat) {
+    $name = strtolower(trim($cat['name'] ?? ''));
+    return $name !== '' && $name !== 'uncategorized';
+  });
+
+  if (!empty($real_categories)) {
+    // Real category text is present — trust it. Falling through to guess
+    // from the product name here (as this used to) would let a name's
+    // shared brand/component words override an explicit category the
+    // store owner already gave that simply isn't one of the nine this
+    // plugin understands (e.g. "Keyboards"), rather than correctly
+    // reporting it as unmapped.
+    foreach ($real_categories as $cat) {
       $detected = buildvolt_detect_category($cat['name']);
       if ($detected) return $detected;
     }
+    return 'Unmapped';
   }
 
+  // No usable category at all — only here does guessing from the product
+  // name make sense.
   $detected = buildvolt_detect_category($product_name);
   if ($detected) return $detected;
 

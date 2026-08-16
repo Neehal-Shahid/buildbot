@@ -122,13 +122,20 @@ function mapProduct(wooProduct) {
     .slice(0, 200);
 
   // Join every WooCommerce category, not just the first one — a product's
-  // first category is often a generic/marketing tag ("Uncategorized",
-  // "Featured") with the actual part-type category listed second or
-  // third, and detectCategory() does substring matching so joining is
-  // enough to let any of them match.
+  // first category is often a generic/marketing tag ("Featured") with the
+  // actual part-type category listed second or third, and detectCategory()
+  // does substring matching so joining is enough to let any of them match.
+  // "Uncategorized" is WooCommerce's own default bucket for a product the
+  // store owner never assigned a real category to — not an intentional
+  // classification the way "Keyboards" or "Monitors" is — so it's dropped
+  // here rather than joined in, the same way a blank category cell is:
+  // normalizeCategory() only falls back to guessing from the product name
+  // when there's no real category text to trust, and a product whose only
+  // "category" is WooCommerce's own default should still get that fallback
+  // instead of being skipped outright.
   const wooCategoryNames = (wooProduct.categories || [])
     .map((c) => c?.name || "")
-    .filter(Boolean)
+    .filter((name) => name && name.trim().toLowerCase() !== "uncategorized")
     .join(" ");
   const category = normalizeCategory(wooCategoryNames, wooProduct.name || "");
 
